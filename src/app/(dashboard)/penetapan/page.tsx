@@ -1,0 +1,58 @@
+import { redirect } from "next/navigation";
+import { FileCheck2 } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { PageHeader } from "@/components/ui/primitives";
+import { DocumentManager } from "@/components/documents/document-manager";
+
+export const metadata = { title: "Penetapan — SPMI" };
+
+export default async function PenetapanPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const [cycles, docs] = await Promise.all([
+    prisma.auditCycle.findMany({ orderBy: { startDate: "desc" } }),
+    prisma.document.findMany({
+      where: { type: "penetapan" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        cycle: { select: { name: true } },
+        uploader: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  const isLpm =
+    user.role === "lpm_admin" ||
+    user.role === "lpm_member" ||
+    user.role === "superadmin";
+
+  return (
+    <div>
+      <PageHeader
+        icon={FileCheck2}
+        title="Dokumen Penetapan"
+        description={
+          isLpm
+            ? "Unggah dan kelola dokumen penetapan untuk dilihat oleh unit yang diaudit."
+            : "Daftar dokumen penetapan dari LPM (hanya baca)."
+        }
+      />
+      <DocumentManager
+        type="penetapan"
+        canManage={isLpm}
+        cycles={cycles.map((c) => ({ id: c.id, name: c.name }))}
+        documents={docs.map((d) => ({
+          id: d.id,
+          title: d.title,
+          cycleName: d.cycle.name,
+          filePath: d.filePath,
+          link: d.link,
+          uploaderName: d.uploader?.name ?? "LPM",
+          createdAt: d.createdAt.toISOString(),
+        }))}
+      />
+    </div>
+  );
+}

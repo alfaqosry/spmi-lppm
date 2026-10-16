@@ -1,0 +1,250 @@
+@import "tailwindcss";
+
+/* Tailwind 4: buat varian `dark:` berbasis kelas `.dark` (bukan prefers-color-scheme). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =====================================================================
+   TEMA TERANG (default)
+   Nilai di bawah sengaja TIDAK dibungkus @layer sehingga menimpa token
+   bawaan Tailwind (yang berada di @layer theme). Skala netral (white /
+   slate-*) dibalik agar kelas-kelas yang semula dituning untuk latar
+   gelap tetap terbaca di latar terang. Accent (-200/-300) digelapkan.
+   ===================================================================== */
+:root {
+  color-scheme: light;
+
+  --bg: #f4f7fc;
+  --panel: rgba(255, 255, 255, 0.72);
+  --border: rgba(99, 102, 241, 0.16);
+  --body-color: #1e2a44;
+  --body-gradient:
+    radial-gradient(1100px 620px at 12% -8%, rgba(99, 102, 241, 0.1), transparent 60%),
+    radial-gradient(900px 560px at 100% 0%, rgba(14, 165, 233, 0.08), transparent 55%),
+    radial-gradient(800px 600px at 60% 120%, rgba(168, 85, 247, 0.07), transparent 60%),
+    var(--bg);
+  --card-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 255, 0.88));
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(99, 102, 241, 0.22);
+  --input-color: #1e2a44;
+  --input-placeholder: rgba(100, 116, 139, 0.7);
+  --bar-bg: rgba(255, 255, 255, 0.8);
+  --side-bg: rgba(255, 255, 255, 0.88);
+  --side-solid: #ffffff;
+  --modal-bg: #ffffff;
+  --scroll-thumb: rgba(99, 102, 241, 0.28);
+  --scroll-thumb-hover: rgba(99, 102, 241, 0.45);
+
+  /* Netral (dibalik) */
+  --color-white: #0f172b;
+  --color-slate-100: #0f172b;
+  --color-slate-200: #1d293d;
+  --color-slate-300: #314158;
+  --color-slate-400: #4a5a72;
+  --color-slate-500: #5b6b83;
+  --color-slate-600: #8b9cb3;
+  --color-slate-700: #c2ccd9;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #f1f5f9;
+
+  /* Accent (digelapkan untuk latar terang) */
+  --color-indigo-200: #3730a3;
+  --color-indigo-300: #4338ca;
+  --color-indigo-400: #6366f1;
+  --color-indigo-500: #4f46e5;
+  --color-violet-300: #6d28d9;
+  --color-violet-400: #7c3aed;
+  --color-violet-500: #7c3aed;
+  --color-violet-600: #6d28d9;
+  --color-emerald-200: #047857;
+  --color-emerald-300: #059669;
+  --color-emerald-400: #10b981;
+  --color-emerald-500: #059669;
+  --color-teal-400: #14b8a6;
+  --color-teal-500: #0d9488;
+  --color-amber-200: #b45309;
+  --color-amber-300: #b45309;
+  --color-amber-400: #f59e0b;
+  --color-amber-500: #d97706;
+  --color-orange-400: #f97316;
+  --color-orange-500: #ea580c;
+  --color-rose-200: #be123c;
+  --color-rose-300: #e11d48;
+  --color-rose-400: #f43f5e;
+  --color-rose-500: #e11d48;
+  --color-sky-200: #0369a1;
+  --color-sky-300: #0284c7;
+  --color-sky-400: #0ea5e9;
+  --color-sky-500: #0284c7;
+}
+
+/* =====================================================================
+   TEMA GELAP — nilai asli (aktif saat <html class="dark">).
+   ===================================================================== */
+.dark {
+  color-scheme: dark;
+
+  --bg: #070b1a;
+  --panel: rgba(20, 26, 51, 0.66);
+  --border: rgba(129, 140, 248, 0.16);
+  --body-color: #e2e8f7;
+  --body-gradient:
+    radial-gradient(1100px 620px at 12% -8%, rgba(99, 102, 241, 0.22), transparent 60%),
+    radial-gradient(900px 560px at 100% 0%, rgba(14, 165, 233, 0.16), transparent 55%),
+    radial-gradient(800px 600px at 60% 120%, rgba(168, 85, 247, 0.14), transparent 60%),
+    var(--bg);
+  --card-bg: linear-gradient(160deg, rgba(30, 37, 71, 0.72), rgba(16, 21, 43, 0.72));
+  --input-bg: rgba(9, 13, 30, 0.7);
+  --input-border: rgba(129, 140, 248, 0.22);
+  --input-color: #e2e8f7;
+  --input-placeholder: rgba(148, 163, 184, 0.65);
+  --bar-bg: rgba(8, 13, 31, 0.8);
+  --side-bg: rgba(10, 15, 36, 0.85);
+  --side-solid: #0a0f24;
+  --modal-bg: #0d1329;
+  --scroll-thumb: rgba(129, 140, 248, 0.28);
+  --scroll-thumb-hover: rgba(129, 140, 248, 0.45);
+
+  --color-white: #ffffff;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cad5e2;
+  --color-slate-400: #90a1b9;
+  --color-slate-500: #62748e;
+  --color-slate-600: #45556c;
+  --color-slate-700: #314158;
+  --color-slate-800: #1d293d;
+  --color-slate-900: #0f172b;
+
+  --color-indigo-200: #c7d2ff;
+  --color-indigo-300: #a4b3ff;
+  --color-indigo-400: #7d87ff;
+  --color-indigo-500: #625fff;
+  --color-violet-300: #c4b4ff;
+  --color-violet-400: #a685ff;
+  --color-violet-500: #8d54ff;
+  --color-violet-600: #7f22fe;
+  --color-emerald-200: #a4f4cf;
+  --color-emerald-300: #5ee9b5;
+  --color-emerald-400: #00d294;
+  --color-emerald-500: #00bb7f;
+  --color-teal-400: #00d3bd;
+  --color-teal-500: #00baa7;
+  --color-amber-200: #fee685;
+  --color-amber-300: #ffd236;
+  --color-amber-400: #fcbb00;
+  --color-amber-500: #f99c00;
+  --color-orange-400: #ff8b1a;
+  --color-orange-500: #fe6e00;
+  --color-rose-200: #ffccd3;
+  --color-rose-300: #ffa2ae;
+  --color-rose-400: #ff667f;
+  --color-rose-500: #ff2357;
+  --color-sky-200: #b8e6fe;
+  --color-sky-300: #77d4ff;
+  --color-sky-400: #00bcfe;
+  --color-sky-500: #00a5ef;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--body-gradient);
+  color: var(--body-color);
+  -webkit-font-smoothing: antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: content-box;
+}
+
+@utility glass {
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+}
+
+@utility card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+
+@utility input-base {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--input-color);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input.input-base::placeholder,
+textarea.input-base::placeholder {
+  color: var(--input-placeholder);
+}
+.input-base:focus {
+  border-color: rgba(129, 140, 248, 0.7);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+select.input-base option {
+  background: var(--modal-bg);
+  color: var(--input-color);
+}
+
+/* Permukaan shell (topbar/sidebar/modal) yang mengikuti tema. */
+@utility surface-bar {
+  background: var(--bar-bg);
+}
+@utility surface-side {
+  background: var(--side-bg);
+}
+@utility surface-side-solid {
+  background: var(--side-solid);
+}
+@utility surface-modal {
+  background: var(--modal-bg);
+}
+
+/* Teks yang berada di atas tombol/gradien berwarna — selalu putih. */
+@utility text-on-accent {
+  color: #ffffff;
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-in {
+  animation: floatIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
