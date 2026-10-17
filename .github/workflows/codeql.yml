@@ -48,6 +48,7 @@ jobs:
           category: "/language:javascript-typescript"
           upload: ${{ vars.CODEQL_UPLOAD || 'never' }}
           output: codeql-results
+          upload-database: ${{ vars.CODEQL_UPLOAD == 'always' }}
 
       - name: Simpan hasil SARIF
         if: always()
