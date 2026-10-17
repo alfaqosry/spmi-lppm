@@ -329,19 +329,25 @@ video {
   background-clip: content-box;
 }
 
+/* backdrop-filter mahal dirender di CPU ponsel (Lighthouse TBT/INP); efek kaca hanya
+   untuk layar lebar dengan pointer presisi. */
 @utility glass {
   background: var(--panel);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--border);
+  @media (min-width: 1024px) and (hover: hover) {
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
 }
 
 @utility card {
   background: var(--card-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 1rem;
+  @media (min-width: 1024px) and (hover: hover) {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
 }
 
 @utility input-base {

@@ -21,7 +21,7 @@ export function LegalPage({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="surface-bar border-b border-indigo-400/10 backdrop-blur-xl">
+      <header className="surface-bar border-b border-indigo-400/10 lg:backdrop-blur-xl">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 px-4 py-3">
           <Link
             href="/"
