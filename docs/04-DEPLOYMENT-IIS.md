@@ -213,6 +213,19 @@ Skrip yang dijalankan adalah salinan di `E:\www\spmi-prod\ops\` (diperbarui seti
 | `PM2 Resurrect`            | saat startup    | (sudah ada di server)   | Memulihkan proses PM2 dari `C:\pm2\dump.pm2` — jalankan `pm2 save` setelah perubahan proses                                      |
 | win-acme renew             | dibuat win-acme | otomatis                | Perpanjangan sertifikat Let's Encrypt                                                                                            |
 
+### Docker tetap hidup (tanpa login)
+
+Didaftarkan oleh `scripts\deploy\docker-autostart.ps1` (Administrator; opsional `-Credential`):
+
+| Tugas                            | Akun                | Pemicu                         | Isi                                                                                                                                                   |
+| -------------------------------- | ------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `\SPMI\Docker Desktop Autostart` | Administrator (S4U) | saat boot (+45 dtk)            | Menjalankan Docker Desktop tanpa perlu login; semua kontainer `restart: unless-stopped` ikut hidup                                                    |
+| `\SPMI\SPMI Watchdog`            | SYSTEM              | saat boot (+3 mnt), tiap 5 mnt | `ops\watchdog.ps1`: engine Docker mati → picu tugas Autostart; `spmi-db` tidak running → `docker start`; `/api/health` gagal 2× → `pm2 startOrReload` |
+
+Log hanya ditulis saat ada pemulihan: `E:\www\spmi-prod\logs\watchdog.log`. Docker Desktop terpasang
+per-pengguna (Administrator), sehingga tugas Autostart **harus** memakai akun itu; bila akun sedang
+terkunci (lockout), watchdog mengulang pemicu setiap 5 menit sampai berhasil.
+
 Dump/restore memakai `scripts\deploy\lib-db.ps1`: kredensial dibaca dari env **di dalam** kontainer
 `spmi-db`, berkas dipindah dengan `docker cp` (tidak ada sandi di baris perintah host).
 **Uji restore minimal sekali per semester** ke database terpisah (contoh: `Invoke-DbRestore <dump> restore_test`).
@@ -241,6 +254,7 @@ Rotasi log PM2: `pm2 install pm2-logrotate` lalu `pm2 set pm2-logrotate:max_size
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **PM2 `spmi` stopped / `EPERM` pada `logs\pm2-*.log`**               | ACL folder `logs` dikunci sehingga daemon PM2 tidak bisa menulis log                                                 | `takeown /F E:\www\spmi-prod\logs /R /A` lalu `icacls E:\www\spmi-prod\logs /reset /T`; `pm2 start E:\www\spmi-prod\ecosystem.config.cjs`              |
 | **Node listen di IP publik / `http://<nama-host>:3002`**             | `pm2 restart --update-env` menimpa `HOSTNAME` dengan env shell                                                       | Jangan `pm2 restart --update-env`; selalu `pm2 startOrReload E:\www\spmi-prod\ecosystem.config.cjs` (env eksplisit `HOSTNAME=127.0.0.1`)               |
+| **Docker/`spmi-db` mati setelah reboot**                             | Docker Desktop hanya hidup saat Administrator login; atau akun Administrator terkunci (event 4740)                   | Cek `logs\watchdog.log`; `Get-ScheduledTaskInfo -TaskPath \SPMI\ -TaskName 'Docker Desktop Autostart'`; hentikan sumber login gagal (event 4625)       |
 | **502.3 / 502 Bad Gateway** dari IIS                                 | Proses Node mati/restart, belum listen di 3002, atau ARR timeout                                                     | `pm2 status`, `pm2 logs spmi`; pastikan `HOSTNAME=127.0.0.1 PORT=3002`; naikkan `proxy timeout`; cek `max_memory_restart`                              |
 | **502.4** "No server is available"                                   | Proxy ARR belum diaktifkan                                                                                           | §1.1 `proxy /enabled:True`                                                                                                                             |
 | 500.50 URL Rewrite                                                   | Server variable belum diizinkan                                                                                      | `allowedServerVariables` `HTTP_X_FORWARDED_PROTO` (dibuat oleh setup)                                                                                  |
