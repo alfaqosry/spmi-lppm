@@ -131,6 +131,30 @@ export default function LoginForm({
           />
         </div>
       </form>
+
+      {/* Akun demo (prisma/seed-demo.ts) hanya untuk pengembangan lokal. NODE_ENV
+          diinline saat build, sehingga blok ini tidak ikut ke bundle produksi. */}
+      {process.env.NODE_ENV !== "production" && (
+        <div className="rounded-xl border border-slate-700/50 bg-slate-500/10 p-3">
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Akun demo lokal
+          </p>
+          <ul className="space-y-1 text-xs text-slate-400">
+            <li>
+              <span className="text-slate-300">Admin LPM:</span> admin@lpm.ac.id
+              / admin123
+            </li>
+            <li>
+              <span className="text-slate-300">Kepala Unit:</span>{" "}
+              kepala.prodi@lpm.ac.id / unit123
+            </li>
+            <li>
+              <span className="text-slate-300">Anggota Unit:</span>{" "}
+              anggota.prodi@lpm.ac.id / unit123
+            </li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

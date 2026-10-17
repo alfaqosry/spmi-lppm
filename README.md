@@ -81,6 +81,19 @@ npm run db:seed
 > Password minimal 8 karakter. Ganti kata sandi segera setelah login pertama.
 > Akun lain dibuat melalui menu **Role & Penempatan** di dashboard.
 
+### Akun Demo (khusus pengembangan lokal)
+
+`SEED_DEMO=true npm run db:seed:demo` **menghapus seluruh data** lalu mengisi 6 unit, data contoh, dan akun demo
+berikut. Skrip ditolak bila `NODE_ENV=production`; kotak akun demo di halaman login hanya tampil saat development.
+
+| Peran               | Email                     | Kata Sandi |
+| ------------------- | ------------------------- | ---------- |
+| Admin LPM           | `admin@lpm.ac.id`         | `admin123` |
+| Anggota LPM         | `anggota.lpm@lpm.ac.id`   | `unit123`  |
+| Kepala Unit         | `kepala.prodi@lpm.ac.id`  | `unit123`  |
+| Anggota Unit        | `anggota.prodi@lpm.ac.id` | `unit123`  |
+| Kepala Perpustakaan | `kepala.perpus@lpm.ac.id` | `unit123`  |
+
 ## 🔐 Kontrol Akses (RBAC)
 
 - **`superadmin`** — **akses penuh seluruh fitur Admin LPM** + menu **Pengaturan Sistem** khusus. Dapat mengatur identitas & SEO sistem, integrasi SSO (Client ID/Secret), log login & aktivitas, kebijakan keamanan, mode pemeliharaan, dan membuat superadmin lain. Peran ini hanya dapat dibuat/dikelola oleh superadmin.
@@ -176,21 +189,22 @@ File bukti/dokumen disimpan **privat** di `UPLOAD_DIR` (default `storage/uploads
 
 ## 📜 Skrip
 
-| Skrip               | Fungsi                                                  |
-| ------------------- | ------------------------------------------------------- |
-| `npm run dev`       | Menjalankan server pengembangan di port 3002            |
-| `npm run build`     | Build produksi                                          |
-| `npm run start`     | Menjalankan build produksi                              |
-| `npm run db:push`   | Sinkronkan skema Prisma ke database                     |
-| `npm run db:seed`   | Buat akun superadmin awal (butuh `SEED_ADMIN_PASSWORD`) |
-| `npm run db:studio` | Buka Prisma Studio                                      |
-| `npm run lint`      | ESLint (Next core-web-vitals + jsx-a11y)                |
-| `npm run format`    | Prettier (`format:check` untuk CI)                      |
-| `npm run typecheck` | TypeScript tanpa emit                                   |
-| `npm test`          | Uji unit Vitest                                         |
-| `npm run test:e2e`  | Uji E2E Playwright lintas browser (`test:a11y` = axe)   |
-| `npm run audit`     | Audit dependensi produksi                               |
-| `npm run ci`        | Seluruh pemeriksaan CI lokal                            |
+| Skrip                  | Fungsi                                                                                 |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `npm run dev`          | Menjalankan server pengembangan di port 3002                                           |
+| `npm run build`        | Build produksi                                                                         |
+| `npm run start`        | Menjalankan build produksi                                                             |
+| `npm run db:push`      | Sinkronkan skema Prisma ke database                                                    |
+| `npm run db:seed`      | Buat akun superadmin awal (butuh `SEED_ADMIN_PASSWORD`)                                |
+| `npm run db:seed:demo` | Data & akun demo lokal (hapus semua data; butuh `SEED_DEMO=true`, ditolak di produksi) |
+| `npm run db:studio`    | Buka Prisma Studio                                                                     |
+| `npm run lint`         | ESLint (Next core-web-vitals + jsx-a11y)                                               |
+| `npm run format`       | Prettier (`format:check` untuk CI)                                                     |
+| `npm run typecheck`    | TypeScript tanpa emit                                                                  |
+| `npm test`             | Uji unit Vitest                                                                        |
+| `npm run test:e2e`     | Uji E2E Playwright lintas browser (`test:a11y` = axe)                                  |
+| `npm run audit`        | Audit dependensi produksi                                                              |
+| `npm run ci`           | Seluruh pemeriksaan CI lokal                                                           |
 
 ## 📚 Dokumentasi & Deploy
 

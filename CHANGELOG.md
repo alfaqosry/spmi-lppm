@@ -7,6 +7,14 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-17
+
+### Changed
+
+- Menggabungkan pemulihan data & akun demo (commit `cc0ac0b`) sebagai fitur **khusus pengembangan lokal**:
+  `prisma/seed-demo.ts` (`npm run db:seed:demo`, wajib `SEED_DEMO=true`, ditolak bila `NODE_ENV=production`);
+  kotak akun demo di halaman login hanya tampil saat development. `npm run db:seed` tetap seed produksi.
+
 ## [1.2.0] - 2026-10-17
 
 ### Added
@@ -103,7 +111,8 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.3...v1.2.0
 [1.1.3]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.1...v1.1.2

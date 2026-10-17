@@ -1,6 +1,6 @@
 {
   "name": "lpm-spmi",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
@@ -25,6 +25,7 @@
     "hooks:install": "git config core.hooksPath scripts/hooks",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:demo": "tsx prisma/seed-demo.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
