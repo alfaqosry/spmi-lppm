@@ -46,11 +46,11 @@ export default async function LoginPage({
     <div className="relative flex min-h-screen flex-col overflow-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl"
+        className="pointer-events-none absolute -left-24 top-10 h-96 w-96 bg-[radial-gradient(closest-side,rgb(99_102_241/0.2),transparent)]"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-sky-500/15 blur-3xl"
+        className="pointer-events-none absolute -right-16 bottom-0 h-[26rem] w-[26rem] bg-[radial-gradient(closest-side,rgb(14_165_233/0.15),transparent)]"
       />
 
       <main

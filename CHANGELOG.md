@@ -7,6 +7,13 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-10-17
+
+### Changed
+
+- Performa mobile: blob dekoratif `blur-3xl` diganti `radial-gradient`; `backdrop-filter`
+  (efek kaca) hanya di layar lebar dengan pointer presisi.
+
 ## [1.1.2] - 2026-10-17
 
 ### Fixed
@@ -73,7 +80,8 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Puskom-UP/lpm-new/compare/v1.0.0...v1.1.0

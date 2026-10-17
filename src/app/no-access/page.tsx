@@ -35,15 +35,15 @@ export default async function NoAccessPage() {
         {/* Latar dekoratif sesuai tema */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl"
+          className="pointer-events-none absolute -left-24 top-10 h-96 w-96 bg-[radial-gradient(closest-side,rgb(99_102_241/0.20),transparent)]"
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-sky-500/15 blur-3xl"
+          className="pointer-events-none absolute -right-16 bottom-0 h-[26rem] w-[26rem] bg-[radial-gradient(closest-side,rgb(14_165_233/0.15),transparent)]"
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-violet-500/10 blur-3xl"
+          className="pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 bg-[radial-gradient(closest-side,rgb(139_92_246/0.10),transparent)]"
         />
 
         <div className="animate-in relative w-full max-w-lg">
