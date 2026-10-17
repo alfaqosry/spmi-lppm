@@ -52,7 +52,7 @@ export function ErrorView({
         tidak hilang.
       </p>
       {error.digest && (
-        <p className="mt-3 text-[11px] text-slate-500">
+        <p className="mt-3 text-xs text-slate-500">
           Kode referensi:{" "}
           <code className="font-mono text-slate-400">{error.digest}</code>
         </p>
@@ -74,7 +74,7 @@ export function ErrorView({
           Ke beranda
         </Link>
       </div>
-      <p className="mt-5 text-[11px] text-slate-500">
+      <p className="mt-5 text-xs text-slate-500">
         Masalah berlanjut? Hubungi LPM di{" "}
         <a
           href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Laporan Galat SPMI")}${

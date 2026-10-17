@@ -25,7 +25,7 @@ export function ChartPanel({
     <figure className="card min-w-0 p-4">
       <figcaption className="mb-3">
         <h2 className="text-sm font-semibold text-white">{title}</h2>
-        {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
       </figcaption>
       <div
         role="img"

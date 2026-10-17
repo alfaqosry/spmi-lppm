@@ -194,7 +194,7 @@ export function DashboardCharts({
             <h2 className="text-sm font-semibold text-white">
               Capaian Kepatuhan Institusi
             </h2>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-xs text-slate-400">
               Persentase butir pertanyaan yang telah dijawab pada siklus aktif.
             </p>
           </div>

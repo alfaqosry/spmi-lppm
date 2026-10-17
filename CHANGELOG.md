@@ -7,6 +7,15 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-17
+
+### Fixed
+
+- Metadata halaman selalu di `<head>` (`htmlLimitedBots`), bukan di-stream ke `<body>`.
+- Teks minimum 12px (Lighthouse legible font) dan target sentuh daftar isi halaman legal.
+- CSP `upgrade-insecure-requests` hanya bila `APP_URL` HTTPS (uji lokal WebKit).
+- Smoke test: `X-Powered-By` kosong dari ARR tidak dianggap kebocoran; ACL backups/logs.
+
 ## [1.1.0] - 2026-10-17
 
 ### Security
@@ -54,6 +63,7 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Puskom-UP/lpm-new/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Puskom-UP/lpm-new/releases/tag/v1.0.0

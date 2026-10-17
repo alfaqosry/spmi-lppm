@@ -90,13 +90,13 @@ export function StatCard({
       />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
             {label}
           </p>
           <p className="mt-1.5 text-xl font-semibold break-words text-white sm:text-2xl">
             {value}
           </p>
-          {hint && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
+          {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
         </div>
         <div
           aria-hidden="true"
@@ -118,7 +118,7 @@ export function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${className}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}
     >
       {children}
     </span>

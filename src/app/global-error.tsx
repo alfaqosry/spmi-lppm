@@ -38,7 +38,7 @@ export default function GlobalError({
               saat lagi. Data yang sudah tersimpan tidak hilang.
             </p>
             {error.digest && (
-              <p className="mt-3 text-[11px] text-slate-500">
+              <p className="mt-3 text-xs text-slate-500">
                 Kode referensi:{" "}
                 <code className="font-mono">{error.digest}</code>
               </p>
@@ -59,7 +59,7 @@ export default function GlobalError({
                 Ke beranda
               </a>
             </div>
-            <p className="mt-5 text-[11px] text-slate-500">
+            <p className="mt-5 text-xs text-slate-500">
               Hubungi LPM:{" "}
               <a
                 href="mailto:lpm@universitaspahlawan.ac.id"

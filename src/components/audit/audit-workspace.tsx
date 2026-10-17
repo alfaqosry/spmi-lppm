@@ -234,7 +234,7 @@ function InstrumenPanel({
             Pilih kategori unit untuk mengelola standar dan butir pertanyaan
             auditnya.
           </p>
-          <span className="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-[11px] font-medium text-indigo-300">
+          <span className="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300">
             {standards.length} standar • {questions.length} butir pertanyaan
           </span>
         </div>
@@ -267,7 +267,7 @@ function InstrumenPanel({
                   <p className="truncate text-sm font-semibold text-white">
                     {b.label}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-slate-400">
+                  <p className="mt-0.5 text-xs text-slate-400">
                     {b.count} pertanyaan •{" "}
                     {b.isUmum ? `${unitCount} unit` : `${unitCount} unit`}
                   </p>
@@ -405,7 +405,7 @@ function CategoryDetail({
             <h2 className="text-base font-semibold text-white">
               {isUmum ? "Umum (Semua Unit)" : categoryKey}
             </h2>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-xs text-slate-400">
               {isUmum
                 ? "Standar & pertanyaan yang harus dijawab oleh seluruh unit."
                 : `${categoryUnits.length} unit dalam kategori ini`}
@@ -460,7 +460,7 @@ function CategoryDetail({
                 <Building2 className="h-3.5 w-3.5" />
               )}
               <span className="max-w-[180px] truncate">{t.label}</span>
-              <span className="rounded-full bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-bold text-slate-300">
+              <span className="rounded-full bg-slate-700/60 px-1.5 py-0.5 text-xs font-bold text-slate-300">
                 {count}
                 <span className="sr-only"> pertanyaan</span>
               </span>
@@ -481,7 +481,7 @@ function CategoryDetail({
         <h3 className="text-sm font-semibold text-white">
           Daftar Standar &amp; Butir Pertanyaan — {activeLabel}
         </h3>
-        <span className="text-[11px] text-slate-400">
+        <span className="text-xs text-slate-400">
           {groups.reduce((a, g) => a + g.questions.length, 0)} butir •{" "}
           {groups.filter((g) => g.questions.length > 0).length} standar terpakai
         </span>
@@ -570,7 +570,7 @@ function StandardBlock({
               <p className="truncate text-sm font-semibold text-white group-hover:text-indigo-300">
                 {standardName}
               </p>
-              <p className="flex items-center gap-1 text-[11px] text-slate-400">
+              <p className="flex items-center gap-1 text-xs text-slate-400">
                 {questions.length} butir pertanyaan
                 <span
                   aria-hidden="true"
@@ -750,7 +750,7 @@ function StandardQuestionsDialog({
             className="input-base resize-none"
           />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <span id="draft-hint" className="text-[11px] text-slate-500">
+            <span id="draft-hint" className="text-xs text-slate-500">
               Tekan Ctrl+Enter untuk menambah cepat.
             </span>
             <button
@@ -773,7 +773,7 @@ function StandardQuestionsDialog({
             Butir Baru ({pending.length})
           </p>
           {pending.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500">
+            <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-xs text-slate-500">
               Belum ada butir baru. Butir yang ditambahkan akan muncul di sini
               sebelum disimpan.
             </p>
@@ -784,7 +784,7 @@ function StandardQuestionsDialog({
                   key={i}
                   className="flex items-start gap-2 rounded-xl border border-indigo-400/15 bg-slate-500/[0.06] px-3 py-2"
                 >
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-[10px] font-semibold text-slate-300">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-xs font-semibold text-slate-300">
                     {i + 1}
                   </span>
                   <p className="min-w-0 flex-1 text-xs text-slate-200">
@@ -812,7 +812,7 @@ function StandardQuestionsDialog({
             Butir Tersimpan pada Standar Ini ({questions.length})
           </p>
           {questions.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500">
+            <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-xs text-slate-500">
               Belum ada butir tersimpan pada cakupan ini.
             </p>
           ) : (
@@ -836,7 +836,7 @@ function StandardQuestionsDialog({
                     key={q.id}
                     className="flex items-start gap-2 rounded-xl border border-slate-600/30 bg-slate-500/[0.04] px-3 py-2"
                   >
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-[10px] font-semibold text-slate-300">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-xs font-semibold text-slate-300">
                       {idx + 1}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -1010,13 +1010,13 @@ function QuestionItem({
 
   return (
     <li className="flex items-start gap-3 px-4 py-3 hover:bg-slate-500/[0.06]">
-      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-800/50 text-[11px] font-semibold text-slate-300">
+      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-800/50 text-xs font-semibold text-slate-300">
         {index}
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-slate-200">{question.questionText}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
+          <span className="inline-flex items-center gap-1 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-300">
             <FileText className="h-3 w-3" /> {question.standardName}
           </span>
           {showScopeBadge && (
@@ -1075,7 +1075,7 @@ function ScopeBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${cls}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}
     >
       <Icon className="h-3 w-3" />
       {label}
@@ -1436,7 +1436,7 @@ export function AuditeeAuditWorkspace({
               >
                 {u.name}
                 {u.isHead && (
-                  <span className="rounded-full border border-violet-400/30 bg-violet-500/15 px-1.5 py-0.5 text-[10px] text-violet-200">
+                  <span className="rounded-full border border-violet-400/30 bg-violet-500/15 px-1.5 py-0.5 text-xs text-violet-200">
                     Kepala
                   </span>
                 )}
@@ -1479,7 +1479,7 @@ export function AuditeeAuditWorkspace({
             </div>
           </div>
 
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500">
             Jawab <strong className="text-slate-300">Ya</strong> dengan bukti,
             atau <strong className="text-slate-300">Tidak</strong> dengan
             alasan.
@@ -1553,7 +1553,7 @@ function AspectGroup({
           >
             {name}
           </span>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-xs text-slate-400">
             {answered}/{questions.length} terjawab
           </span>
         </div>
@@ -1630,7 +1630,7 @@ function ResponseForm({
   return (
     <div className="rounded-xl border border-slate-700/40 bg-slate-900/30 p-3 sm:p-4">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-800/50 text-[11px] font-semibold text-slate-300">
+        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-800/50 text-xs font-semibold text-slate-300">
           {index}
         </span>
         <div className="min-w-0 flex-1">
@@ -1723,7 +1723,7 @@ function ResponseForm({
                   href={existing.evidenceFile}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[11px] text-emerald-300 hover:underline"
+                  className="flex items-center gap-1.5 text-xs text-emerald-300 hover:underline"
                 >
                   <FileText className="h-3.5 w-3.5" aria-hidden="true" /> Bukti
                   terunggah saat ini
@@ -1792,7 +1792,7 @@ function ResponseForm({
                     href={existing.evidenceFile}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-2.5 py-1.5 text-[11px] text-indigo-200"
+                    className="flex items-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-2.5 py-1.5 text-xs text-indigo-200"
                   >
                     <FileText className="h-3.5 w-3.5" /> Lihat Bukti
                   </a>
@@ -1802,7 +1802,7 @@ function ResponseForm({
                     href={existing.evidenceLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 rounded-lg border border-sky-400/25 bg-sky-500/10 px-2.5 py-1.5 text-[11px] text-sky-200"
+                    className="flex items-center gap-1.5 rounded-lg border border-sky-400/25 bg-sky-500/10 px-2.5 py-1.5 text-xs text-sky-200"
                   >
                     <Link2 className="h-3.5 w-3.5" /> Tautan Bukti
                   </a>
@@ -1821,7 +1821,7 @@ function ResponseForm({
             <RotateCcw className="h-3.5 w-3.5" /> Rencana Tindak Lanjut (RTL)
           </p>
           {existing.lpmNotes && (
-            <p className="mb-2 text-[11px] text-rose-300">
+            <p className="mb-2 text-xs text-rose-300">
               Catatan LPM: {existing.lpmNotes}
             </p>
           )}
@@ -1953,7 +1953,7 @@ function VerifikasiTab({
                       <h3 className="text-sm font-semibold text-white">
                         {unit?.name ?? rows[0]?.unitName}
                       </h3>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-xs text-slate-400">
                         {unit?.category ?? rows[0]?.unitCategory} •{" "}
                         {rows.length}/
                         {relevantTotalByUnit.get(uid) ?? rows.length} terjawab
@@ -1966,7 +1966,7 @@ function VerifikasiTab({
                       label={`Progres verifikasi ${unit?.name ?? rows[0]?.unitName ?? "unit"}`}
                       className="h-2 w-28"
                     />
-                    <span className="text-[11px] text-emerald-300">
+                    <span className="text-xs text-emerald-300">
                       {verified}/{rows.length} terverifikasi
                     </span>
                   </div>
@@ -2001,7 +2001,7 @@ function VerifyRow({ row }: { row: ResponseRow }) {
           <p className="text-sm break-words text-slate-200">
             {row.questionText}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <Badge
               className={
                 row.answer === "ya"
@@ -2040,7 +2040,7 @@ function VerifyRow({ row }: { row: ResponseRow }) {
           id={panelId}
           className="mt-3 space-y-3 rounded-xl border border-slate-700/40 bg-slate-900/40 p-3"
         >
-          <div className="flex flex-wrap gap-2 text-[11px]">
+          <div className="flex flex-wrap gap-2 text-xs">
             {row.evidenceFile && (
               <a
                 href={row.evidenceFile}

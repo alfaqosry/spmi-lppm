@@ -120,7 +120,7 @@ function SidebarContent({
           <span className="block truncate text-sm font-semibold text-white">
             {branding.shortName}
           </span>
-          <span className="block truncate text-[11px] text-slate-400">
+          <span className="block truncate text-xs text-slate-400">
             {branding.subtitle}
           </span>
         </span>
@@ -165,7 +165,7 @@ function SidebarContent({
         </ul>
       </nav>
 
-      <div className="border-t border-indigo-400/10 px-5 py-3 text-[11px] text-slate-500">
+      <div className="border-t border-indigo-400/10 px-5 py-3 text-xs text-slate-500">
         <Link
           href="/kebijakan-privasi"
           className="hover:text-indigo-300 hover:underline"

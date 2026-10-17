@@ -81,7 +81,8 @@ foreach ($kv in $r.Content.Headers) { $hdr[$kv.Key.ToLower()] = ($kv.Value -join
 foreach ($name in 'content-security-policy', 'strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy') {
     Check "header $name" ($hdr.ContainsKey($name))
 }
-Check 'tanpa header x-powered-by' (-not $hdr.ContainsKey('x-powered-by'))
+# ARR hanya bisa mengosongkan nilai X-Powered-By (header tetap ada tanpa isi) — itu aman.
+Check 'x-powered-by tidak membocorkan teknologi' (-not ($hdr.ContainsKey('x-powered-by') -and $hdr['x-powered-by'].Trim()))
 
 if ($fail -gt 0) { Write-Host "Smoke test GAGAL ($fail cek)." -ForegroundColor Red; exit 1 }
 Write-Host 'Smoke test LULUS.' -ForegroundColor Green

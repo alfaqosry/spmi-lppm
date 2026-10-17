@@ -49,6 +49,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Matikan header X-Powered-By (mencegah fingerprinting framework).
   poweredByHeader: false,
+  // Metadata (title/description/OG) selalu di <head> untuk semua klien, bukan di-stream ke
+  // <body> — memastikan SEO/Lighthouse & pratinjau tautan konsisten. Kueri pengaturan cepat.
+  htmlLimitedBots: /.*/,
   // Kompresi respons (gzip) diaktifkan di produksi.
   compress: true,
   experimental: {

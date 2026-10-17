@@ -86,7 +86,7 @@ Terima kasih.`
                 {user.name}
               </p>
               <p className="truncate text-sm text-slate-400">{user.email}</p>
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-2 py-0.5 text-[11px] font-medium text-indigo-300">
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-300">
                 <BadgeCheck className="h-3 w-3" />
                 {ROLE_LABEL[user.role] ?? user.role}
               </span>
@@ -100,7 +100,7 @@ Terima kasih.`
                 <div key={row.label} className="flex items-start gap-3">
                   <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
                   <div className="min-w-0">
-                    <dt className="text-[11px] uppercase tracking-wide text-slate-500">
+                    <dt className="text-xs uppercase tracking-wide text-slate-500">
                       {row.label}
                     </dt>
                     <dd className="truncate text-sm text-slate-200">
@@ -113,7 +113,7 @@ Terima kasih.`
           </dl>
 
           {record?.username && (
-            <p className="mt-4 text-[11px] text-slate-500">
+            <p className="mt-4 text-xs text-slate-500">
               Nama pengguna:{" "}
               <span className="text-slate-400">{record.username}</span>
             </p>
@@ -204,7 +204,7 @@ Terima kasih.`
             Ajukan penghapusan akun via email LPM
           </a>
         </div>
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-xs text-slate-500">
           Permintaan dikirim ke {CONTACT_EMAIL} dan ditanggapi dalam jangka
           waktu yang ditetapkan UU PDP setelah identitas pemohon diverifikasi.
         </p>

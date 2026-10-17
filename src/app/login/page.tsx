@@ -94,7 +94,7 @@ export default async function LoginPage({
             />
           </section>
 
-          <p className="mt-4 text-center text-[11px] text-slate-500">
+          <p className="mt-4 text-center text-xs text-slate-500">
             Dengan masuk, Anda menyetujui pemrosesan data sesuai Kebijakan
             Privasi.
           </p>

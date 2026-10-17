@@ -49,7 +49,7 @@ export default function LoginForm({
         <ShieldCheck className="h-4 w-4" aria-hidden="true" />
         Masuk dengan SSO Universitas Pahlawan
       </a>
-      <p className="-mt-3 text-center text-[11px] text-slate-500">
+      <p className="-mt-3 text-center text-xs text-slate-500">
         {ssoConfigured ? (
           <>
             Terhubung ke <span className="text-slate-400">{ssoHost}</span>
@@ -61,7 +61,7 @@ export default function LoginForm({
 
       <div className="flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1 bg-slate-700/60" />
-        <span className="text-[11px] uppercase tracking-wider text-slate-500">
+        <span className="text-xs uppercase tracking-wider text-slate-500">
           atau
         </span>
         <span className="h-px flex-1 bg-slate-700/60" />

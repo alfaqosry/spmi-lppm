@@ -64,7 +64,10 @@ export function LegalPage({
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs">
               {toc.map((t) => (
                 <li key={t.id}>
-                  <a href={`#${t.id}`} className="text-indigo-300">
+                  <a
+                    href={`#${t.id}`}
+                    className="inline-flex min-h-6 items-center py-1 text-indigo-300"
+                  >
                     {t.label}
                   </a>
                 </li>
