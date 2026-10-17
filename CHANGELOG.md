@@ -7,6 +7,29 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-17
+
+### Added
+
+- Penerapan standar ISO/IEC (`docs/iso/`): 25010/25023, 25012 + kamus data, 9241 (usabilitas),
+  29119 (pengujian: 130 test case, keterlacakan 61 kebutuhan), 12207 + rencana pemeliharaan,
+  27001 SoA (93 kontrol), 27034 (STRIDE, risk register), 27701, 9001, 42001 (N/A), ISO 8601/639/3166.
+- Cek kualitas data harian (`src/lib/data-quality.ts`, 38 aturan hanya-baca).
+- Metadata `locale` (ISO 639-1/3166-1, zona waktu) + `Content-Language: id` di `/api/health` & `/api/me/export`.
+- CodeQL (SAST) di GitHub Actions.
+- Ops: watchdog Docker/DB/aplikasi tiap 5 menit (SYSTEM), Docker Desktop autostart tanpa login,
+  rotasi log harian dengan retensi 90 hari.
+
+### Changed (usabilitas, ISO 9241 — temuan tingkat 3)
+
+- Batas waktu pengisian tampil di dashboard unit & `/audit` (HE-01).
+- Butir "Perlu Revisi" selalu terlihat + filter (HE-02).
+- Hapus standar/siklus/unit menjelaskan dampak + konfirmasi ketik nama (HE-03/04/05);
+  siklus aktif ditolak dihapus di server.
+- Ekspor PDF dengan status proses & pesan galat ramah (HE-06).
+- Peringatan isian belum disimpan; form tidak lagi direset saat simpan gagal (HE-08).
+- Konfirmasi & umpan balik saat mengaktifkan siklus (HE-11).
+
 ## [1.1.3] - 2026-10-17
 
 ### Changed
@@ -80,7 +103,8 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.3...v1.2.0
 [1.1.3]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.0...v1.1.1
