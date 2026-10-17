@@ -23,8 +23,11 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // Next.js menyisipkan skrip inline (hidrasi) & memakai eval pada dev.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // Next.js menyisipkan skrip inline (hidrasi). 'unsafe-eval' hanya
+      // diizinkan pada development; di produksi dihapus untuk keamanan.
+      process.env.NODE_ENV === "production"
+        ? "script-src 'self' 'unsafe-inline'"
+        : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
@@ -38,6 +41,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Output standalone: menghasilkan server minimal yang tidak perlu
+  // node_modules lengkap — cocok untuk Docker & deployment ringan.
+  output: "standalone",
+  // Matikan header X-Powered-By (mencegah fingerprinting framework).
+  poweredByHeader: false,
+  // Kompresi respons (gzip) diaktifkan di produksi.
+  compress: true,
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
@@ -47,7 +57,11 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: securityHeaders,
+        headers: [
+          ...securityHeaders,
+          // Aktifkan streaming (nonaktifkan buffering nginx/proxy).
+          { key: "X-Accel-Buffering", value: "no" },
+        ],
       },
     ];
   },

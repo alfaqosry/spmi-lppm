@@ -1,0 +1,78 @@
+# ============================================================================
+# docker-compose.prod.yml — Deployment Production SPMI-LPPM
+# ============================================================================
+# Jalankan dengan:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Pastikan file .env.production sudah diisi sebelum menjalankan.
+# ============================================================================
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: spmi-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme_root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lpm_spmi}
+      MYSQL_USER: ${MYSQL_USER:-spmi}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme_spmi}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - spmi_mysql_data:/var/lib/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=200
+      --innodb-buffer-pool-size=512M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-changeme_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - spmi-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spmi-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "mysql://${MYSQL_USER:-spmi}:${MYSQL_PASSWORD:-changeme_spmi}@mysql:3306/${MYSQL_DATABASE:-lpm_spmi}"
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_COOKIE_NAME: lpm_session
+      SSO_URL: ${SSO_URL:-https://sso-v2.universitaspahlawan.ac.id}
+      SSO_CLIENT_ID: ${SSO_CLIENT_ID:-}
+      SSO_CLIENT_SECRET: ${SSO_CLIENT_SECRET:-}
+      SSO_REDIRECT_URI: ${SSO_REDIRECT_URI}
+      SSO_SCOPE: ${SSO_SCOPE:-*}
+      SSO_PROMPT: ${SSO_PROMPT:-login}
+      SSO_ADMIN_EMAILS: ${SSO_ADMIN_EMAILS:-}
+      SSO_TRUST_ROLE: ${SSO_TRUST_ROLE:-}
+    ports:
+      - "3002:3002"
+    volumes:
+      - spmi_uploads:/app/public/uploads
+    networks:
+      - spmi-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  spmi_mysql_data:
+  spmi_uploads:
+
+networks:
+  spmi-net:
+    driver: bridge

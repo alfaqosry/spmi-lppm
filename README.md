@@ -54,17 +54,25 @@ npm run db:seed    # isi data contoh
 npm run dev        # http://localhost:3002
 ```
 
-## 🔑 Akun Demo
+## 🔑 Akun Awal
 
-| Peran | Email | Kata Sandi |
+Seed database membuat **2 akun** dari environment variable:
+
+```bash
+SEED_SUPERADMIN_EMAIL="superadmin@universitaspahlawan.ac.id" \
+SEED_SUPERADMIN_PASSWORD="passwordkuat" \
+SEED_ADMIN_EMAIL="admin@universitaspahlawan.ac.id" \
+SEED_ADMIN_PASSWORD="passwordkuat" \
+npm run db:seed
+```
+
+| Akun | Env | Peran |
 | --- | --- | --- |
-| Admin LPM | `admin@lpm.ac.id` | `admin123` |
-| Anggota LPM | `anggota.lpm@lpm.ac.id` | `unit123` |
-| Kepala Unit | `kepala.prodi@lpm.ac.id` | `unit123` |
-| Anggota Unit | `anggota.prodi@lpm.ac.id` | `unit123` |
-| Kepala Perpustakaan | `kepala.perpus@lpm.ac.id` | `unit123` |
+| Superadmin | `SEED_SUPERADMIN_*` | `superadmin` |
+| Admin LPM | `SEED_ADMIN_*` | `lpm_admin` |
 
-> Tombol **Login via SSO Webkampus** pada mode simulasi (`SSO_MODE=mock`) akan membuat/masuk sebagai akun `sso.demo@lpm.ac.id`.
+> Password minimal 8 karakter. Ganti kata sandi segera setelah login pertama.
+> Akun lain dibuat melalui menu **Role & Penempatan** di dashboard.
 
 ## 🔐 Kontrol Akses (RBAC)
 
@@ -159,5 +167,5 @@ File bukti/dokumen disimpan ke `public/uploads/` (maks. 10MB, PDF). Untuk produk
 | `npm run build` | Build produksi |
 | `npm run start` | Menjalankan build produksi |
 | `npm run db:push` | Sinkronkan skema Prisma ke database |
-| `npm run db:seed` | Isi database dengan data contoh |
+| `npm run db:seed` | Buat akun superadmin awal (butuh `SEED_ADMIN_PASSWORD`) |
 | `npm run db:studio` | Buka Prisma Studio |
