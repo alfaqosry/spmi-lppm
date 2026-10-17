@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +8,11 @@ import { formatDateTime } from "@/lib/format";
 import { PageHeader } from "@/components/ui/primitives";
 import { SettingsManager } from "@/components/settings/settings-manager";
 
-export const metadata = { title: "Pengaturan Sistem" };
+export const metadata: Metadata = {
+  title: "Pengaturan Sistem",
+  description:
+    "Pengaturan identitas, SEO, SSO, log, keamanan, dan pemeliharaan sistem.",
+};
 
 export default async function PengaturanPage() {
   const user = await getCurrentUser();

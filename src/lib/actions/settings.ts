@@ -1,61 +1,53 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isSuperadmin } from "@/lib/auth";
+import { hashPassword } from "@/lib/auth";
+import { requireSuperadmin } from "@/lib/guards";
 import { AppError, toActionError, isSafeHttpUrl } from "@/lib/errors";
 import {
   saveSettings,
-  getSettingsForAdmin,
+  getSettings,
   SETTING_DEFAULTS,
-  SECRET_KEYS,
   type SettingKey,
 } from "@/lib/settings";
 import { saveUpload } from "@/lib/upload";
 import { recordActivity } from "@/lib/logs";
+import { getClientIp } from "@/lib/net";
+import { maskEmail } from "@/lib/redact";
+import { LIMITS, emailField, str } from "@/lib/validate";
+import { validatePassword } from "@/lib/password";
+import { enforceRateLimit, LIMITS_RL } from "@/lib/ratelimit";
 
 export type ActionState = { ok?: boolean; error?: string } | undefined;
 
-/** Hanya Superadmin yang boleh mengakses pengaturan sistem. */
-async function requireSuperadmin() {
-  const user = await getCurrentUser();
-  if (!user || !isSuperadmin(user.role)) {
-    throw new AppError("Akses ditolak. Hanya Superadmin.");
-  }
-  return user;
-}
+const IS_PROD = process.env.NODE_ENV === "production";
 
-async function clientIp(): Promise<string | null> {
-  const h = await headers();
-  const fwd = h.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return h.get("x-real-ip");
-}
-
-const TEXT_KEYS: SettingKey[] = [
-  "site.name",
-  "site.shortName",
-  "site.description",
-  "site.organization",
-  "site.keywords",
-  "site.author",
-  "site.baseUrl",
-  "site.robots",
-  "site.googleVerification",
-  "sso.url",
-  "sso.clientId",
-  "sso.clientSecret",
-  "sso.redirectUri",
-  "sso.scope",
-  "sso.prompt",
-  "sso.adminEmails",
-  "security.sessionDays",
-  "security.loginMaxAttempts",
-  "security.loginWindowMinutes",
-  "log.loginRetentionDays",
-  "maintenance.message",
-];
+/** Key teks yang boleh diubah lewat form pengaturan umum + batas panjangnya. */
+const TEXT_KEYS: Partial<Record<SettingKey, number>> = {
+  "site.name": 160,
+  "site.shortName": 40,
+  "site.description": LIMITS.settingText,
+  "site.organization": 200,
+  "site.keywords": LIMITS.settingText,
+  "site.author": 200,
+  "site.baseUrl": LIMITS.url,
+  "site.robots": 10,
+  "site.googleVerification": 200,
+  "sso.url": LIMITS.url,
+  "sso.clientId": 200,
+  "sso.clientSecret": 500,
+  "sso.redirectUri": LIMITS.url,
+  "sso.scope": 200,
+  "sso.prompt": 40,
+  "sso.adminEmails": LIMITS.settingText,
+  "security.sessionDays": 4,
+  "security.loginMaxAttempts": 4,
+  "security.loginWindowMinutes": 4,
+  "log.loginRetentionDays": 5,
+  "log.activityRetentionDays": 5,
+  "maintenance.message": LIMITS.settingText,
+};
 
 const BOOL_KEYS: SettingKey[] = [
   "log.login.enabled",
@@ -64,9 +56,54 @@ const BOOL_KEYS: SettingKey[] = [
   "maintenance.enabled",
 ];
 
+/** Rentang angka yang sah per key. */
+const NUMBER_RANGES: Partial<Record<SettingKey, [number, number]>> = {
+  "security.sessionDays": [1, 30],
+  "security.loginMaxAttempts": [1, 5],
+  "security.loginWindowMinutes": [1, 60],
+  "log.loginRetentionDays": [0, 3650],
+  "log.activityRetentionDays": [0, 3650],
+};
+
+const BRANDING_KEYS: Record<string, SettingKey> = {
+  logo: "site.logo",
+  favicon: "site.favicon",
+  ogImage: "site.ogImage",
+};
+
+async function audit(
+  admin: { id: number; name: string },
+  action: string,
+  entity: string,
+  detail: string
+) {
+  await recordActivity({
+    userId: admin.id,
+    userName: admin.name,
+    action,
+    entity,
+    detail,
+    ip: await getClientIp(),
+  });
+}
+
+/** URL publik: http(s); di produksi wajib https. */
+function checkUrl(key: SettingKey, v: string | undefined) {
+  if (!v) return;
+  if (!isSafeHttpUrl(v)) {
+    throw new AppError(`Nilai untuk ${key} bukan URL yang valid (http/https).`);
+  }
+  if (IS_PROD && !v.startsWith("https://")) {
+    throw new AppError(
+      `Nilai untuk ${key} wajib memakai https:// di produksi.`
+    );
+  }
+}
+
 /**
  * Simpan pengaturan umum (teks + toggle). Hanya key yang diizinkan.
- * Validasi ringan: URL harus http/https, angka harus non-negatif.
+ * Validasi: URL harus http/https (https di produksi), angka dalam rentang,
+ * enum robots, daftar email admin SSO, panjang dibatasi.
  */
 export async function saveGeneralSettings(
   _prev: ActionState,
@@ -76,9 +113,17 @@ export async function saveGeneralSettings(
     const admin = await requireSuperadmin();
     const entries: Partial<Record<SettingKey, string>> = {};
 
-    for (const key of TEXT_KEYS) {
+    for (const [key, max] of Object.entries(TEXT_KEYS) as [
+      SettingKey,
+      number,
+    ][]) {
       if (formData.has(key)) {
-        entries[key] = String(formData.get(key) ?? "").trim();
+        entries[key] = str(formData, key, {
+          max,
+          multiline:
+            key === "maintenance.message" || key === "site.description",
+          label: key,
+        });
       }
     }
     // Hanya ubah toggle boolean yang memang dikelola oleh form ini.
@@ -97,27 +142,48 @@ export async function saveGeneralSettings(
     // Validasi URL.
     for (const urlKey of [
       "site.baseUrl",
-      "site.ogImage",
       "sso.url",
       "sso.redirectUri",
     ] as SettingKey[]) {
-      const v = entries[urlKey];
-      if (v && !isSafeHttpUrl(v)) {
-        return { error: `Nilai untuk ${urlKey} bukan URL yang valid (http/https).` };
+      checkUrl(urlKey, entries[urlKey]);
+    }
+    const redirect = entries["sso.redirectUri"];
+    if (redirect && !new URL(redirect).pathname.endsWith("/api/sso/callback")) {
+      return { error: "Redirect URI SSO harus berakhiran /api/sso/callback." };
+    }
+
+    // Validasi angka (bilangan bulat dalam rentang).
+    for (const [numKey, [min, max]] of Object.entries(NUMBER_RANGES) as [
+      SettingKey,
+      [number, number],
+    ][]) {
+      const v = entries[numKey];
+      if (v == null || v === "") continue;
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < min || n > max) {
+        return { error: `Nilai ${numKey} harus bilangan bulat ${min}–${max}.` };
       }
     }
 
-    // Validasi angka.
-    for (const numKey of [
-      "security.sessionDays",
-      "security.loginMaxAttempts",
-      "security.loginWindowMinutes",
-      "log.loginRetentionDays",
-    ] as SettingKey[]) {
-      const v = entries[numKey];
-      if (v != null && v !== "" && (Number.isNaN(Number(v)) || Number(v) < 0)) {
-        return { error: "Nilai angka tidak boleh negatif / tidak valid." };
+    if (
+      entries["site.robots"] != null &&
+      !["index", "noindex"].includes(entries["site.robots"])
+    ) {
+      return { error: "Nilai robots tidak valid." };
+    }
+
+    const adminEmails = entries["sso.adminEmails"];
+    if (adminEmails) {
+      const list = adminEmails
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+      if (list.some((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e))) {
+        return {
+          error: "Daftar email admin SSO berisi email yang tidak valid.",
+        };
       }
+      entries["sso.adminEmails"] = list.join(",");
     }
 
     if (entries["site.name"] === "") {
@@ -125,14 +191,13 @@ export async function saveGeneralSettings(
     }
 
     await saveSettings(entries, admin.id);
-    await recordActivity({
-      userId: admin.id,
-      userName: admin.name,
-      action: "settings.update",
-      entity: "settings",
-      detail: "Memperbarui pengaturan umum sistem",
-      ip: await clientIp(),
-    });
+    // Jangan catat nilai — cukup daftar key yang diubah (secret tidak pernah dilog).
+    await audit(
+      admin,
+      "settings.update",
+      "settings",
+      `Memperbarui pengaturan: ${Object.keys(entries).join(", ")}`.slice(0, 480)
+    );
 
     revalidatePath("/pengaturan");
     revalidatePath("/", "layout");
@@ -155,29 +220,24 @@ export async function uploadBranding(
     const kind = String(formData.get("kind") || "");
     const file = formData.get("file");
 
-    const map: Record<string, SettingKey> = {
-      logo: "site.logo",
-      favicon: "site.favicon",
-      ogImage: "site.ogImage",
-    };
-    const key = map[kind];
+    const key = Object.hasOwn(BRANDING_KEYS, kind)
+      ? BRANDING_KEYS[kind]
+      : undefined;
     if (!key) return { error: "Jenis aset tidak dikenal." };
     if (!(file instanceof File) || file.size === 0) {
       return { error: "Pilih berkas terlebih dahulu." };
     }
+    enforceRateLimit(
+      `upload:${admin.id}`,
+      LIMITS_RL.upload.limit,
+      LIMITS_RL.upload.windowMs
+    );
 
     const res = await saveUpload(file, "branding");
     if (!res.ok) return { error: res.error };
 
     await saveSettings({ [key]: res.path }, admin.id);
-    await recordActivity({
-      userId: admin.id,
-      userName: admin.name,
-      action: "settings.branding",
-      entity: "settings",
-      detail: `Unggah ${kind}`,
-      ip: await clientIp(),
-    });
+    await audit(admin, "settings.branding", "settings", `Unggah ${kind}`);
 
     revalidatePath("/pengaturan");
     revalidatePath("/", "layout");
@@ -191,14 +251,11 @@ export async function uploadBranding(
 export async function clearBranding(kind: string): Promise<ActionState> {
   try {
     const admin = await requireSuperadmin();
-    const map: Record<string, SettingKey> = {
-      logo: "site.logo",
-      favicon: "site.favicon",
-      ogImage: "site.ogImage",
-    };
-    const key = map[kind];
+    const k = String(kind ?? "");
+    const key = Object.hasOwn(BRANDING_KEYS, k) ? BRANDING_KEYS[k] : undefined;
     if (!key) return { error: "Jenis aset tidak dikenal." };
     await saveSettings({ [key]: "" }, admin.id);
+    await audit(admin, "settings.branding_clear", "settings", `Hapus ${k}`);
     revalidatePath("/pengaturan");
     revalidatePath("/", "layout");
     return { ok: true };
@@ -210,23 +267,26 @@ export async function clearBranding(kind: string): Promise<ActionState> {
 /** Uji koneksi SSO: cek apakah URL SSO dapat dijangkau. */
 export async function testSsoConnection(): Promise<ActionState> {
   try {
-    await requireSuperadmin();
+    const admin = await requireSuperadmin();
+    enforceRateLimit(`sso-test:${admin.id}`, 5, 60_000);
     const { getSsoRuntimeConfig } = await import("@/lib/sso");
     const cfg = await getSsoRuntimeConfig();
     if (!cfg.clientId || !cfg.clientSecret) {
       return { error: "Client ID & Secret belum diisi." };
     }
-    if (!isSafeHttpUrl(cfg.url)) {
+    if (
+      !isSafeHttpUrl(cfg.url) ||
+      (IS_PROD && !cfg.url.startsWith("https://"))
+    ) {
       return { error: "URL SSO tidak valid." };
     }
     try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(cfg.url, {
         method: "HEAD",
-        signal: controller.signal,
+        redirect: "manual",
+        signal: AbortSignal.timeout(5000),
+        cache: "no-store",
       });
-      clearTimeout(t);
       if (res.status >= 200 && res.status < 500) {
         return { ok: true };
       }
@@ -243,21 +303,23 @@ export async function testSsoConnection(): Promise<ActionState> {
 export async function purgeLoginLogs(): Promise<ActionState> {
   try {
     const admin = await requireSuperadmin();
-    const all = await getSettingsForAdmin();
-    const days = Number(all["log.loginRetentionDays"]?.value) || 0;
-    const where =
-      days > 0
-        ? { createdAt: { lt: new Date(Date.now() - days * 86400000) } }
-        : {};
-    const { count } = await prisma.loginLog.deleteMany({ where });
-    await recordActivity({
-      userId: admin.id,
-      userName: admin.name,
-      action: "logs.purge",
-      entity: "login_logs",
-      detail: `Menghapus ${count} log login`,
-      ip: await clientIp(),
+    const s = await getSettings();
+    const days = Math.floor(Number(s["log.loginRetentionDays"]) || 0);
+    if (days <= 0) {
+      return {
+        error:
+          "Masa simpan log login tidak dibatasi (0). Tidak ada yang dihapus.",
+      };
+    }
+    const { count } = await prisma.loginLog.deleteMany({
+      where: { createdAt: { lt: new Date(Date.now() - days * 86400000) } },
     });
+    await audit(
+      admin,
+      "logs.purge",
+      "login_logs",
+      `Menghapus ${count} log login (> ${days} hari)`
+    );
     revalidatePath("/pengaturan");
     return { ok: true };
   } catch (e) {
@@ -265,11 +327,17 @@ export async function purgeLoginLogs(): Promise<ActionState> {
   }
 }
 
-/** Hapus seluruh riwayat aktivitas (superadmin). */
+/** Hapus seluruh riwayat aktivitas (superadmin). Jejak penghapusan tetap dicatat. */
 export async function clearActivityLogs(): Promise<ActionState> {
   try {
-    await requireSuperadmin();
-    await prisma.activityLog.deleteMany({});
+    const admin = await requireSuperadmin();
+    const { count } = await prisma.activityLog.deleteMany({});
+    await audit(
+      admin,
+      "logs.clear_activity",
+      "activity_logs",
+      `Menghapus seluruh log aktivitas (${count} baris)`
+    );
     revalidatePath("/pengaturan");
     return { ok: true };
   } catch (e) {
@@ -280,8 +348,14 @@ export async function clearActivityLogs(): Promise<ActionState> {
 /** Hapus seluruh riwayat login (superadmin). */
 export async function clearLoginLogs(): Promise<ActionState> {
   try {
-    await requireSuperadmin();
-    await prisma.loginLog.deleteMany({});
+    const admin = await requireSuperadmin();
+    const { count } = await prisma.loginLog.deleteMany({});
+    await audit(
+      admin,
+      "logs.clear_login",
+      "login_logs",
+      `Menghapus seluruh log login (${count} baris)`
+    );
     revalidatePath("/pengaturan");
     return { ok: true };
   } catch (e) {
@@ -296,23 +370,23 @@ export async function createSuperadmin(
 ): Promise<ActionState> {
   try {
     const admin = await requireSuperadmin();
-    const name = String(formData.get("name") || "").trim();
-    const email = String(formData.get("email") || "")
-      .trim()
-      .toLowerCase();
-    const password = String(formData.get("password") || "");
+    const name = str(formData, "name", {
+      max: LIMITS.name,
+      required: true,
+      label: "Nama",
+    });
+    const email = emailField(formData, "email");
+    const password = String(formData.get("password") ?? "");
 
-    if (!name || !email || !password) {
-      return { error: "Nama, email, dan kata sandi wajib diisi." };
-    }
-    if (password.length < 8) {
-      return { error: "Kata sandi minimal 8 karakter." };
-    }
-    const exists = await prisma.user.findUnique({ where: { email } });
+    const pwErr = validatePassword(password, { email });
+    if (pwErr) return { error: pwErr };
+    const exists = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
     if (exists) return { error: "Email sudah terdaftar." };
 
-    const { hashPassword } = await import("@/lib/auth");
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         name,
         email,
@@ -326,8 +400,9 @@ export async function createSuperadmin(
       userName: admin.name,
       action: "superadmin.create",
       entity: "user",
-      detail: `Membuat superadmin ${email}`,
-      ip: await clientIp(),
+      entityId: created.id,
+      detail: `Membuat superadmin ${maskEmail(email)}`,
+      ip: await getClientIp(),
     });
     revalidatePath("/pengaturan");
     revalidatePath("/role-penempatan");
@@ -336,5 +411,3 @@ export async function createSuperadmin(
     return { error: toActionError(e, "Gagal membuat superadmin.") };
   }
 }
-
-export { SECRET_KEYS };

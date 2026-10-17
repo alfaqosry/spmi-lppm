@@ -107,6 +107,25 @@ function standardOf(standard: { name: string } | null | undefined) {
   return standard?.name?.trim() || "Tanpa Standar";
 }
 
+/**
+ * Teks aman untuk PDF: buang karakter kontrol / bidi override (dapat merusak
+ * tata letak atau menyamarkan isi), rapikan spasi, dan batasi panjang agar
+ * input pengguna tidak dapat merusak layout laporan.
+ */
+export function pdfText(value: string | null | undefined, max = 2000): string {
+  if (!value) return "";
+  const cleaned = String(value)
+    .normalize("NFC")
+    .replace(
+      /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g,
+      ""
+    )
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
+}
+
 function pct(part: number, total: number) {
   return total ? Math.round((part / total) * 100) : 0;
 }
@@ -126,10 +145,12 @@ export async function getLpmSignatory(): Promise<Signatory | null> {
     select: { name: true },
   });
   if (!head) return null;
-  return { name: head.name, title: "Ketua LPM" };
+  return { name: pdfText(head.name, 120), title: "Ketua LPM" };
 }
 
-export async function buildReportData(cycleId: number): Promise<ReportData | null> {
+export async function buildReportData(
+  cycleId: number
+): Promise<ReportData | null> {
   const cycle = await prisma.auditCycle.findUnique({ where: { id: cycleId } });
   if (!cycle) return null;
 
@@ -171,8 +192,8 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
     const t = rs.filter((r) => r.answer === "tidak").length;
     const totalUnit = relevantCount(u);
     return {
-      unit: u.name,
-      category: u.category,
+      unit: pdfText(u.name, 160),
+      category: pdfText(u.category, 80),
       total: totalUnit,
       answered: a,
       ya: y,
@@ -191,9 +212,11 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
   >();
   for (const q of questions) {
     const key = standardOf(q.standard);
-    const entry =
-      standardMap.get(key) ??
-      { qIds: [], total: 0, order: q.standard?.order ?? 0 };
+    const entry = standardMap.get(key) ?? {
+      qIds: [],
+      total: 0,
+      order: q.standard?.order ?? 0,
+    };
     entry.qIds.push(q.id);
     entry.total += units.filter((u) => isQuestionForUnit(q, u)).length;
     standardMap.set(key, entry);
@@ -202,11 +225,13 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
     .sort((a, b) => a[1].order - b[1].order || a[0].localeCompare(b[0]))
     .map(([name, v]) => {
       const idSet = new Set(v.qIds);
-      const rs = responses.filter((r) => idSet.has(r.auditQuestionId) && r.answer);
+      const rs = responses.filter(
+        (r) => idSet.has(r.auditQuestionId) && r.answer
+      );
       const y = rs.filter((r) => r.answer === "ya").length;
       return {
-        code: name,
-        title: name,
+        code: pdfText(name, 160),
+        title: pdfText(name, 160),
         category: "-",
         answered: rs.length,
         total: v.total,
@@ -221,8 +246,12 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
     { units: number; answered: number; total: number; ya: number }
   >();
   for (const u of units) {
-    const entry =
-      catMap.get(u.category) ?? { units: 0, answered: 0, total: 0, ya: 0 };
+    const entry = catMap.get(u.category) ?? {
+      units: 0,
+      answered: 0,
+      total: 0,
+      ya: 0,
+    };
     entry.units += 1;
     const rs = responses.filter((r) => r.unitId === u.id && r.answer);
     entry.answered += rs.length;
@@ -232,7 +261,7 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
   }
   const perCategory: ReportCategoryRow[] = Array.from(catMap.entries()).map(
     ([category, v]) => ({
-      category,
+      category: pdfText(category, 80),
       units: v.units,
       answered: v.answered,
       total: v.total,
@@ -245,17 +274,18 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
   const findings: ReportFindingRow[] = responses
     .filter((r) => r.answer === "tidak" || r.status === "revision")
     .map((r) => ({
-      unit: r.unit.name,
-      standard: standardOf(r.question.standard),
-      question: r.question.questionText,
-      answer: r.answer ? ANSWER_LABEL[r.answer] ?? r.answer : "-",
-      reason: r.reason ?? "",
+      unit: pdfText(r.unit.name, 160),
+      standard: pdfText(standardOf(r.question.standard), 160),
+      question: pdfText(r.question.questionText),
+      answer: r.answer ? (ANSWER_LABEL[r.answer] ?? r.answer) : "-",
+      reason: pdfText(r.reason),
       status: STATUS_LABEL[r.status] ?? r.status,
-      rtl: r.rtl ?? "",
-      notes: r.lpmNotes ?? "",
+      rtl: pdfText(r.rtl),
+      notes: pdfText(r.lpmNotes),
     }))
-    .sort((a, b) =>
-      a.unit.localeCompare(b.unit) || a.standard.localeCompare(b.standard)
+    .sort(
+      (a, b) =>
+        a.unit.localeCompare(b.unit) || a.standard.localeCompare(b.standard)
     );
 
   /* ---- Detail jawaban per butir ---- */
@@ -268,17 +298,20 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
       .map((u) => {
         const r = respMap.get(`${u.id}:${q.id}`);
         return {
-          unit: u.name,
-          category: u.category,
-          standard: standardOf(q.standard),
-          question: q.questionText,
-          answer: r?.answer ? ANSWER_LABEL[r.answer] ?? r.answer : "-",
-          status: r ? STATUS_LABEL[r.status] ?? r.status : "Belum Diisi",
-          reason: r?.reason ?? "",
-          evidence: [r?.evidenceLink, r?.evidenceFile].filter(Boolean).join(" | "),
-          notes: r?.lpmNotes ?? "",
-          rtl: r?.rtl ?? "",
-          verifier: r?.verifier?.name ?? "",
+          unit: pdfText(u.name, 160),
+          category: pdfText(u.category, 80),
+          standard: pdfText(standardOf(q.standard), 160),
+          question: pdfText(q.questionText),
+          answer: r?.answer ? (ANSWER_LABEL[r.answer] ?? r.answer) : "-",
+          status: r ? (STATUS_LABEL[r.status] ?? r.status) : "Belum Diisi",
+          reason: pdfText(r?.reason),
+          evidence: pdfText(
+            [r?.evidenceLink, r?.evidenceFile].filter(Boolean).join(" | "),
+            600
+          ),
+          notes: pdfText(r?.lpmNotes),
+          rtl: pdfText(r?.rtl),
+          verifier: pdfText(r?.verifier?.name, 160),
         };
       })
   );
@@ -287,7 +320,7 @@ export async function buildReportData(cycleId: number): Promise<ReportData | nul
 
   return {
     cycle: {
-      name: cycle.name,
+      name: pdfText(cycle.name, 80),
       startDate: cycle.startDate,
       endDate: cycle.endDate,
       isActive: cycle.isActive,
@@ -393,24 +426,25 @@ export async function buildUnitReportData(
   >();
   for (const q of relevant) {
     const r = respByQ.get(q.id);
-    const entry =
-      map.get(q.standardId) ??
-      {
-        standard: standardOf(q.standard),
-        order: q.standard?.order ?? 0,
-        items: [],
-      };
+    const entry = map.get(q.standardId) ?? {
+      standard: pdfText(standardOf(q.standard), 160),
+      order: q.standard?.order ?? 0,
+      items: [],
+    };
     // Kolom observasi: gabungan alasan (Tidak) + catatan LPM.
-    const observation = [r?.reason, r?.lpmNotes]
-      .map((v) => v?.trim())
-      .filter(Boolean)
-      .join(" — ");
+    const observation = pdfText(
+      [r?.reason, r?.lpmNotes]
+        .map((v) => v?.trim())
+        .filter(Boolean)
+        .join(" — "),
+      4000
+    );
     entry.items.push({
-      question: q.questionText,
+      question: pdfText(q.questionText),
       observation,
       ya: r?.answer === "ya",
       tidak: r?.answer === "tidak",
-      notes: r?.rtl?.trim() ?? "",
+      notes: pdfText(r?.rtl),
     });
     map.set(q.standardId, entry);
   }
@@ -429,14 +463,18 @@ export async function buildUnitReportData(
 
   return {
     cycle: {
-      name: cycle.name,
+      name: pdfText(cycle.name, 80),
       startDate: cycle.startDate,
       endDate: cycle.endDate,
       isActive: cycle.isActive,
     },
     generatedAt: new Date(),
     signatory,
-    unit: { id: unit.id, name: unit.name, category: unit.category },
+    unit: {
+      id: unit.id,
+      name: pdfText(unit.name, 160),
+      category: pdfText(unit.category, 80),
+    },
     summary: {
       total: relevant.length,
       answered,

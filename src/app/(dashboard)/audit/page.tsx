@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +13,11 @@ import {
 } from "@/components/audit/audit-workspace";
 import { isCycleOpen, cycleClosedReason } from "@/lib/cycles";
 
-export const metadata = { title: "Audit & Verifikasi — SPMI" };
+export const metadata: Metadata = {
+  title: "Audit & Verifikasi",
+  description:
+    "Pengisian instrumen audit oleh unit dan verifikasi bukti oleh LPM.",
+};
 
 export default async function AuditPage() {
   const user = await getCurrentUser();
@@ -29,8 +34,8 @@ export default async function AuditPage() {
   // LPM boleh melihat siklus terakhir walau nonaktif (untuk verifikasi arsip);
   // auditee HANYA boleh mengisi siklus yang sedang aktif.
   const activeCycle = isLpm
-    ? cycles.find((c) => c.isActive) ?? cycles[0] ?? null
-    : cycles.find((c) => c.isActive) ?? null;
+    ? (cycles.find((c) => c.isActive) ?? cycles[0] ?? null)
+    : (cycles.find((c) => c.isActive) ?? null);
 
   if (!activeCycle) {
     return (
@@ -150,7 +155,10 @@ export default async function AuditPage() {
     }));
 
   const responses = await prisma.auditResponse.findMany({
-    where: { cycleId: activeCycle.id, unitId: { in: myUnitIds.length ? myUnitIds : [-1] } },
+    where: {
+      cycleId: activeCycle.id,
+      unitId: { in: myUnitIds.length ? myUnitIds : [-1] },
+    },
   });
 
   const responseRows: ResponseRow[] = responses.map((r) => {
@@ -162,7 +170,8 @@ export default async function AuditPage() {
       unitName: u?.name ?? "",
       unitCategory: u?.category ?? "",
       questionText:
-        questionRows.find((q) => q.id === r.auditQuestionId)?.questionText ?? "",
+        questionRows.find((q) => q.id === r.auditQuestionId)?.questionText ??
+        "",
       answer: r.answer,
       evidenceFile: r.evidenceFile,
       evidenceLink: r.evidenceLink,
@@ -190,18 +199,24 @@ export default async function AuditPage() {
           myUnits.length > 1
             ? ` — Anda ditempatkan pada ${myUnits.length} unit`
             : myUnits[0]
-            ? ` — Unit: ${myUnits[0].name}`
-            : ""
+              ? ` — Unit: ${myUnits[0].name}`
+              : ""
         }`}
       />
       {!cycleOpen && closedReason && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-[11px] font-bold">
+        <div
+          role="status"
+          className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+        >
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-[11px] font-bold"
+          >
             !
           </span>
           <div>
             <p className="font-semibold">Periode pengisian ditutup</p>
-            <p className="mt-0.5 text-xs text-amber-200/80">{closedReason}</p>
+            <p className="mt-0.5 text-xs text-amber-200">{closedReason}</p>
           </div>
         </div>
       )}

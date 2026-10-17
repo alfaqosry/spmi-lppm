@@ -16,10 +16,18 @@ export async function recalcUnitProgress(
   userId?: number | null
 ) {
   const [unit, questions] = await Promise.all([
-    prisma.unit.findUnique({ where: { id: unitId }, select: { id: true, category: true } }),
+    prisma.unit.findUnique({
+      where: { id: unitId },
+      select: { id: true, category: true },
+    }),
     prisma.auditQuestion.findMany({
       where: { cycleId },
-      select: { id: true, scopeType: true, scopeCategory: true, scopeUnitId: true },
+      select: {
+        id: true,
+        scopeType: true,
+        scopeCategory: true,
+        scopeUnitId: true,
+      },
     }),
   ]);
 

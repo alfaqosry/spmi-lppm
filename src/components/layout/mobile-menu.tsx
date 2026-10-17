@@ -26,10 +26,7 @@ export function MobileMenuProvider({ children }: { children: ReactNode }) {
 
   const toggle = useCallback(() => setOpen((v) => !v), []);
 
-  const value = useMemo(
-    () => ({ open, setOpen, toggle }),
-    [open, toggle]
-  );
+  const value = useMemo(() => ({ open, setOpen, toggle }), [open, toggle]);
 
   return (
     <MobileMenuContext.Provider value={value}>

@@ -22,6 +22,8 @@ export type Question = {
   standardId: number;
   /** Nama standar (didenormalisasi untuk tampilan). */
   standardName: string;
+  /** Urutan standar induk (AuditStandard.order). Disarankan selalu diisi. */
+  standardOrder?: number;
   order: number;
 } & QuestionScope;
 
@@ -117,9 +119,7 @@ export function questionsForSpecificUnit<T extends QuestionScope>(
 }
 
 /** Pertanyaan umum (berlaku untuk semua unit). */
-export function generalQuestions<T extends QuestionScope>(
-  questions: T[]
-): T[] {
+export function generalQuestions<T extends QuestionScope>(questions: T[]): T[] {
   return questions.filter((q) => q.scopeType === "all");
 }
 
@@ -133,15 +133,21 @@ export type StandardGroup<T extends QuestionScope> = {
 
 /**
  * Kelompokkan butir pertanyaan berdasarkan standar induknya.
- * Urutan mengikuti `order` standar (lalu nama), dan urutan butir di dalamnya
- * mengikuti `order` pertanyaan.
+ * Urutan kelompok mengikuti urutan STANDAR (`standardOrder`, yaitu
+ * AuditStandard.order) — seri diputus dengan nama lalu id standar. Bila
+ * `standardOrder` tidak disertakan (kompatibilitas lama), dipakai `order`
+ * butir pertama yang ditemui. Urutan butir di dalamnya mengikuti `order`
+ * pertanyaan (seri: id).
  */
-export function groupByStandard<T extends QuestionScope & {
-  id: number;
-  standardId: number;
-  standardName: string;
-  order: number;
-}>(questions: T[]): StandardGroup<T>[] {
+export function groupByStandard<
+  T extends QuestionScope & {
+    id: number;
+    standardId: number;
+    standardName: string;
+    standardOrder?: number;
+    order: number;
+  },
+>(questions: T[]): StandardGroup<T>[] {
   const map = new Map<number, StandardGroup<T>>();
   for (const q of questions) {
     const g =
@@ -149,18 +155,25 @@ export function groupByStandard<T extends QuestionScope & {
       ({
         standardId: q.standardId,
         standardName: q.standardName,
-        order: q.order,
+        order: q.standardOrder ?? q.order,
         questions: [],
       } as StandardGroup<T>);
+    // Urutan standar eksplisit selalu menang atas urutan butir.
+    if (q.standardOrder != null) g.order = q.standardOrder;
     g.questions.push(q);
     map.set(q.standardId, g);
   }
   return Array.from(map.values())
     .map((g) => ({
       ...g,
-      questions: [...g.questions].sort((a, b) => a.order - b.order || a.id - b.id),
+      questions: [...g.questions].sort(
+        (a, b) => a.order - b.order || a.id - b.id
+      ),
     }))
     .sort(
-      (a, b) => a.order - b.order || a.standardName.localeCompare(b.standardName)
+      (a, b) =>
+        a.order - b.order ||
+        a.standardName.localeCompare(b.standardName) ||
+        a.standardId - b.standardId
     );
 }

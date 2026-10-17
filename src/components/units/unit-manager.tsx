@@ -8,6 +8,7 @@ import {
   Field,
   SubmitButton,
   useCloseOnSuccess,
+  BTN_SECONDARY,
 } from "@/components/ui/form";
 import {
   createUnit,
@@ -16,6 +17,7 @@ import {
   type ActionState,
 } from "@/lib/actions/units";
 import { Badge, EmptyState } from "@/components/ui/primitives";
+import { ConfirmAction } from "@/components/ui/confirm-dialog";
 
 export const UNIT_CATEGORIES = [
   "Program Studi",
@@ -47,10 +49,11 @@ export function UnitTab({ units }: { units: UnitRow[] }) {
     <div>
       <div className="mb-4 flex justify-end">
         <button
+          type="button"
           onClick={() => setCreating(true)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/40 hover:from-indigo-400 hover:to-violet-400"
+          className="flex min-h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/40 hover:from-indigo-600 hover:to-violet-600"
         >
-          <Plus className="h-4 w-4" /> Unit Baru
+          <Plus className="h-4 w-4" aria-hidden="true" /> Unit Baru
         </button>
       </div>
 
@@ -66,14 +69,17 @@ export function UnitTab({ units }: { units: UnitRow[] }) {
             <div key={u.id} className="card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-white">
+                  <h2 className="truncate text-sm font-semibold text-white">
                     {u.name}
-                  </h3>
+                  </h2>
                   <Badge className="mt-1.5 border-indigo-400/25 bg-indigo-500/10 text-indigo-300">
                     {u.category}
                   </Badge>
                 </div>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-500/15 text-indigo-300">
+                <div
+                  aria-hidden="true"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-500/15 text-indigo-300"
+                >
                   <Building2 className="h-4 w-4" />
                 </div>
               </div>
@@ -88,25 +94,28 @@ export function UnitTab({ units }: { units: UnitRow[] }) {
                 </span>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => setEditing(u)}
-                    className="rounded-lg border border-indigo-400/25 bg-indigo-500/10 p-1.5 text-indigo-300 hover:bg-indigo-500/20"
-                    aria-label="Ubah unit"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-indigo-400/25 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20"
+                    aria-label={`Ubah unit ${u.name}`}
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
                   </button>
-                  <form
-                    action={deleteUnit.bind(null, u.id)}
-                    onSubmit={(e) => {
-                      if (!confirm(`Hapus unit “${u.name}”?`)) e.preventDefault();
-                    }}
-                  >
-                    <button
-                      className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/20"
-                      aria-label="Hapus unit"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={() => deleteUnit(u.id)}
+                    title="Hapus unit audit?"
+                    message={
+                      <>
+                        Unit{" "}
+                        <strong className="text-slate-200">“{u.name}”</strong>{" "}
+                        beserta penempatan akunnya akan dihapus permanen.
+                        Tindakan ini tidak dapat dibatalkan.
+                      </>
+                    }
+                    triggerLabel={`Hapus unit ${u.name}`}
+                    trigger={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+                    triggerClassName="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-400/25 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                  />
                 </div>
               </div>
             </div>
@@ -114,10 +123,18 @@ export function UnitTab({ units }: { units: UnitRow[] }) {
         </div>
       )}
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="Unit Audit Baru">
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="Unit Audit Baru"
+      >
         <UnitForm onDone={() => setCreating(false)} />
       </Modal>
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Ubah Unit Audit">
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title="Ubah Unit Audit"
+      >
         {editing && <UnitForm unit={editing} onDone={() => setEditing(null)} />}
       </Modal>
     </div>
@@ -151,7 +168,12 @@ export function UnitForm({
         />
       </Field>
       <Field label="Kategori">
-        <select name="category" defaultValue={unit?.category} className="input-base" required>
+        <select
+          name="category"
+          defaultValue={unit?.category}
+          className="input-base"
+          required
+        >
           <option value="">Pilih kategori…</option>
           {UNIT_CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -170,11 +192,7 @@ export function UnitForm({
         />
       </Field>
       <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
-        >
+        <button type="button" onClick={onDone} className={BTN_SECONDARY}>
           Batal
         </button>
         <SubmitButton label={unit ? "Perbarui" : "Simpan"} />

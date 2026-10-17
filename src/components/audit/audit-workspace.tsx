@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -26,8 +33,12 @@ import {
   Field,
   SubmitButton,
   useCloseOnSuccess,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
 } from "@/components/ui/form";
-import { Badge, EmptyState } from "@/components/ui/primitives";
+import { Badge, EmptyState, ProgressBar } from "@/components/ui/primitives";
+import { Modal } from "@/components/ui/modal";
+import { ConfirmAction } from "@/components/ui/confirm-dialog";
 import {
   CATEGORIES,
   UMUM_SLUG,
@@ -101,51 +112,75 @@ export function AdminAuditWorkspace({
   const [tab, setTab] = useState<"instrumen" | "verifikasi">("instrumen");
 
   const TABS = [
-    { key: "instrumen" as const, label: "Instrumen & Pertanyaan", icon: ListChecks },
-    { key: "verifikasi" as const, label: "Panel Verifikasi LPM", icon: ShieldCheck },
+    {
+      key: "instrumen" as const,
+      label: "Instrumen & Pertanyaan",
+      icon: ListChecks,
+    },
+    {
+      key: "verifikasi" as const,
+      label: "Panel Verifikasi LPM",
+      icon: ShieldCheck,
+    },
   ];
 
   return (
     <div>
-      <div className="mb-4 inline-flex rounded-xl border border-indigo-400/15 bg-slate-500/10 p-1">
+      <div
+        role="tablist"
+        aria-label="Bagian audit"
+        className="mb-4 inline-flex max-w-full flex-wrap rounded-xl border border-indigo-400/15 bg-slate-500/10 p-1"
+      >
         {TABS.map((t) => (
           <button
             key={t.key}
+            type="button"
+            role="tab"
+            id={`tab-${t.key}`}
+            aria-selected={tab === t.key}
+            aria-controls={`panel-${t.key}`}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${
               tab === t.key
                 ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-on-accent shadow"
                 : "text-slate-400 hover:text-slate-100"
             }`}
           >
-            <t.icon className="h-4 w-4" /> {t.label}
+            <t.icon className="h-4 w-4" aria-hidden="true" /> {t.label}
           </button>
         ))}
       </div>
 
-      {tab === "instrumen" && (
-        <InstrumenPanel
-          cycleId={cycleId}
-          questions={questions}
-          standards={standards}
-          units={units}
-        />
-      )}
-      {tab === "verifikasi" && (
-        <VerifikasiTab
-          responses={responses}
-          questions={questions}
-          units={units}
-          cycleName={cycleName}
-        />
-      )}
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        {tab === "instrumen" && (
+          <InstrumenPanel
+            cycleId={cycleId}
+            questions={questions}
+            standards={standards}
+            units={units}
+          />
+        )}
+        {tab === "verifikasi" && (
+          <VerifikasiTab
+            responses={responses}
+            questions={questions}
+            units={units}
+            cycleName={cycleName}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
 /* ---------------------- Daftar kategori → detail kategori ---------------- */
 
-type CategoryBucket = { key: string; label: string; count: number; isUmum: boolean };
+type CategoryBucket = {
+  key: string;
+  label: string;
+  count: number;
+  isUmum: boolean;
+};
 
 function InstrumenPanel({
   cycleId,
@@ -170,7 +205,12 @@ function InstrumenPanel({
   const buckets: CategoryBucket[] = useMemo(() => {
     const umumCount = questions.filter((q) => q.scopeType === "all").length;
     const list: CategoryBucket[] = [
-      { key: UMUM_SLUG, label: "Umum (Semua Unit)", count: umumCount, isUmum: true },
+      {
+        key: UMUM_SLUG,
+        label: "Umum (Semua Unit)",
+        count: umumCount,
+        isUmum: true,
+      },
     ];
     for (const c of categories) {
       const count = questions.filter(
@@ -184,7 +224,7 @@ function InstrumenPanel({
       });
     }
     return list;
-  }, [categories, questions, units]);
+  }, [categories, questions]);
 
   if (selected === null) {
     return (
@@ -206,6 +246,7 @@ function InstrumenPanel({
             return (
               <button
                 key={b.key}
+                type="button"
                 onClick={() => setSelected(b.key)}
                 className="card group flex items-start gap-3 p-4 text-left transition hover:border-indigo-400/40 hover:bg-slate-500/[0.06]"
               >
@@ -216,10 +257,16 @@ function InstrumenPanel({
                       : "border-indigo-400/25 bg-indigo-500/15 text-indigo-300"
                   }`}
                 >
-                  {b.isUmum ? <Globe className="h-5 w-5" /> : <Layers className="h-5 w-5" />}
+                  {b.isUmum ? (
+                    <Globe className="h-5 w-5" />
+                  ) : (
+                    <Layers className="h-5 w-5" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">{b.label}</p>
+                  <p className="truncate text-sm font-semibold text-white">
+                    {b.label}
+                  </p>
                   <p className="mt-0.5 text-[11px] text-slate-400">
                     {b.count} pertanyaan •{" "}
                     {b.isUmum ? `${unitCount} unit` : `${unitCount} unit`}
@@ -306,7 +353,8 @@ function CategoryDetail({
         questions: [],
       }));
     return [...present, ...empty].sort(
-      (a, b) => a.order - b.order || a.standardName.localeCompare(b.standardName)
+      (a, b) =>
+        a.order - b.order || a.standardName.localeCompare(b.standardName)
     );
   }, [shownQuestions, standards]);
 
@@ -314,8 +362,16 @@ function CategoryDetail({
   const scope = isUmum
     ? { scopeType: "all" as const, scopeCategory: "", scopeUnitId: "" }
     : activeTab === "__all__"
-    ? { scopeType: "category" as const, scopeCategory: categoryKey, scopeUnitId: "" }
-    : { scopeType: "unit" as const, scopeCategory: "", scopeUnitId: activeTab };
+      ? {
+          scopeType: "category" as const,
+          scopeCategory: categoryKey,
+          scopeUnitId: "",
+        }
+      : {
+          scopeType: "unit" as const,
+          scopeCategory: "",
+          scopeUnitId: activeTab,
+        };
 
   const unitNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -329,8 +385,9 @@ function CategoryDetail({
   return (
     <div>
       <button
+        type="button"
         onClick={onBack}
-        className="mb-4 flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-indigo-300"
+        className="mb-4 flex min-h-9 items-center gap-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-indigo-300"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Kembali ke daftar kategori
       </button>
@@ -338,7 +395,11 @@ function CategoryDetail({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-500/15 text-indigo-300">
-            {isUmum ? <Globe className="h-5 w-5" /> : <Layers className="h-5 w-5" />}
+            {isUmum ? (
+              <Globe className="h-5 w-5" />
+            ) : (
+              <Layers className="h-5 w-5" />
+            )}
           </div>
           <div>
             <h2 className="text-base font-semibold text-white">
@@ -353,6 +414,7 @@ function CategoryDetail({
         </div>
         {!isUmum && (
           <button
+            type="button"
             onClick={() => setAddingUnit(true)}
             className="flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"
           >
@@ -362,23 +424,32 @@ function CategoryDetail({
       </div>
 
       {/* Tab per unit */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-indigo-400/10 pb-3">
+      <div
+        role="group"
+        aria-label="Cakupan pertanyaan"
+        className="mb-4 flex flex-wrap items-center gap-2 border-b border-indigo-400/10 pb-3"
+      >
         {tabs.map((t) => {
           const count =
             t.key === UMUM_SLUG
               ? questions.filter((q) => q.scopeType === "all").length
               : t.key === "__all__"
-              ? questions.filter(
-                  (q) => q.scopeType === "category" && q.scopeCategory === categoryKey
-                ).length
-              : questions.filter(
-                  (q) => q.scopeType === "unit" && q.scopeUnitId === Number(t.key)
-                ).length;
+                ? questions.filter(
+                    (q) =>
+                      q.scopeType === "category" &&
+                      q.scopeCategory === categoryKey
+                  ).length
+                : questions.filter(
+                    (q) =>
+                      q.scopeType === "unit" && q.scopeUnitId === Number(t.key)
+                  ).length;
           return (
             <button
               key={t.key}
+              type="button"
+              aria-pressed={activeTab === t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+              className={`flex min-h-9 max-w-full items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                 activeTab === t.key
                   ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-200"
                   : "border-slate-600/40 bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
@@ -391,6 +462,7 @@ function CategoryDetail({
               <span className="max-w-[180px] truncate">{t.label}</span>
               <span className="rounded-full bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-bold text-slate-300">
                 {count}
+                <span className="sr-only"> pertanyaan</span>
               </span>
             </button>
           );
@@ -405,7 +477,7 @@ function CategoryDetail({
         <InlineStandardForm cycleId={cycleId} />
       </div>
 
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-white">
           Daftar Standar &amp; Butir Pertanyaan — {activeLabel}
         </h3>
@@ -419,8 +491,8 @@ function CategoryDetail({
       <div className="space-y-4">
         {groups.length === 0 && (
           <div className="card p-6 text-center text-xs text-slate-500">
-            Belum ada standar pada siklus ini. Tambahkan standar terlebih dahulu di
-            atas.
+            Belum ada standar pada siklus ini. Tambahkan standar terlebih dahulu
+            di atas.
           </div>
         )}
         {groups.map((g) => (
@@ -477,7 +549,7 @@ function StandardBlock({
 
   return (
     <div className="card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-indigo-400/10 bg-slate-500/[0.05] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-400/10 bg-slate-500/[0.05] px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-indigo-400/25 bg-indigo-500/15 text-indigo-300">
             <FileText className="h-3.5 w-3.5" />
@@ -492,15 +564,18 @@ function StandardBlock({
             <button
               type="button"
               onClick={() => setOpenQuestions(true)}
-              className="group min-w-0 text-left"
-              title="Klik untuk mengelola butir pertanyaan"
+              className="group min-w-0 rounded-lg text-left"
+              aria-label={`Kelola butir pertanyaan standar ${standardName}`}
             >
               <p className="truncate text-sm font-semibold text-white group-hover:text-indigo-300">
                 {standardName}
               </p>
               <p className="flex items-center gap-1 text-[11px] text-slate-400">
                 {questions.length} butir pertanyaan
-                <span className="text-indigo-300 opacity-0 transition group-hover:opacity-100">
+                <span
+                  aria-hidden="true"
+                  className="text-indigo-300 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+                >
                   • klik untuk kelola
                 </span>
               </p>
@@ -510,30 +585,28 @@ function StandardBlock({
         {!editing && (
           <div className="flex shrink-0 gap-1.5">
             <button
+              type="button"
               onClick={() => setEditing(true)}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-500/10 hover:text-indigo-300"
-              aria-label="Ubah standar"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-indigo-300"
+              aria-label={`Ubah standar ${standardName}`}
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-4 w-4" aria-hidden="true" />
             </button>
-            <form
-              action={deleteStandard.bind(null, standardId)}
-              onSubmit={(e) => {
-                if (
-                  !confirm(
-                    `Hapus standar “${standardName}” beserta seluruh butir pertanyaannya?`
-                  )
-                )
-                  e.preventDefault();
-              }}
-            >
-              <button
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
-                aria-label="Hapus standar"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </form>
+            <ConfirmAction
+              action={() => deleteStandard(standardId)}
+              title="Hapus standar?"
+              message={
+                <>
+                  Standar{" "}
+                  <strong className="text-slate-200">“{standardName}”</strong>{" "}
+                  beserta seluruh butir pertanyaan dan jawaban terkait akan
+                  dihapus permanen.
+                </>
+              }
+              triggerLabel={`Hapus standar ${standardName}`}
+              trigger={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+              triggerClassName="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
+            />
           </div>
         )}
       </div>
@@ -622,15 +695,16 @@ function StandardQuestionsDialog({
     undefined
   );
 
-  // Setelah berhasil simpan: kosongkan daftar butir baru.
-  useEffect(() => {
+  // Setelah berhasil simpan: kosongkan daftar butir baru (derivasi saat render,
+  // pola "menyimpan info dari render sebelumnya" — tanpa efek beruntun).
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
     if (state?.ok) {
       setPending([]);
       setDraft("");
     }
-  }, [state]);
-
-  if (!open) return null;
+  }
 
   const addDraft = () => {
     const text = draft.trim();
@@ -641,212 +715,199 @@ function StandardQuestionsDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-      <div
-        className="fixed inset-0 bg-black/65 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="surface-modal relative z-10 my-8 w-full max-w-2xl rounded-2xl border border-indigo-400/20 p-5 shadow-2xl">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
-              <FileText className="h-4 w-4 text-indigo-300" />
-              Butir Pertanyaan
-            </h3>
-            <p className="mt-0.5 truncate text-xs text-slate-400">
-              Standar: <span className="text-slate-200">{standardName}</span>
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Tutup"
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-500/10 hover:text-slate-100"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* 1. Tambah butir baru ke daftar */}
-          <div className="rounded-xl border border-indigo-400/20 bg-indigo-500/[0.06] p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-200">
-              <Plus className="h-3.5 w-3.5 text-indigo-300" /> Tambah Butir Baru
-            </p>
-            <textarea
-              ref={draftRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                  e.preventDefault();
-                  addDraft();
-                }
-              }}
-              rows={2}
-              placeholder="Tulis butir pertanyaan, lalu klik Tambah…"
-              className="input-base resize-none"
-            />
-            <div className="mt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={addDraft}
-                disabled={!draft.trim()}
-                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-1.5 text-xs font-semibold text-on-accent shadow disabled:opacity-50"
-              >
-                <Plus className="h-3.5 w-3.5" /> Tambah ke Daftar
-              </button>
-            </div>
-          </div>
-
-          {/* 2. Daftar butir baru (belum disimpan) */}
-          <div>
-            <p className="mb-2 text-xs font-semibold text-slate-300">
-              Butir Baru ({pending.length})
-            </p>
-            {pending.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500">
-                Belum ada butir baru. Butir yang ditambahkan akan muncul di sini
-                sebelum disimpan.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {pending.map((text, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start gap-2 rounded-xl border border-indigo-400/15 bg-slate-500/[0.06] px-3 py-2"
-                  >
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-[10px] font-semibold text-slate-300">
-                      {i + 1}
-                    </span>
-                    <p className="min-w-0 flex-1 text-xs text-slate-200">{text}</p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPending((prev) => prev.filter((_, idx) => idx !== i))
-                      }
-                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
-                      aria-label="Hapus butir baru"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* 3. Daftar butir yang sudah tersimpan */}
-          <div className="border-t border-indigo-400/10 pt-4">
-            <p className="mb-2 text-xs font-semibold text-slate-300">
-              Butir Tersimpan pada Standar Ini ({questions.length})
-            </p>
-            {questions.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500">
-                Belum ada butir tersimpan pada cakupan ini.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {questions.map((q, idx) =>
-                  editingId === q.id ? (
-                    <li
-                      key={q.id}
-                      className="rounded-xl border border-indigo-400/20 bg-slate-500/[0.06] p-3"
-                    >
-                      <InlineQuestionForm
-                        cycleId={cycleId}
-                        question={q}
-                        standards={standards}
-                        units={units}
-                        onDone={() => setEditingId(null)}
-                      />
-                    </li>
-                  ) : (
-                    <li
-                      key={q.id}
-                      className="flex items-start gap-2 rounded-xl border border-slate-600/30 bg-slate-500/[0.04] px-3 py-2"
-                    >
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-[10px] font-semibold text-slate-300">
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-slate-200">
-                          {q.questionText}
-                        </p>
-                        {showScopeBadge && (
-                          <div className="mt-1">
-                            <ScopeBadge
-                              question={q}
-                              unitNameById={unitNameById}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(q.id)}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-500/10 hover:text-indigo-300"
-                          aria-label="Ubah pertanyaan"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <form
-                          action={deleteQuestion.bind(null, q.id)}
-                          onSubmit={(e) => {
-                            if (!confirm("Hapus pertanyaan ini?"))
-                              e.preventDefault();
-                          }}
-                        >
-                          <button
-                            className="rounded-lg p-1 text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
-                            aria-label="Hapus pertanyaan"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </form>
-                      </div>
-                    </li>
-                  )
-                )}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        {/* 4. Tombol Simpan (bulk) */}
-        <form action={formAction} className="mt-5 space-y-3 border-t border-indigo-400/10 pt-4">
-          <input type="hidden" name="cycleId" value={cycleId} />
-          <input type="hidden" name="standardId" value={standardId} />
-          <input type="hidden" name="scopeType" value={scope.scopeType} />
-          <input type="hidden" name="scopeCategory" value={scope.scopeCategory} />
-          <input type="hidden" name="scopeUnitId" value={scope.scopeUnitId} />
-          <input
-            type="hidden"
-            name="startOrder"
-            value={questions.length + 1}
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title="Butir Pertanyaan"
+      icon={<FileText className="h-4 w-4" />}
+      description={
+        <>
+          Standar: <span className="text-slate-200">{standardName}</span>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {/* 1. Tambah butir baru ke daftar */}
+        <div className="rounded-xl border border-indigo-400/20 bg-indigo-500/[0.06] p-3">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+            <Plus className="h-3.5 w-3.5 text-indigo-300" /> Tambah Butir Baru
+          </p>
+          <textarea
+            ref={draftRef}
+            aria-label="Teks butir pertanyaan baru"
+            aria-describedby="draft-hint"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                addDraft();
+              }
+            }}
+            rows={2}
+            placeholder="Tulis butir pertanyaan, lalu klik Tambah…"
+            className="input-base resize-none"
           />
-          <input type="hidden" name="texts" value={JSON.stringify(pending)} />
-          <ActionFeedback state={state} />
-          <div className="flex justify-end gap-2">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <span id="draft-hint" className="text-[11px] text-slate-500">
+              Tekan Ctrl+Enter untuk menambah cepat.
+            </span>
             <button
               type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
+              onClick={addDraft}
+              disabled={!draft.trim()}
+              className={BTN_PRIMARY}
             >
-              Tutup
-            </button>
-            <button
-              type="submit"
-              disabled={pending.length === 0}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/40 transition hover:from-indigo-400 hover:to-violet-400 disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" />
-              Simpan {pending.length > 0 ? `(${pending.length})` : ""}
+              <Plus className="h-4 w-4" aria-hidden="true" /> Tambah ke Daftar
             </button>
           </div>
-        </form>
+        </div>
+
+        {/* 2. Daftar butir baru (belum disimpan) */}
+        <div>
+          <p
+            className="mb-2 text-xs font-semibold text-slate-300"
+            aria-live="polite"
+          >
+            Butir Baru ({pending.length})
+          </p>
+          {pending.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500">
+              Belum ada butir baru. Butir yang ditambahkan akan muncul di sini
+              sebelum disimpan.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {pending.map((text, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-2 rounded-xl border border-indigo-400/15 bg-slate-500/[0.06] px-3 py-2"
+                >
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-[10px] font-semibold text-slate-300">
+                    {i + 1}
+                  </span>
+                  <p className="min-w-0 flex-1 text-xs text-slate-200">
+                    {text}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPending((prev) => prev.filter((_, idx) => idx !== i))
+                    }
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
+                    aria-label={`Hapus butir baru nomor ${i + 1} dari daftar`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* 3. Daftar butir yang sudah tersimpan */}
+        <div className="border-t border-indigo-400/10 pt-4">
+          <p className="mb-2 text-xs font-semibold text-slate-300">
+            Butir Tersimpan pada Standar Ini ({questions.length})
+          </p>
+          {questions.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500">
+              Belum ada butir tersimpan pada cakupan ini.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {questions.map((q, idx) =>
+                editingId === q.id ? (
+                  <li
+                    key={q.id}
+                    className="rounded-xl border border-indigo-400/20 bg-slate-500/[0.06] p-3"
+                  >
+                    <InlineQuestionForm
+                      cycleId={cycleId}
+                      question={q}
+                      standards={standards}
+                      units={units}
+                      onDone={() => setEditingId(null)}
+                    />
+                  </li>
+                ) : (
+                  <li
+                    key={q.id}
+                    className="flex items-start gap-2 rounded-xl border border-slate-600/30 bg-slate-500/[0.04] px-3 py-2"
+                  >
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/50 text-[10px] font-semibold text-slate-300">
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-200">{q.questionText}</p>
+                      {showScopeBadge && (
+                        <div className="mt-1">
+                          <ScopeBadge
+                            question={q}
+                            unitNameById={unitNameById}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(q.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-indigo-300"
+                        aria-label={`Ubah pertanyaan nomor ${idx + 1}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                      <ConfirmAction
+                        action={() => deleteQuestion(q.id)}
+                        title="Hapus pertanyaan?"
+                        message={
+                          <>
+                            Butir “{q.questionText}” beserta jawaban unit
+                            terkait akan dihapus permanen.
+                          </>
+                        }
+                        triggerLabel={`Hapus pertanyaan nomor ${idx + 1}`}
+                        trigger={
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        }
+                        triggerClassName="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
+                      />
+                    </div>
+                  </li>
+                )
+              )}
+            </ul>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* 4. Tombol Simpan (bulk) */}
+      <form
+        action={formAction}
+        className="mt-5 space-y-3 border-t border-indigo-400/10 pt-4"
+      >
+        <input type="hidden" name="cycleId" value={cycleId} />
+        <input type="hidden" name="standardId" value={standardId} />
+        <input type="hidden" name="scopeType" value={scope.scopeType} />
+        <input type="hidden" name="scopeCategory" value={scope.scopeCategory} />
+        <input type="hidden" name="scopeUnitId" value={scope.scopeUnitId} />
+        <input type="hidden" name="startOrder" value={questions.length + 1} />
+        <input type="hidden" name="texts" value={JSON.stringify(pending)} />
+        <ActionFeedback state={state} />
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onClose} className={BTN_SECONDARY}>
+            Tutup
+          </button>
+          <SubmitButton
+            label={`Simpan${pending.length > 0 ? ` (${pending.length})` : ""}`}
+            icon={<Save className="h-4 w-4" />}
+            disabled={pending.length === 0}
+          />
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -875,7 +936,11 @@ function InlineStandardForm({
     <form
       ref={formRef}
       action={formAction}
-      className={standard ? "flex items-center gap-2" : "space-y-3"}
+      className={
+        standard
+          ? "flex min-w-0 flex-1 flex-wrap items-start gap-2"
+          : "space-y-3"
+      }
     >
       {standard ? (
         <input type="hidden" name="id" value={standard.id} />
@@ -883,24 +948,24 @@ function InlineStandardForm({
         <input type="hidden" name="cycleId" value={cycleId} />
       )}
 
-      <input
-        name="name"
-        defaultValue={standard?.name ?? ""}
-        placeholder="mis. Standar Tata Pamong / Standar Isi Pembelajaran"
-        className="input-base"
-        required
-      />
+      <div className="min-w-0 flex-1">
+        <Field label="Nama standar" labelHidden>
+          <input
+            name="name"
+            defaultValue={standard?.name ?? ""}
+            placeholder="mis. Standar Tata Pamong / Standar Isi Pembelajaran"
+            className="input-base"
+            required
+          />
+        </Field>
+      </div>
       <div className="flex items-center gap-2">
         <SubmitButton
           label={standard ? "Simpan" : "Tambah Standar"}
           icon={standard ? undefined : <Plus className="h-4 w-4" />}
         />
         {standard && onDone && (
-          <button
-            type="button"
-            onClick={onDone}
-            className="rounded-xl border border-slate-600/50 px-3 py-2 text-xs text-slate-300 hover:bg-slate-500/10"
-          >
+          <button type="button" onClick={onDone} className={BTN_SECONDARY}>
             Batal
           </button>
         )}
@@ -961,25 +1026,26 @@ function QuestionItem({
       </div>
       <div className="flex gap-1.5">
         <button
+          type="button"
           onClick={() => setEditing(true)}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-500/10 hover:text-indigo-300"
-          aria-label="Ubah pertanyaan"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-indigo-300"
+          aria-label={`Ubah pertanyaan nomor ${index}`}
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Pencil className="h-4 w-4" aria-hidden="true" />
         </button>
-        <form
-          action={deleteQuestion.bind(null, question.id)}
-          onSubmit={(e) => {
-            if (!confirm("Hapus pertanyaan ini?")) e.preventDefault();
-          }}
-        >
-          <button
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
-            aria-label="Hapus pertanyaan"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </form>
+        <ConfirmAction
+          action={() => deleteQuestion(question.id)}
+          title="Hapus pertanyaan?"
+          message={
+            <>
+              Butir “{question.questionText}” beserta jawaban unit terkait akan
+              dihapus permanen.
+            </>
+          }
+          triggerLabel={`Hapus pertanyaan nomor ${index}`}
+          trigger={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+          triggerClassName="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
+        />
       </div>
     </li>
   );
@@ -999,13 +1065,13 @@ function ScopeBadge({
   const label = isAll
     ? "Umum"
     : isCategory
-    ? `Kategori ${question.scopeCategory ?? ""}`
-    : `Unit ${question.scopeUnitId != null ? unitNameById.get(question.scopeUnitId) ?? "" : ""}`;
+      ? `Kategori ${question.scopeCategory ?? ""}`
+      : `Unit ${question.scopeUnitId != null ? (unitNameById.get(question.scopeUnitId) ?? "") : ""}`;
   const cls = isAll
     ? "border-slate-500/30 bg-slate-500/10 text-slate-400"
     : isCategory
-    ? "border-sky-400/25 bg-sky-500/10 text-sky-300"
-    : "border-violet-400/25 bg-violet-500/10 text-violet-300";
+      ? "border-sky-400/25 bg-sky-500/10 text-sky-300"
+      : "border-violet-400/25 bg-violet-500/10 text-violet-300";
 
   return (
     <span
@@ -1067,11 +1133,7 @@ function InlineQuestionForm({
   );
 
   return (
-    <form
-      ref={formRef}
-      action={formAction}
-      className="space-y-3"
-    >
+    <form ref={formRef} action={formAction} className="space-y-3">
       {question ? (
         <input type="hidden" name="id" value={question.id} />
       ) : (
@@ -1083,8 +1145,16 @@ function InlineQuestionForm({
           {scopeLocked && scope ? (
             <>
               <input type="hidden" name="scopeType" value={scope.scopeType} />
-              <input type="hidden" name="scopeCategory" value={scope.scopeCategory} />
-              <input type="hidden" name="scopeUnitId" value={scope.scopeUnitId} />
+              <input
+                type="hidden"
+                name="scopeCategory"
+                value={scope.scopeCategory}
+              />
+              <input
+                type="hidden"
+                name="scopeUnitId"
+                value={scope.scopeUnitId}
+              />
             </>
           ) : null}
         </>
@@ -1092,7 +1162,7 @@ function InlineQuestionForm({
 
       <ActionFeedback state={state} />
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
+      <div className="grid gap-3 md:grid-cols-[1fr_220px]">
         <Field label="Teks Pertanyaan">
           <textarea
             name="questionText"
@@ -1191,11 +1261,7 @@ function InlineQuestionForm({
 
       <div className="flex justify-end gap-2">
         {onDone && (
-          <button
-            type="button"
-            onClick={onDone}
-            className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
-          >
+          <button type="button" onClick={onDone} className={BTN_SECONDARY}>
             Batal
           </button>
         )}
@@ -1225,55 +1291,39 @@ function AddUnitDialog({
   );
   useCloseOnSuccess(state, onClose);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
-      <div className="surface-modal relative z-10 w-full max-w-md rounded-2xl border border-indigo-400/20 p-5 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">
-            Tambah Unit — {category}
-          </h3>
-          <button
-            onClick={onClose}
-            aria-label="Tutup"
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-500/10 hover:text-slate-100"
-          >
-            <X className="h-4 w-4" />
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title={`Tambah Unit — ${category}`}
+    >
+      <form action={formAction} className="space-y-4">
+        <input type="hidden" name="category" value={category} />
+        <ActionFeedback state={state} />
+        <Field label="Nama Unit">
+          <input
+            name="name"
+            placeholder={`${category} …`}
+            className="input-base"
+            required
+          />
+        </Field>
+        <Field label="Keterangan (opsional)">
+          <input
+            name="description"
+            placeholder="Keterangan singkat unit…"
+            className="input-base"
+          />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={BTN_SECONDARY}>
+            Batal
           </button>
+          <SubmitButton label="Simpan Unit" />
         </div>
-        <form action={formAction} className="space-y-4">
-          <input type="hidden" name="category" value={category} />
-          <ActionFeedback state={state} />
-          <Field label="Nama Unit">
-            <input
-              name="name"
-              placeholder={`${category} …`}
-              className="input-base"
-              required
-            />
-          </Field>
-          <Field label="Keterangan (opsional)">
-            <input
-              name="description"
-              placeholder="Keterangan singkat unit…"
-              className="input-base"
-            />
-          </Field>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
-            >
-              Batal
-            </button>
-            <SubmitButton label="Simpan Unit" />
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -1337,7 +1387,10 @@ export function AuditeeAuditWorkspace({
       arr.push(q);
       map.set(key, arr);
     }
-    return Array.from(map.entries()).map(([name, qs]) => ({ name, questions: qs }));
+    return Array.from(map.entries()).map(([name, qs]) => ({
+      name,
+      questions: qs,
+    }));
   }, [relevant]);
 
   const totalQuestions = relevant.length;
@@ -1364,12 +1417,18 @@ export function AuditeeAuditWorkspace({
             <Building2 className="h-3.5 w-3.5 text-indigo-300" /> Unit yang Anda
             isi ({myUnits.length})
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="Pilih unit yang diisi"
+          >
             {myUnits.map((u) => (
               <button
                 key={u.id}
+                type="button"
+                aria-pressed={activeUnitId === u.id}
                 onClick={() => setActiveUnitId(u.id)}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                   activeUnitId === u.id
                     ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-200"
                     : "border-slate-600/40 bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
@@ -1397,18 +1456,23 @@ export function AuditeeAuditWorkspace({
         <>
           <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <p className="text-xs text-slate-400">
-              Unit: <span className="text-slate-200">{activeUnit?.name ?? "-"}</span>{" "}
+              Unit:{" "}
+              <span className="text-slate-200">{activeUnit?.name ?? "-"}</span>{" "}
               • Siklus: <span className="text-slate-200">{cycleName}</span>
             </p>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-400">Progres</span>
-              <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-800">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400"
-                  style={{ width: `${percent(answeredCount, totalQuestions)}%` }}
-                />
-              </div>
-              <span className="text-xs font-semibold text-emerald-300">
+              <span className="text-xs text-slate-400" aria-hidden="true">
+                Progres
+              </span>
+              <ProgressBar
+                value={percent(answeredCount, totalQuestions)}
+                label={`Progres pengisian ${activeUnit?.name ?? "unit"}`}
+                className="h-2 w-24 sm:w-32"
+              />
+              <span
+                className="text-xs font-semibold text-emerald-300"
+                aria-live="polite"
+              >
                 {answeredCount}/{totalQuestions} (
                 {percent(answeredCount, totalQuestions)}%)
               </span>
@@ -1416,8 +1480,9 @@ export function AuditeeAuditWorkspace({
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Jawab <strong className="text-slate-300">Ya</strong> dengan bukti, atau{" "}
-            <strong className="text-slate-300">Tidak</strong> dengan alasan.
+            Jawab <strong className="text-slate-300">Ya</strong> dengan bukti,
+            atau <strong className="text-slate-300">Tidak</strong> dengan
+            alasan.
           </p>
 
           <div className="space-y-4">
@@ -1462,15 +1527,21 @@ function AspectGroup({
   ).length;
   const complete = questions.length > 0 && answered >= questions.length;
   const [open, setOpen] = useState(!complete);
+  const panelId = useId();
 
   return (
-    <div className={`card overflow-hidden ${complete ? "border-emerald-400/40" : ""}`}>
+    <div
+      className={`card overflow-hidden ${complete ? "border-emerald-400/40" : ""}`}
+    >
       {complete && (
         <div className="h-0.5 w-full bg-gradient-to-r from-emerald-400 to-teal-400" />
       )}
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-500/[0.06]"
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-500/[0.06]"
       >
         <div className="flex min-w-0 items-center gap-3">
           <span
@@ -1503,7 +1574,10 @@ function AspectGroup({
       </button>
 
       {open && (
-        <div className="space-y-4 border-t border-indigo-400/10 p-4">
+        <div
+          id={panelId}
+          className="space-y-4 border-t border-indigo-400/10 p-3 sm:p-4"
+        >
           {questions.map((q, idx) => (
             <ResponseForm
               key={q.id}
@@ -1554,13 +1628,18 @@ function ResponseForm({
   const status = existing?.status ?? "pending";
 
   return (
-    <div className="rounded-xl border border-slate-700/40 bg-slate-900/30 p-4">
+    <div className="rounded-xl border border-slate-700/40 bg-slate-900/30 p-3 sm:p-4">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-800/50 text-[11px] font-semibold text-slate-300">
           {index}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-slate-200">{question.questionText}</p>
+          <p
+            id={`q-${question.id}-${unitId ?? 0}`}
+            className="text-sm break-words text-slate-200"
+          >
+            {question.questionText}
+          </p>
           {question.scopeType !== "all" && (
             <ScopeBadge question={question} unitNameById={unitNameById} />
           )}
@@ -1571,7 +1650,7 @@ function ResponseForm({
       </div>
 
       {canEdit ? (
-        <form action={formAction} className="mt-3 space-y-3 pl-9">
+        <form action={formAction} className="mt-3 space-y-3 sm:pl-9">
           <input type="hidden" name="cycleId" value={cycleId} />
           {unitId != null && (
             <input type="hidden" name="unitId" value={unitId} />
@@ -1584,7 +1663,13 @@ function ResponseForm({
           />
           <ActionFeedback state={state} />
 
-          <div className="flex gap-2">
+          <fieldset
+            className="flex gap-2"
+            aria-labelledby={`q-${question.id}-${unitId ?? 0}`}
+          >
+            <legend className="sr-only">
+              Jawaban pertanyaan nomor {index}
+            </legend>
             {(
               [
                 { v: "ya", label: "Ya", icon: Check, tone: "emerald" },
@@ -1593,7 +1678,7 @@ function ResponseForm({
             ).map((opt) => (
               <label
                 key={opt.v}
-                className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--focus-ring)] ${
                   answer === opt.v
                     ? opt.tone === "emerald"
                       ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-200"
@@ -1609,16 +1694,22 @@ function ResponseForm({
                   onChange={() => setAnswer(opt.v)}
                   className="sr-only"
                 />
-                <opt.icon className="h-4 w-4" /> {opt.label}
+                <opt.icon className="h-4 w-4" aria-hidden="true" /> {opt.label}
               </label>
             ))}
-          </div>
+          </fieldset>
 
           {answer === "ya" && (
             <div className="space-y-2.5 rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3">
-              <Field label="Bukti (PDF, maks 10MB)">
+              <Field
+                label="Bukti"
+                hint="Format PDF, maksimal 10 MB. Isi berkas atau tautan."
+              >
                 <div className="flex items-center gap-2 rounded-xl border border-dashed border-emerald-400/30 bg-emerald-500/5 px-3 py-2">
-                  <Upload className="h-4 w-4 text-emerald-300" />
+                  <Upload
+                    className="h-4 w-4 shrink-0 text-emerald-300"
+                    aria-hidden="true"
+                  />
                   <input
                     type="file"
                     name="file"
@@ -1634,7 +1725,9 @@ function ResponseForm({
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-[11px] text-emerald-300 hover:underline"
                 >
-                  <FileText className="h-3.5 w-3.5" /> Bukti terunggah saat ini
+                  <FileText className="h-3.5 w-3.5" aria-hidden="true" /> Bukti
+                  terunggah saat ini
+                  <span className="sr-only"> (membuka tab baru)</span>
                 </a>
               )}
               <Field label="Atau tautan bukti">
@@ -1642,6 +1735,8 @@ function ResponseForm({
                   <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                   <input
                     name="evidenceLink"
+                    type="url"
+                    inputMode="url"
                     defaultValue={existing?.evidenceLink ?? ""}
                     placeholder="https://…"
                     className="input-base pl-9"
@@ -1671,21 +1766,25 @@ function ResponseForm({
           </div>
         </form>
       ) : (
-        <div className="mt-3 space-y-2 pl-9 text-sm">
+        <div className="mt-3 space-y-2 text-sm sm:pl-9">
           {existing ? (
             <>
               <p className="text-slate-300">
                 Jawaban:{" "}
                 <span
                   className={
-                    existing.answer === "ya" ? "text-emerald-300" : "text-rose-300"
+                    existing.answer === "ya"
+                      ? "text-emerald-300"
+                      : "text-rose-300"
                   }
                 >
                   {existing.answer === "ya" ? "Ya" : "Tidak"}
                 </span>
               </p>
               {existing.reason && (
-                <p className="text-xs text-slate-400">Alasan: {existing.reason}</p>
+                <p className="text-xs text-slate-400">
+                  Alasan: {existing.reason}
+                </p>
               )}
               <div className="flex flex-wrap gap-2">
                 {existing.evidenceFile && (
@@ -1730,14 +1829,16 @@ function ResponseForm({
             <form action={rtlAction} className="space-y-2">
               <input type="hidden" name="id" value={existing.id} />
               <ActionFeedback state={rtlState} />
-              <textarea
-                name="rtl"
-                defaultValue={existing.rtl ?? ""}
-                rows={2}
-                placeholder="Rencana perbaikan yang akan dilakukan unit…"
-                className="input-base resize-none"
-                required
-              />
+              <Field label="Rencana tindak lanjut" labelHidden>
+                <textarea
+                  name="rtl"
+                  defaultValue={existing.rtl ?? ""}
+                  rows={2}
+                  placeholder="Rencana perbaikan yang akan dilakukan unit…"
+                  className="input-base resize-none"
+                  required
+                />
+              </Field>
               <div className="flex justify-end">
                 <SubmitButton label="Simpan RTL" />
               </div>
@@ -1801,7 +1902,8 @@ function VerifikasiTab({
         <select
           value={unitFilter}
           onChange={(e) => setUnitFilter(e.target.value)}
-          className="input-base max-w-xs"
+          aria-label="Saring berdasarkan unit"
+          className="input-base w-full sm:max-w-xs"
         >
           <option value="">Semua Unit</option>
           {units.map((u) => (
@@ -1813,14 +1915,15 @@ function VerifikasiTab({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="input-base max-w-[200px]"
+          aria-label="Saring berdasarkan status verifikasi"
+          className="input-base w-full sm:max-w-[200px]"
         >
           <option value="">Semua Status</option>
           <option value="pending">Menunggu Verifikasi</option>
           <option value="verified">Terverifikasi</option>
           <option value="revision">Perlu Revisi</option>
         </select>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-400" aria-live="polite">
           {filtered.length} jawaban pada {cycleName}
         </span>
       </div>
@@ -1840,7 +1943,10 @@ function VerifikasiTab({
               <div key={uid} className="card overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-400/10 px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-500/15 text-xs font-semibold text-indigo-200">
+                    <div
+                      aria-hidden="true"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-500/15 text-xs font-semibold text-indigo-200"
+                    >
                       {uid}
                     </div>
                     <div>
@@ -1848,18 +1954,18 @@ function VerifikasiTab({
                         {unit?.name ?? rows[0]?.unitName}
                       </h3>
                       <p className="text-[11px] text-slate-400">
-                        {unit?.category ?? rows[0]?.unitCategory} • {rows.length}/
+                        {unit?.category ?? rows[0]?.unitCategory} •{" "}
+                        {rows.length}/
                         {relevantTotalByUnit.get(uid) ?? rows.length} terjawab
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-800">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400"
-                        style={{ width: `${percent(verified, rows.length)}%` }}
-                      />
-                    </div>
+                    <ProgressBar
+                      value={percent(verified, rows.length)}
+                      label={`Progres verifikasi ${unit?.name ?? rows[0]?.unitName ?? "unit"}`}
+                      className="h-2 w-28"
+                    />
                     <span className="text-[11px] text-emerald-300">
                       {verified}/{rows.length} terverifikasi
                     </span>
@@ -1886,12 +1992,15 @@ function VerifyRow({ row }: { row: ResponseRow }) {
     undefined
   );
   const [open, setOpen] = useState(false);
+  const panelId = useId();
 
   return (
     <div className="px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-slate-200">{row.questionText}</p>
+          <p className="text-sm break-words text-slate-200">
+            {row.questionText}
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             <Badge
               className={
@@ -1900,7 +2009,11 @@ function VerifyRow({ row }: { row: ResponseRow }) {
                   : "border-rose-400/25 bg-rose-500/10 text-rose-300"
               }
             >
-              {row.answer === "ya" ? "Ya" : row.answer === "tidak" ? "Tidak" : "-"}
+              {row.answer === "ya"
+                ? "Ya"
+                : row.answer === "tidak"
+                  ? "Tidak"
+                  : "-"}
             </Badge>
             <Badge className={STATUS_STYLE[row.status]}>
               {STATUS_LABEL[row.status]}
@@ -1912,15 +2025,21 @@ function VerifyRow({ row }: { row: ResponseRow }) {
         </div>
 
         <button
+          type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-200 hover:bg-indigo-500/20"
+          aria-expanded={open}
+          aria-controls={panelId}
+          className="flex min-h-9 items-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-200 hover:bg-indigo-500/20"
         >
           <ShieldCheck className="h-3.5 w-3.5" /> Verifikasi
         </button>
       </div>
 
       {open && (
-        <div className="mt-3 space-y-3 rounded-xl border border-slate-700/40 bg-slate-900/40 p-3">
+        <div
+          id={panelId}
+          className="mt-3 space-y-3 rounded-xl border border-slate-700/40 bg-slate-900/40 p-3"
+        >
           <div className="flex flex-wrap gap-2 text-[11px]">
             {row.evidenceFile && (
               <a

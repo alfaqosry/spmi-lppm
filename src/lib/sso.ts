@@ -8,6 +8,7 @@
  */
 
 import { getSettings, isOn } from "@/lib/settings";
+import { logWarn, maskEmail } from "@/lib/redact";
 
 export const SSO_DEFAULT_URL = "https://sso-v2.universitaspahlawan.ac.id";
 
@@ -26,8 +27,13 @@ export type SsoRuntimeConfig = {
 export async function getSsoRuntimeConfig(): Promise<SsoRuntimeConfig> {
   const s = await getSettings();
   const url = (s["sso.url"] || SSO_DEFAULT_URL).replace(/\/+$/, "");
+  // Redirect URI HANYA dari pengaturan/env (tidak pernah dari header Host
+  // permintaan) — mencegah host-header injection pada alur OAuth.
   const redirectUri =
-    s["sso.redirectUri"] || "http://localhost:3002/api/sso/callback";
+    s["sso.redirectUri"] ||
+    (process.env.NODE_ENV === "production"
+      ? ""
+      : "http://localhost:3002/api/sso/callback");
   return {
     enabled: isOn(s["sso.enabled"]),
     url,
@@ -43,10 +49,12 @@ export async function getSsoRuntimeConfig(): Promise<SsoRuntimeConfig> {
   };
 }
 
-/** Apakah SSO aktif & terkonfigurasi (client id & secret tersedia). */
+/** Apakah SSO aktif & terkonfigurasi (client id, secret, redirect URI tersedia). */
 export async function isSsoConfigured(): Promise<boolean> {
   const cfg = await getSsoRuntimeConfig();
-  return cfg.enabled && Boolean(cfg.clientId && cfg.clientSecret);
+  return (
+    cfg.enabled && Boolean(cfg.clientId && cfg.clientSecret && cfg.redirectUri)
+  );
 }
 
 /** URL SSO efektif (untuk ditampilkan). */
@@ -96,8 +104,9 @@ export function resolveLocalRole(
       return "lpm_admin";
     }
     // Klaim admin tanpa whitelist email -> tolak & catat untuk deteksi dini.
-    console.warn(
-      `[security] Identitas SSO "${identity.email || identity.username}" ` +
+    logWarn(
+      "[security]",
+      `Identitas SSO "${maskEmail(identity.email) || "(tanpa email)"}" ` +
         `mengklaim role admin tetapi tidak ada di daftar email admin SSO — ` +
         `diberi peran pengunjung. Setel SSO_TRUST_ROLE=true bila memang diinginkan.`
     );

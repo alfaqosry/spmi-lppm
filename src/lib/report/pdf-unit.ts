@@ -85,7 +85,18 @@ function drawSummary(doc: jsPDF, data: UnitReportData, startY: number) {
       textColor: [255, 255, 255],
       fontStyle: "bold",
     },
-    head: [["Unit Audit", "Kategori", "Periode Siklus", "Butir", "Terjawab", "Ya", "Tidak", "Kepatuhan"]],
+    head: [
+      [
+        "Unit Audit",
+        "Kategori",
+        "Periode Siklus",
+        "Butir",
+        "Terjawab",
+        "Ya",
+        "Tidak",
+        "Kepatuhan",
+      ],
+    ],
     body: [
       [
         data.unit.name,
@@ -126,7 +137,9 @@ export function buildUnitReportPdf(data: UnitReportData): Uint8Array {
   // Bangun baris: standar (rowSpan) + butir bernomor ulang per standar.
   // PENTING: baris lanjutan dari sel rowSpan harus MENGHILANGKAN sel standar,
   // bukan diisi "" — jika tidak, seluruh kolom akan bergeser.
-  type Cell = string | { content: string; rowSpan?: number; styles?: Record<string, unknown> };
+  type Cell =
+    | string
+    | { content: string; rowSpan?: number; styles?: Record<string, unknown> };
   const body: Cell[][] = [];
 
   for (const s of data.standards) {
@@ -193,7 +206,10 @@ export function buildUnitReportPdf(data: UnitReportData): Uint8Array {
     ],
     body,
     didParseCell: (hook) => {
-      if (hook.section === "body" && (hook.column.index === 4 || hook.column.index === 5)) {
+      if (
+        hook.section === "body" &&
+        (hook.column.index === 4 || hook.column.index === 5)
+      ) {
         hook.cell.styles.fontStyle = "bold";
         hook.cell.styles.fontSize = 9;
       }

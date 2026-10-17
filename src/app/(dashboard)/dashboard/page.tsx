@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, unitIdsOf } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -5,16 +6,26 @@ import {
   Building2,
   CalendarClock,
   ClipboardCheck,
+  Download,
   Percent,
   TrendingUp,
 } from "lucide-react";
-import { PageHeader, StatCard, Badge } from "@/components/ui/primitives";
-import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
+import {
+  PageHeader,
+  StatCard,
+  Badge,
+  ProgressBar,
+} from "@/components/ui/primitives";
+import { DashboardChartsLazy } from "@/components/dashboard/dashboard-charts-lazy";
 import { percent, STATUS_LABEL, STATUS_STYLE } from "@/lib/format";
 import { isQuestionForUnit } from "@/lib/scope";
 import { isCycleOpen } from "@/lib/cycles";
 
-export const metadata = { title: "Dashboard — SPMI" };
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description:
+    "Ringkasan progres pengisian, kepatuhan, dan verifikasi audit mutu internal pada siklus aktif.",
+};
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -76,7 +87,12 @@ export default async function DashboardPage() {
   const allQuestions = activeCycle
     ? await prisma.auditQuestion.findMany({
         where: { cycleId: activeCycle.id },
-        select: { id: true, scopeType: true, scopeCategory: true, scopeUnitId: true },
+        select: {
+          id: true,
+          scopeType: true,
+          scopeCategory: true,
+          scopeUnitId: true,
+        },
       })
     : [];
   const totalPossible = units.reduce(
@@ -101,15 +117,33 @@ export default async function DashboardPage() {
   }));
 
   const statusData = [
-    { name: "Belum Mulai", value: units.filter((u) => !u.progress?.[0] || u.progress[0].status === "belum_mulai").length, color: "#64748b" },
-    { name: "Mengisi", value: units.filter((u) => u.progress?.[0]?.status === "mengisi").length, color: "#f59e0b" },
-    { name: "Selesai", value: units.filter((u) => u.progress?.[0]?.status === "selesai").length, color: "#10b981" },
+    {
+      name: "Belum Mulai",
+      value: units.filter(
+        (u) => !u.progress?.[0] || u.progress[0].status === "belum_mulai"
+      ).length,
+      color: "#94a3b8",
+    },
+    {
+      name: "Mengisi",
+      value: units.filter((u) => u.progress?.[0]?.status === "mengisi").length,
+      color: "#f59e0b",
+    },
+    {
+      name: "Selesai",
+      value: units.filter((u) => u.progress?.[0]?.status === "selesai").length,
+      color: "#10b981",
+    },
   ];
 
   const answerData = [
     { name: "Ya", value: yaCount, color: "#6366f1" },
     { name: "Tidak", value: tidakCount, color: "#f43f5e" },
-    { name: "Belum dijawab", value: Math.max(totalPossible - answered, 0), color: "#334155" },
+    {
+      name: "Belum dijawab",
+      value: Math.max(totalPossible - answered, 0),
+      color: "#64748b",
+    },
   ];
 
   const verificationData = [
@@ -142,14 +176,37 @@ export default async function DashboardPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Total Unit" value={totalUnits} icon={Building2} hint={`${totalCycles} siklus tercatat`} />
-        <StatCard label="Butir Pertanyaan" value={totalQuestions} icon={CalendarClock} tone="sky" hint={`${totalUnits} unit diaudit`} />
-        <StatCard label="Jawaban Terisi" value={`${answered}/${totalPossible}`} icon={ClipboardCheck} tone="amber" hint={`${yaCount} Ya • ${tidakCount} Tidak`} />
-        <StatCard label="Kepatuhan (Ya)" value={`${percent(yaCount, answered)}%`} icon={Percent} tone="emerald" hint={`${verified} terverifikasi`} />
+        <StatCard
+          label="Total Unit"
+          value={totalUnits}
+          icon={Building2}
+          hint={`${totalCycles} siklus tercatat`}
+        />
+        <StatCard
+          label="Butir Pertanyaan"
+          value={totalQuestions}
+          icon={CalendarClock}
+          tone="sky"
+          hint={`${totalUnits} unit diaudit`}
+        />
+        <StatCard
+          label="Jawaban Terisi"
+          value={`${answered}/${totalPossible}`}
+          icon={ClipboardCheck}
+          tone="amber"
+          hint={`${yaCount} Ya • ${tidakCount} Tidak`}
+        />
+        <StatCard
+          label="Kepatuhan (Ya)"
+          value={`${percent(yaCount, answered)}%`}
+          icon={Percent}
+          tone="emerald"
+          hint={`${verified} terverifikasi`}
+        />
       </div>
 
       <div className="mt-5">
-        <DashboardCharts
+        <DashboardChartsLazy
           categoryData={categoryData}
           statusData={statusData}
           answerData={answerData}
@@ -160,38 +217,63 @@ export default async function DashboardPage() {
 
       <div className="card mt-5 overflow-hidden">
         <div className="border-b border-indigo-400/10 px-4 py-3">
-          <h2 className="text-sm font-semibold text-white">Progres Pengisian per Unit</h2>
+          <h2 className="text-sm font-semibold text-white">
+            Progres Pengisian per Unit
+          </h2>
           <p className="text-xs text-slate-400">
             Pelacakan real-time status pengisian audit setiap unit.
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
+            <caption className="sr-only">
+              Progres pengisian audit per unit
+            </caption>
             <thead>
               <tr className="border-b border-indigo-400/10 text-[11px] uppercase tracking-wide text-slate-400">
-                <th className="px-4 py-2.5 font-medium">Unit</th>
-                <th className="px-4 py-2.5 font-medium">Kategori</th>
-                <th className="px-4 py-2.5 font-medium">Akun</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Unit
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Kategori
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Akun
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
               {units.map((u) => {
                 const status = u.progress?.[0]?.status ?? "belum_mulai";
                 return (
-                  <tr key={u.id} className="border-b border-slate-500/15 last:border-0 hover:bg-slate-500/[0.08]">
-                    <td className="px-4 py-3 font-medium text-slate-200">{u.name}</td>
+                  <tr
+                    key={u.id}
+                    className="border-b border-slate-500/15 last:border-0 hover:bg-slate-500/[0.08]"
+                  >
+                    <td className="px-4 py-3 font-medium text-slate-200">
+                      {u.name}
+                    </td>
                     <td className="px-4 py-3 text-slate-400">{u.category}</td>
-                    <td className="px-4 py-3 text-slate-400">{u._count.users} pengguna</td>
+                    <td className="px-4 py-3 text-slate-400">
+                      {u._count.users} pengguna
+                    </td>
                     <td className="px-4 py-3">
-                      <Badge className={STATUS_STYLE[status]}>{STATUS_LABEL[status]}</Badge>
+                      <Badge className={STATUS_STYLE[status]}>
+                        {STATUS_LABEL[status]}
+                      </Badge>
                     </td>
                   </tr>
                 );
               })}
               {units.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                  <td
+                    colSpan={4}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
                     Belum ada unit terdaftar.
                   </td>
                 </tr>
@@ -218,9 +300,21 @@ async function AuditeeDashboard({
   if (unitIds.length === 0 || !cycleId) {
     return (
       <div>
-        <PageHeader icon={TrendingUp} title="Dashboard" description="Ringkasan pengisian audit unit Anda." />
+        <PageHeader
+          icon={TrendingUp}
+          title="Dashboard"
+          description="Ringkasan pengisian audit unit Anda."
+        />
         <div className="card p-8 text-center text-sm text-slate-400">
-          Unit Anda belum ditugaskan atau belum ada siklus audit aktif.
+          Unit Anda belum ditugaskan atau belum ada siklus audit aktif. Hubungi
+          LPM di{" "}
+          <a
+            className="text-indigo-300 underline"
+            href="mailto:lpm@universitaspahlawan.ac.id"
+          >
+            lpm@universitaspahlawan.ac.id
+          </a>{" "}
+          bila Anda merasa ini keliru.
         </div>
       </div>
     );
@@ -237,11 +331,21 @@ async function AuditeeDashboard({
         where: { cycleId },
         select: { scopeType: true, scopeCategory: true, scopeUnitId: true },
       }),
-      prisma.auditResponse.count({ where: { cycleId, unitId: { in: unitIds }, answer: { not: null } } }),
-      prisma.auditResponse.count({ where: { cycleId, unitId: { in: unitIds }, answer: "ya" } }),
-      prisma.auditResponse.count({ where: { cycleId, unitId: { in: unitIds }, answer: "tidak" } }),
-      prisma.auditResponse.count({ where: { cycleId, unitId: { in: unitIds }, status: "verified" } }),
-      prisma.auditResponse.count({ where: { cycleId, unitId: { in: unitIds }, status: "revision" } }),
+      prisma.auditResponse.count({
+        where: { cycleId, unitId: { in: unitIds }, answer: { not: null } },
+      }),
+      prisma.auditResponse.count({
+        where: { cycleId, unitId: { in: unitIds }, answer: "ya" },
+      }),
+      prisma.auditResponse.count({
+        where: { cycleId, unitId: { in: unitIds }, answer: "tidak" },
+      }),
+      prisma.auditResponse.count({
+        where: { cycleId, unitId: { in: unitIds }, status: "verified" },
+      }),
+      prisma.auditResponse.count({
+        where: { cycleId, unitId: { in: unitIds }, status: "revision" },
+      }),
     ]);
 
   // Total pertanyaan relevan lintas seluruh unit pengguna.
@@ -260,13 +364,19 @@ async function AuditeeDashboard({
         }`}
       />
       {!cycleOpen && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-[11px] font-bold">
+        <div
+          role="status"
+          className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+        >
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-[11px] font-bold"
+          >
             !
           </span>
           <div>
             <p className="font-semibold">Periode pengisian ditutup</p>
-            <p className="mt-0.5 text-xs text-amber-200/80">
+            <p className="mt-0.5 text-xs text-amber-200">
               Siklus audit ini telah dinonaktifkan atau melewati batas waktu.
               Anda tidak dapat lagi mengisi jawaban audit.
             </p>
@@ -274,45 +384,88 @@ async function AuditeeDashboard({
         </div>
       )}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Pertanyaan" value={totalQuestions} icon={CalendarClock} tone="sky" />
-        <StatCard label="Terjawab" value={`${answered}/${totalQuestions}`} icon={ClipboardCheck} tone="amber" hint={`${percent(answered, totalQuestions)}% selesai`} />
-        <StatCard label="Jawaban Ya" value={ya} icon={Percent} tone="emerald" hint={`${tidak} Tidak`} />
-        <StatCard label="Perlu Revisi" value={revision} icon={TrendingUp} tone="rose" hint={`${verified} terverifikasi`} />
+        <StatCard
+          label="Pertanyaan"
+          value={totalQuestions}
+          icon={CalendarClock}
+          tone="sky"
+        />
+        <StatCard
+          label="Terjawab"
+          value={`${answered}/${totalQuestions}`}
+          icon={ClipboardCheck}
+          tone="amber"
+          hint={`${percent(answered, totalQuestions)}% selesai`}
+        />
+        <StatCard
+          label="Jawaban Ya"
+          value={ya}
+          icon={Percent}
+          tone="emerald"
+          hint={`${tidak} Tidak`}
+        />
+        <StatCard
+          label="Perlu Revisi"
+          value={revision}
+          icon={TrendingUp}
+          tone="rose"
+          hint={`${verified} terverifikasi`}
+        />
       </div>
 
       <div className="card mt-5 p-5">
-        <p className="text-sm font-medium text-slate-200">Progres keseluruhan</p>
-        <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-800">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all"
-            style={{ width: `${percent(answered, totalQuestions)}%` }}
-          />
-        </div>
+        <h2 className="text-sm font-medium text-slate-200">
+          Progres keseluruhan
+        </h2>
+        <ProgressBar
+          value={percent(answered, totalQuestions)}
+          label="Progres keseluruhan pengisian audit"
+          className="mt-3 h-3 w-full"
+        />
         <p className="mt-2 text-xs text-slate-400">
           {percent(answered, totalQuestions)}% pertanyaan telah dijawab.
         </p>
       </div>
 
-      {units.length > 1 && (
-        <div className="card mt-5 overflow-hidden">
-          <div className="border-b border-indigo-400/10 px-4 py-3">
-            <h2 className="text-sm font-semibold text-white">Unit yang Anda isi</h2>
-            <p className="text-xs text-slate-400">
-              Anda ditempatkan pada beberapa unit (rangkap jabatan).
-            </p>
-          </div>
-          <ul className="divide-y divide-slate-500/15">
-            {units.map((u) => (
-              <li key={u.id} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-sm text-slate-200">{u.name}</span>
+      <section
+        aria-labelledby="unit-anda"
+        className="card mt-5 overflow-hidden"
+      >
+        <div className="border-b border-indigo-400/10 px-4 py-3">
+          <h2 id="unit-anda" className="text-sm font-semibold text-white">
+            {units.length > 1 ? "Unit yang Anda isi" : "Unit Anda"}
+          </h2>
+          <p className="text-xs text-slate-400">
+            {units.length > 1
+              ? "Anda ditempatkan pada beberapa unit (rangkap jabatan). Unduh laporan audit per unit."
+              : "Unduh laporan audit unit Anda pada siklus aktif."}
+          </p>
+        </div>
+        <ul className="divide-y divide-slate-500/15">
+          {units.map((u) => (
+            <li
+              key={u.id}
+              className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5"
+            >
+              <span className="min-w-0 text-sm break-words text-slate-200">
+                {u.name}
+              </span>
+              <span className="flex items-center gap-2">
                 <Badge className="border-indigo-400/25 bg-indigo-500/10 text-indigo-300">
                   {u.category}
                 </Badge>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                <a
+                  href={`/api/export?cycleId=${cycleId}&unitId=${u.id}`}
+                  aria-label={`Unduh laporan PDF ${u.name}`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/20"
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" /> PDF
+                </a>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

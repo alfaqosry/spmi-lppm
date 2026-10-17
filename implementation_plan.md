@@ -1,17 +1,19 @@
 # Rencana Implementasi: Sistem Informasi SPMI
 
 ## Gambaran Umum
-**Sistem Informasi SPMI** (Sistem Penjaminan Mutu Internal) adalah aplikasi web berbasis *Single Page Application* (SPA) yang modern, responsif, dan bersih, yang dirancang untuk mengelola audit mutu internal di berbagai unit universitas (Program Studi, Wakil Rektor, Pusat Komputer/Bahasa, Perpustakaan, Biro, dll.).
 
-Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit audit, akun pengguna (Kepala dan Anggota Unit), mempublikasikan dokumen Penetapan & Evaluasi, mengatur Standar & Pertanyaan SPMI kustom per unit, memantau progres pengisian audit secara *real-time*, menganalisis kualitas institusi melalui diagram pendukung keputusan, serta memverifikasi jawaban dari unit yang diaudit. Sistem ini juga dilengkapi dengan **Integrasi Login SSO** yang serupa dengan aplikasi Webkampus lainnya (seperti LPPM).
+**Sistem Informasi SPMI** (Sistem Penjaminan Mutu Internal) adalah aplikasi web berbasis _Single Page Application_ (SPA) yang modern, responsif, dan bersih, yang dirancang untuk mengelola audit mutu internal di berbagai unit universitas (Program Studi, Wakil Rektor, Pusat Komputer/Bahasa, Perpustakaan, Biro, dll.).
+
+Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit audit, akun pengguna (Kepala dan Anggota Unit), mempublikasikan dokumen Penetapan & Evaluasi, mengatur Standar & Pertanyaan SPMI kustom per unit, memantau progres pengisian audit secara _real-time_, menganalisis kualitas institusi melalui diagram pendukung keputusan, serta memverifikasi jawaban dari unit yang diaudit. Sistem ini juga dilengkapi dengan **Integrasi Login SSO** yang serupa dengan aplikasi Webkampus lainnya (seperti LPPM).
 
 ---
 
 ## Teknologi yang Digunakan (Tech Stack)
+
 - **Frontend**: Next.js 14+ (App Router), React, Tailwind CSS, Lucide Icons, Recharts (untuk grafik analitik dan dashboard pengambil keputusan), Framer Motion (untuk animasi transisi SPA yang halus).
 - **Backend**: Next.js API Routes / Server Actions.
 - **Database**: MySQL (terhubung melalui Prisma ORM atau MySQL2).
-- **Autentikasi**: 
+- **Autentikasi**:
   - Login standar Email/Password.
   - **Integrasi Login SSO** (menggunakan `@webkampus/sso-client-next` atau klien OAuth2/OIDC ke Server SSO Universitas) dengan tombol **"Login via SSO"** yang menonjol di halaman login.
 - **Kontrol Akses (RBAC)**: Admin LPM, Kepala Unit Auditee, Anggota Unit Auditee.
@@ -21,7 +23,7 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 ## Fitur Utama & Navigasi Sidebar
 
 1. **Manajemen Siklus & Periode Audit (`audit_cycles`)**:
-   - Pengelolaan periode/tahun audit (misal: *Siklus 2025/2026*). Memastikan pengarsipan historis dan pelacakan multi-tahun.
+   - Pengelolaan periode/tahun audit (misal: _Siklus 2025/2026_). Memastikan pengarsipan historis dan pelacakan multi-tahun.
    - Pengaturan batas waktu (`deadline`) pengisian instrumen audit untuk setiap unit.
 
 2. **Manajemen Unit & Akun (Auditee Unit Management)**:
@@ -30,13 +32,13 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 
 3. **Menu Penetapan**:
    - LPM menginput/mengunggah dokumen penetapan (upload file PDF atau tautan/link).
-   - Ditampilkan di akun unit yang diaudit sebagai daftar berkas *read-only* (hanya bisa dilihat, tanpa bisa diubah oleh auditee).
+   - Ditampilkan di akun unit yang diaudit sebagai daftar berkas _read-only_ (hanya bisa dilihat, tanpa bisa diubah oleh auditee).
 
 4. **Menu Evaluasi**:
    - Repositori dokumen evaluasi di mana file PDF atau link dapat diunggah/diinput langsung oleh pihak berwenang.
 
 5. **Menu Monev (Monitoring & Evaluasi)**:
-   - Menu *placeholder* yang dikosongkan sementara untuk persiapan integrasi API di masa mendatang.
+   - Menu _placeholder_ yang dikosongkan sementara untuk persiapan integrasi API di masa mendatang.
 
 6. **Menu Audit & Verifikasi**:
    - **Penyusunan Standar & Pertanyaan oleh LPM**: Halaman daftar **kategori unit**; klik kategori membuka halaman detail berisi **tab per unit**. Setiap **Standar** menjadi induk/pengelompok dan **butir pertanyaan** ditambahkan di bawahnya, semua **inline tanpa modal**.
@@ -49,24 +51,26 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 7. **Dashboard Monitoring & Analisis Keputusan (LPM Analytics Dashboard)**:
    - **Pelacakan Progres Real-Time**: Bar progres dan indikator status untuk memantau unit mana saja yang sudah selesai, sedang mengisi, atau belum mulai mengisi audit.
    - **Diagram Analisis Pendukung Keputusan (Charts)**:
-     - *Grafik Tingkat Penyelesaian per Kategori Unit* (Prodi vs Pusat vs Warek vs Biro).
-     - *Distribusi Capaian Skor Kepatuhan SPMI* (Diagram radar/persentase kepatuhan per standar).
-     - *Breakdown Status Audit* (Pending, Verified, Revisi).
+     - _Grafik Tingkat Penyelesaian per Kategori Unit_ (Prodi vs Pusat vs Warek vs Biro).
+     - _Distribusi Capaian Skor Kepatuhan SPMI_ (Diagram radar/persentase kepatuhan per standar).
+     - _Breakdown Status Audit_ (Pending, Verified, Revisi).
    - **Ekspor Laporan**: Ekspor Berita Acara dan laporan rekapitulasi audit ke format PDF untuk keperluan akreditasi (BAN-PT / LAM).
 
 ---
 
 ## Estetika Desain UI/UX
-- **SPA Modern & Clean**: Navigasi sisi klien yang mulus, tata letak dashboard yang rapi dengan *sidebar* yang dapat diciutkan serta kartu bergaya *glassmorphism*.
-- **Palet Warna**: Palet profesional yang harmonis (Nuansa *Deep Indigo/Slate* dengan mode gelap dan gradien aksen modern).
-- **Responsif**: Desain *mobile-first* dengan menu laci (*drawer*) yang halus dan tabel yang ramah perangkat sentuh.
-- **Halaman Login**: Kartu *glassmorphism* bersih yang menampilkan form kredensial standar beserta tombol **"Login via SSO"** yang mencolok.
+
+- **SPA Modern & Clean**: Navigasi sisi klien yang mulus, tata letak dashboard yang rapi dengan _sidebar_ yang dapat diciutkan serta kartu bergaya _glassmorphism_.
+- **Palet Warna**: Palet profesional yang harmonis (Nuansa _Deep Indigo/Slate_ dengan mode gelap dan gradien aksen modern).
+- **Responsif**: Desain _mobile-first_ dengan menu laci (_drawer_) yang halus dan tabel yang ramah perangkat sentuh.
+- **Halaman Login**: Kartu _glassmorphism_ bersih yang menampilkan form kredensial standar beserta tombol **"Login via SSO"** yang mencolok.
 
 ---
 
 ## Skema Database (MySQL / Prisma)
 
 ### 1. `audit_cycles`
+
 - `id` (INT, PK)
 - `name` (VARCHAR, contoh: "Siklus 2025/2026")
 - `start_date` (DATE)
@@ -75,6 +79,7 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 - timestamps
 
 ### 2. `users`
+
 - `id` (INT, PK)
 - `name` (VARCHAR)
 - `email` (VARCHAR, UNIQUE)
@@ -86,6 +91,7 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 - timestamps
 
 ### 3. `units`
+
 - `id` (INT, PK)
 - `name` (VARCHAR)
 - `category` (VARCHAR: Prodi, Warek, Pusat, Perpustakaan, Biro, dll.)
@@ -93,6 +99,7 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 - timestamps
 
 ### 4. `documents`
+
 - `id` (INT, PK)
 - `cycle_id` (INT, FK)
 - `type` (ENUM: `penetapan`, `evaluasi`)
@@ -103,6 +110,7 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 - timestamps
 
 ### 5. `audit_standards`
+
 - `id` (INT, PK)
 - `cycle_id` (INT, FK ke `audit_cycles`)
 - `name` (VARCHAR — nama standar, mis. "Standar Tata Pamong")
@@ -111,6 +119,7 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 - unik per (`cycle_id`, `name`)
 
 ### 6. `audit_questions`
+
 - `id` (INT, PK)
 - `cycle_id` (INT, FK ke `audit_cycles`)
 - `standard_id` (INT, FK ke `audit_standards` — induk/pengelompok)
@@ -124,6 +133,7 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 > Catatan: **Standar** adalah induk/pengelompok butir pertanyaan. Menghapus standar ikut menghapus seluruh butir di bawahnya.
 
 ### 7. `audit_responses`
+
 - `id` (INT, PK)
 - `cycle_id` (INT, FK)
 - `unit_id` (INT, FK)
@@ -141,9 +151,10 @@ Sistem ini memungkinkan pihak LPM (Lembaga Penjamin Mutu) untuk mengelola unit a
 ---
 
 ## Langkah-Langkah Eksekusi (Eksekusi Mendatang)
+
 1. Inisialisasi proyek Next.js dengan Tailwind CSS di direktori `/home/alfaqosry/Documents/webkampus/lpm`.
 2. Konfigurasi koneksi MySQL (Pengaturan skema Prisma & migrasi).
-3. Membangun komponen tata letak (*Sidebar*, *Topbar*, wadah SPA responsif).
+3. Membangun komponen tata letak (_Sidebar_, _Topbar_, wadah SPA responsif).
 4. Implementasi modul-modul:
    - Halaman Login dengan form kredensial dan tombol **"Login via SSO"**.
    - **Dashboard Monitoring & Analisis Keputusan LPM** (Bar progres, grafik analitik Recharts).

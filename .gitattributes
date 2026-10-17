@@ -1,0 +1,28 @@
+# Normalisasi line ending: simpan LF di repositori untuk semua berkas teks.
+* text=auto eol=lf
+
+# Skrip Windows tetap CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Git hooks & skrip shell WAJIB LF (agar jalan di Git for Windows bash / Linux).
+scripts/hooks/* text eol=lf
+*.sh text eol=lf
+
+# Berkas biner.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+
+# Lockfile: jangan tampilkan diff besar di PR.
+package-lock.json linguist-generated=true -diff

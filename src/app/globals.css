@@ -8,7 +8,9 @@
    Nilai di bawah sengaja TIDAK dibungkus @layer sehingga menimpa token
    bawaan Tailwind (yang berada di @layer theme). Skala netral (white /
    slate-*) dibalik agar kelas-kelas yang semula dituning untuk latar
-   gelap tetap terbaca di latar terang. Accent (-200/-300) digelapkan.
+   gelap tetap terbaca di latar terang. Accent (-200/-300) digelapkan
+   sehingga teks & badge status memenuhi kontras WCAG 2.1 AA (>= 4.5:1)
+   di atas kartu maupun latar badge bernuansa (tint 10–15%).
    ===================================================================== */
 :root {
   color-scheme: light;
@@ -18,21 +20,39 @@
   --border: rgba(99, 102, 241, 0.16);
   --body-color: #1e2a44;
   --body-gradient:
-    radial-gradient(1100px 620px at 12% -8%, rgba(99, 102, 241, 0.1), transparent 60%),
-    radial-gradient(900px 560px at 100% 0%, rgba(14, 165, 233, 0.08), transparent 55%),
-    radial-gradient(800px 600px at 60% 120%, rgba(168, 85, 247, 0.07), transparent 60%),
+    radial-gradient(
+      1100px 620px at 12% -8%,
+      rgba(99, 102, 241, 0.1),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 560px at 100% 0%,
+      rgba(14, 165, 233, 0.08),
+      transparent 55%
+    ),
+    radial-gradient(
+      800px 600px at 60% 120%,
+      rgba(168, 85, 247, 0.07),
+      transparent 60%
+    ),
     var(--bg);
-  --card-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 255, 0.88));
+  --card-bg: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.92),
+    rgba(248, 250, 255, 0.88)
+  );
   --input-bg: rgba(255, 255, 255, 0.9);
-  --input-border: rgba(99, 102, 241, 0.22);
+  --input-border: #7a82bf;
   --input-color: #1e2a44;
-  --input-placeholder: rgba(100, 116, 139, 0.7);
+  --input-placeholder: #64748b;
   --bar-bg: rgba(255, 255, 255, 0.8);
   --side-bg: rgba(255, 255, 255, 0.88);
   --side-solid: #ffffff;
   --modal-bg: #ffffff;
   --scroll-thumb: rgba(99, 102, 241, 0.28);
   --scroll-thumb-hover: rgba(99, 102, 241, 0.45);
+  /* Cincin fokus (WCAG 2.4.7 / 1.4.11: >= 3:1 terhadap latar). */
+  --focus-ring: #4338ca;
 
   /* Netral (dibalik) */
   --color-white: #0f172b;
@@ -40,7 +60,7 @@
   --color-slate-200: #1d293d;
   --color-slate-300: #314158;
   --color-slate-400: #4a5a72;
-  --color-slate-500: #5b6b83;
+  --color-slate-500: #56657c;
   --color-slate-600: #8b9cb3;
   --color-slate-700: #c2ccd9;
   --color-slate-800: #e2e8f0;
@@ -51,34 +71,38 @@
   --color-indigo-300: #4338ca;
   --color-indigo-400: #6366f1;
   --color-indigo-500: #4f46e5;
+  --color-violet-200: #5b21b6;
   --color-violet-300: #6d28d9;
   --color-violet-400: #7c3aed;
   --color-violet-500: #7c3aed;
   --color-violet-600: #6d28d9;
-  --color-emerald-200: #047857;
-  --color-emerald-300: #059669;
+  --color-emerald-200: #064e3b;
+  --color-emerald-300: #065f46;
   --color-emerald-400: #10b981;
   --color-emerald-500: #059669;
   --color-teal-400: #14b8a6;
   --color-teal-500: #0d9488;
-  --color-amber-200: #b45309;
-  --color-amber-300: #b45309;
+  --color-amber-200: #78350f;
+  --color-amber-300: #92400e;
   --color-amber-400: #f59e0b;
   --color-amber-500: #d97706;
   --color-orange-400: #f97316;
   --color-orange-500: #ea580c;
-  --color-rose-200: #be123c;
-  --color-rose-300: #e11d48;
+  --color-rose-200: #9f1239;
+  --color-rose-300: #be123c;
   --color-rose-400: #f43f5e;
   --color-rose-500: #e11d48;
-  --color-sky-200: #0369a1;
-  --color-sky-300: #0284c7;
+  --color-sky-200: #075985;
+  --color-sky-300: #0369a1;
   --color-sky-400: #0ea5e9;
   --color-sky-500: #0284c7;
+  --color-fuchsia-300: #a21caf;
+  --color-fuchsia-400: #c026d3;
+  --color-fuchsia-500: #a21caf;
 }
 
 /* =====================================================================
-   TEMA GELAP — nilai asli (aktif saat <html class="dark">).
+   TEMA GELAP — aktif saat <html class="dark">.
    ===================================================================== */
 .dark {
   color-scheme: dark;
@@ -88,28 +112,46 @@
   --border: rgba(129, 140, 248, 0.16);
   --body-color: #e2e8f7;
   --body-gradient:
-    radial-gradient(1100px 620px at 12% -8%, rgba(99, 102, 241, 0.22), transparent 60%),
-    radial-gradient(900px 560px at 100% 0%, rgba(14, 165, 233, 0.16), transparent 55%),
-    radial-gradient(800px 600px at 60% 120%, rgba(168, 85, 247, 0.14), transparent 60%),
+    radial-gradient(
+      1100px 620px at 12% -8%,
+      rgba(99, 102, 241, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 560px at 100% 0%,
+      rgba(14, 165, 233, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(
+      800px 600px at 60% 120%,
+      rgba(168, 85, 247, 0.14),
+      transparent 60%
+    ),
     var(--bg);
-  --card-bg: linear-gradient(160deg, rgba(30, 37, 71, 0.72), rgba(16, 21, 43, 0.72));
+  --card-bg: linear-gradient(
+    160deg,
+    rgba(30, 37, 71, 0.72),
+    rgba(16, 21, 43, 0.72)
+  );
   --input-bg: rgba(9, 13, 30, 0.7);
-  --input-border: rgba(129, 140, 248, 0.22);
+  --input-border: #6670b5;
   --input-color: #e2e8f7;
-  --input-placeholder: rgba(148, 163, 184, 0.65);
+  --input-placeholder: #8a9bb4;
   --bar-bg: rgba(8, 13, 31, 0.8);
   --side-bg: rgba(10, 15, 36, 0.85);
   --side-solid: #0a0f24;
   --modal-bg: #0d1329;
   --scroll-thumb: rgba(129, 140, 248, 0.28);
   --scroll-thumb-hover: rgba(129, 140, 248, 0.45);
+  --focus-ring: #a4b3ff;
 
   --color-white: #ffffff;
   --color-slate-100: #f1f5f9;
   --color-slate-200: #e2e8f0;
   --color-slate-300: #cad5e2;
   --color-slate-400: #90a1b9;
-  --color-slate-500: #62748e;
+  /* Dicerahkan dari #62748e agar teks sekunder >= 4.5:1 di atas kartu gelap. */
+  --color-slate-500: #7f90aa;
   --color-slate-600: #45556c;
   --color-slate-700: #314158;
   --color-slate-800: #1d293d;
@@ -119,10 +161,12 @@
   --color-indigo-300: #a4b3ff;
   --color-indigo-400: #7d87ff;
   --color-indigo-500: #625fff;
+  --color-violet-200: #ddd6ff;
   --color-violet-300: #c4b4ff;
   --color-violet-400: #a685ff;
-  --color-violet-500: #8d54ff;
-  --color-violet-600: #7f22fe;
+  /* Digelapkan agar teks putih di atas gradien tombol >= 4.5:1. */
+  --color-violet-500: #7f22fe;
+  --color-violet-600: #7008e7;
   --color-emerald-200: #a4f4cf;
   --color-emerald-300: #5ee9b5;
   --color-emerald-400: #00d294;
@@ -143,22 +187,128 @@
   --color-sky-300: #77d4ff;
   --color-sky-400: #00bcfe;
   --color-sky-500: #00a5ef;
+  --color-fuchsia-300: #f4a8ff;
+  --color-fuchsia-400: #ed6aff;
+  --color-fuchsia-500: #e12afb;
 }
 
 * {
   border-color: var(--border);
 }
 
+html {
+  /* Tautan anchor tidak tertutup topbar sticky. */
+  scroll-padding-top: 5rem;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
   background: var(--body-gradient);
   color: var(--body-color);
   -webkit-font-smoothing: antialiased;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    var(--font-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  /* Cegah gulir horizontal di layar sempit (320px). */
+  overflow-x: hidden;
+}
+
+/* Gambar & media tidak melebar melebihi kontainernya. */
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------------
+   Aksesibilitas: fokus terlihat (WCAG 2.4.7)
+   --------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.input-base:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Tautan "Lewati ke konten utama" — tersembunyi hingga mendapat fokus. */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100px;
+  z-index: 200;
+  border-radius: 0.75rem;
+  background: var(--modal-bg);
+  color: var(--body-color);
+  border: 2px solid var(--focus-ring);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* Tautan di dalam teks berjalan selalu bergaris bawah (tidak hanya warna). */
+.prose-legal a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Target sentuh >= 44px pada perangkat sentuh (WCAG 2.5.5 / pedoman UP).
+   Kelas `.touch-compact` dapat dipakai untuk pengecualian yang disengaja.
+   --------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  button:not(.touch-compact),
+  [role="button"]:not(.touch-compact),
+  [role="tab"],
+  [role="menuitem"],
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  .touch-target {
+    min-height: 44px;
+  }
+  button:not(.touch-compact),
+  [role="button"]:not(.touch-compact) {
+    min-width: 44px;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Hormati preferensi "kurangi gerakan" (WCAG 2.3.3).
+   --------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Mode kontras tinggi Windows: pertahankan batas elemen. */
+@media (forced-colors: active) {
+  .card,
+  .input-base,
+  .glass {
+    border: 1px solid CanvasText;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -203,15 +353,22 @@ body {
   font-size: 0.875rem;
   color: var(--input-color);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 input.input-base::placeholder,
 textarea.input-base::placeholder {
   color: var(--input-placeholder);
+  opacity: 1;
 }
 .input-base:focus {
   border-color: rgba(129, 140, 248, 0.7);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+/* Kolom tidak valid (setelah validasi inline dijalankan). */
+.input-base[aria-invalid="true"] {
+  border-color: var(--color-rose-500);
 }
 select.input-base option {
   background: var(--modal-bg);
@@ -247,4 +404,22 @@ select.input-base option {
 }
 .animate-in {
   animation: floatIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Kerangka pemuatan (skeleton). */
+@keyframes shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+.skeleton {
+  background: color-mix(in oklab, var(--color-slate-500) 16%, transparent);
+  border-radius: 0.75rem;
+  animation: shimmer 1.4s ease-in-out infinite;
 }

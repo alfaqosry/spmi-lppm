@@ -27,7 +27,17 @@ services:
       --max-connections=200
       --innodb-buffer-pool-size=512M
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-changeme_root}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD:-changeme_root}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -63,7 +73,13 @@ services:
     networks:
       - spmi-net
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3002/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       start_period: 15s

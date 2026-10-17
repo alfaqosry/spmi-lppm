@@ -1,0 +1,53 @@
+name: Permintaan fitur
+description: Usulkan fitur baru atau peningkatan.
+title: "feat: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: masalah
+    attributes:
+      label: Masalah yang ingin diselesaikan
+      description: Kebutuhan apa yang belum terpenuhi? Siapa yang terdampak?
+      placeholder: "Sebagai Admin LPM, saya kesulitan ... karena ..."
+    validations:
+      required: true
+  - type: textarea
+    id: solusi
+    attributes:
+      label: Usulan solusi
+      description: Gambaran perilaku yang diinginkan.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatif
+    attributes:
+      label: Alternatif yang sudah dipertimbangkan
+  - type: dropdown
+    id: modul
+    attributes:
+      label: Modul terkait
+      multiple: true
+      options:
+        - Audit / pengisian
+        - Penetapan
+        - Evaluasi / Monev
+        - Analitik / laporan
+        - Siklus
+        - Unit & penempatan peran
+        - Pengaturan sistem / SSO
+        - Lainnya
+  - type: textarea
+    id: kriteria
+    attributes:
+      label: Kriteria penerimaan
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+  - type: dropdown
+    id: prioritas
+    attributes:
+      label: Prioritas
+      options:
+        - Rendah
+        - Sedang
+        - Tinggi

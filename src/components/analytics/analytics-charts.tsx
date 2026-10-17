@@ -17,6 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartPanel } from "@/components/charts/chart-panel";
 
 const tooltipStyle = {
   backgroundColor: "var(--modal-bg)",
@@ -30,26 +31,10 @@ const GRID = "color-mix(in oklab, var(--color-slate-500) 18%, transparent)";
 const TICK = { fill: "var(--color-slate-500)", fontSize: 11 } as const;
 const LEGEND = { fontSize: 11, color: "var(--color-slate-500)" } as const;
 
-function Panel({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="card p-4">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-        {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
-      </div>
-      <div className="h-72 w-full">{children}</div>
-    </div>
-  );
-}
-
+/**
+ * Grafik analitik (recharts). Dimuat secara lazy lewat
+ * analytics-charts-lazy.tsx agar tidak membebani first load JS.
+ */
 export function AnalyticsCharts({
   perAspect,
   categoryData,
@@ -59,14 +44,21 @@ export function AnalyticsCharts({
   categoryData: { name: string; kepatuhan: number }[];
   answerData: { name: string; value: number; color: string }[];
 }) {
+  const ranked = [...perAspect].sort((a, b) => b.kepatuhan - a.kepatuhan);
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Panel
+      <ChartPanel
         title="Profil Kepatuhan per Standar"
         subtitle="Persentase kepatuhan tiap standar (radar)"
+        valueLabel="Kepatuhan"
+        height="h-72"
+        rows={perAspect.map((p) => ({
+          label: p.name,
+          value: `${p.kepatuhan}%`,
+        }))}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={perAspect} outerRadius={96}>
+          <RadarChart data={perAspect} outerRadius="70%">
             <PolarGrid stroke={GRID} />
             <PolarAngleAxis dataKey="name" tick={TICK} />
             <Radar
@@ -79,26 +71,55 @@ export function AnalyticsCharts({
             <Tooltip contentStyle={tooltipStyle} />
           </RadarChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
 
-      <Panel
+      <ChartPanel
         title="Kepatuhan per Kategori Unit"
         subtitle="Rata-rata capaian kepatuhan setiap kategori"
+        valueLabel="Kepatuhan"
+        height="h-72"
+        rows={categoryData.map((c) => ({
+          label: c.name,
+          value: `${c.kepatuhan}%`,
+        }))}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={categoryData} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-            <XAxis dataKey="name" tick={TICK} axisLine={false} tickLine={false} />
+          <BarChart
+            data={categoryData}
+            margin={{ top: 6, right: 8, left: -18, bottom: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={GRID}
+              vertical={false}
+            />
+            <XAxis
+              dataKey="name"
+              tick={TICK}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis tick={TICK} axisLine={false} tickLine={false} unit="%" />
-            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(129,140,248,0.08)" }} />
-            <Bar dataKey="kepatuhan" name="Kepatuhan %" fill="#6366f1" radius={[6, 6, 0, 0]} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              cursor={{ fill: "rgba(129,140,248,0.08)" }}
+            />
+            <Bar
+              dataKey="kepatuhan"
+              name="Kepatuhan %"
+              fill="#6366f1"
+              radius={[6, 6, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
 
-      <Panel
+      <ChartPanel
         title="Distribusi Jawaban Audit"
         subtitle="Sebaran jawaban Ya / Tidak / Belum dijawab"
+        valueLabel="Jumlah jawaban"
+        height="h-72"
+        rows={answerData.map((a) => ({ label: a.name, value: a.value }))}
       >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -119,20 +140,33 @@ export function AnalyticsCharts({
             <Legend wrapperStyle={LEGEND} />
           </PieChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
 
-      <Panel
+      <ChartPanel
         title="Peringkat Kepatuhan Standar"
         subtitle="Standar dengan capaian tertinggi hingga terendah"
+        valueLabel="Kepatuhan"
+        height="h-72"
+        rows={ranked.map((p) => ({ label: p.name, value: `${p.kepatuhan}%` }))}
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             layout="vertical"
-            data={[...perAspect].sort((a, b) => b.kepatuhan - a.kepatuhan)}
+            data={ranked}
             margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
-            <XAxis type="number" tick={TICK} axisLine={false} tickLine={false} unit="%" />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={GRID}
+              horizontal={false}
+            />
+            <XAxis
+              type="number"
+              tick={TICK}
+              axisLine={false}
+              tickLine={false}
+              unit="%"
+            />
             <YAxis
               type="category"
               dataKey="name"
@@ -141,11 +175,19 @@ export function AnalyticsCharts({
               tickLine={false}
               width={54}
             />
-            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(129,140,248,0.08)" }} />
-            <Bar dataKey="kepatuhan" name="Kepatuhan %" fill="#10b981" radius={[0, 6, 6, 0]} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              cursor={{ fill: "rgba(129,140,248,0.08)" }}
+            />
+            <Bar
+              dataKey="kepatuhan"
+              name="Kepatuhan %"
+              fill="#10b981"
+              radius={[0, 6, 6, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
     </div>
   );
 }

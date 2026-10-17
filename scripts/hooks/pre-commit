@@ -1,0 +1,40 @@
+#!/bin/sh
+# Pre-commit: jalankan Prettier (--check) dan ESLint HANYA pada berkas yang di-stage.
+# Dipasang via: npm run hooks:install  (git config core.hooksPath scripts/hooks)
+# Lewati sementara (darurat saja): git commit --no-verify
+
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+cd "$ROOT" || exit 1
+
+if [ ! -d node_modules ]; then
+  echo "pre-commit: node_modules belum ada — jalankan 'npm ci' terlebih dahulu." >&2
+  exit 1
+fi
+
+# Berkas yang ditambah/diubah/di-rename (bukan yang dihapus).
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$STAGED" ] && exit 0
+
+PRETTIER_FILES=$(printf '%s\n' "$STAGED" | grep -E '\.(js|jsx|mjs|cjs|ts|tsx|mts|cts|json|css|md|ya?ml)$' || true)
+ESLINT_FILES=$(printf '%s\n' "$STAGED" | grep -E '\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$' || true)
+
+STATUS=0
+
+if [ -n "$PRETTIER_FILES" ]; then
+  echo "pre-commit: prettier --check ($(printf '%s\n' "$PRETTIER_FILES" | wc -l | tr -d ' ') berkas)"
+  # shellcheck disable=SC2086
+  printf '%s\n' "$PRETTIER_FILES" | tr '\n' '\0' | xargs -0 npx --no-install prettier --check --ignore-unknown || {
+    echo "pre-commit: format tidak sesuai. Jalankan: npx prettier --write <berkas> lalu git add ulang." >&2
+    STATUS=1
+  }
+fi
+
+if [ -n "$ESLINT_FILES" ]; then
+  echo "pre-commit: eslint ($(printf '%s\n' "$ESLINT_FILES" | wc -l | tr -d ' ') berkas)"
+  printf '%s\n' "$ESLINT_FILES" | tr '\n' '\0' | xargs -0 npx --no-install eslint --no-warn-ignored || {
+    echo "pre-commit: ESLint menemukan masalah. Perbaiki (atau 'npx eslint --fix <berkas>') lalu git add ulang." >&2
+    STATUS=1
+  }
+fi
+
+exit $STATUS

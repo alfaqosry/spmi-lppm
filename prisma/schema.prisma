@@ -83,6 +83,16 @@ model User {
   /** Menandai akun yang menjabat sebagai Ketua LPM (penandatangan laporan). */
   isLpmHead  Boolean  @default(false) @map("is_lpm_head")
   isActive   Boolean  @default(true) @map("is_active")
+  /**
+   * Versi sesi: dinaikkan setiap logout, ganti kata sandi, ubah peran/status,
+   * atau penonaktifan akun. Token sesi yang membawa versi lama otomatis
+   * ditolak (revokasi sesi tanpa tabel sesi terpisah).
+   */
+  sessionVersion Int       @default(0) @map("session_version")
+  /** Waktu pengguna menyetujui kebijakan privasi (UU 27/2022 PDP). */
+  consentedAt    DateTime? @map("consented_at")
+  /** Versi kebijakan privasi yang disetujui (lihat CONSENT_VERSION). */
+  consentVersion String?   @map("consent_version") @db.VarChar(40)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -136,6 +146,7 @@ model Document {
 
   @@index([cycleId])
   @@index([type])
+  @@index([filePath])
   @@map("documents")
 }
 
@@ -207,6 +218,7 @@ model AuditResponse {
   @@index([unitId])
   @@index([cycleId])
   @@index([status])
+  @@index([evidenceFile])
   @@map("audit_responses")
 }
 
