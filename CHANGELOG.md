@@ -7,6 +7,16 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-17
+
+### Fixed
+
+- Ops: dump/restore DB lewat `scripts/deploy/lib-db.ps1` (kredensial dari env kontainer, `docker cp`);
+  rollback otomatis kini tetap mengaktifkan rilis sebelumnya walau restore DB gagal, dan hanya
+  mencabut pemeliharaan setelah smoke test lulus.
+- Ops: folder `logs` tidak lagi dikunci ACL (PM2 gagal start dengan `EPERM`, insiden 17 Okt 2026).
+- Runbook: tugas terjadwal & troubleshooting disesuaikan dengan implementasi.
+
 ## [1.1.1] - 2026-10-17
 
 ### Fixed
@@ -63,7 +73,8 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Puskom-UP/lpm-new/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Puskom-UP/lpm-new/releases/tag/v1.0.0

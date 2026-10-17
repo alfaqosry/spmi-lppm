@@ -20,6 +20,7 @@ param(
     [string]$SpmiHome = 'E:\www\spmi-prod'
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib-db.ps1')
 $Current = Join-Path $SpmiHome 'current'
 $releases = Get-ChildItem (Join-Path $SpmiHome 'releases') -Directory | Sort-Object Name
 $active = (Get-Item $Current -Force).Target | Select-Object -First 1
@@ -41,9 +42,7 @@ if (-not $Yes -and (Read-Host "Lanjutkan rollback? ketik 'ya'") -ne 'ya') { thro
 if ($RestoreDb) {
     $dump = Join-Path $SpmiHome "backups\$RestoreDb\db.sql"
     if (-not (Test-Path $dump)) { throw "Tidak ditemukan: $dump" }
-    $db = @{}; foreach ($l in Get-Content (Join-Path $SpmiHome 'shared\db.env')) { if ($l -match '^([A-Z_]+)=(.*)$') { $db[$Matches[1]] = $Matches[2] } }
-    & cmd /c "docker exec -i spmi-db mysql -uroot -p$($db.MYSQL_ROOT_PASSWORD) $($db.MYSQL_DATABASE) < `"$dump`""
-    if ($LASTEXITCODE -ne 0) { throw 'Restore DB gagal.' }
+    Invoke-DbRestore $dump
 }
 
 & cmd /c rmdir "$Current" | Out-Null
