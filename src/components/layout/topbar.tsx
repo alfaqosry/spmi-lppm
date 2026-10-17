@@ -12,7 +12,7 @@ export function Topbar({ user }: { user: SessionUser }) {
           Selamat datang, {user.name.split(" ")[0]}
           <span aria-hidden="true"> 👋</span>
         </p>
-        <p className="truncate text-[11px] text-slate-400 sm:text-xs">
+        <p className="truncate text-xs text-slate-400 sm:text-xs">
           {ROLE_LABEL[user.role]}
           {user.unitName ? ` — ${user.unitName}` : " — Lembaga Penjaminan Mutu"}
         </p>

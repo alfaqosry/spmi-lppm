@@ -89,7 +89,7 @@ export function UnitTab({ units }: { units: UnitRow[] }) {
                 </p>
               )}
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">
+                <span className="text-xs text-slate-400">
                   {u.userCount} akun
                 </span>
                 <div className="flex gap-2">

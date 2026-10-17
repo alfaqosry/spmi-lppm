@@ -210,7 +210,7 @@ export default async function AuditPage() {
         >
           <span
             aria-hidden="true"
-            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-[11px] font-bold"
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-xs font-bold"
           >
             !
           </span>

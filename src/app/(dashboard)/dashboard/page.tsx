@@ -230,7 +230,7 @@ export default async function DashboardPage() {
               Progres pengisian audit per unit
             </caption>
             <thead>
-              <tr className="border-b border-indigo-400/10 text-[11px] uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-indigo-400/10 text-xs uppercase tracking-wide text-slate-400">
                 <th scope="col" className="px-4 py-2.5 font-medium">
                   Unit
                 </th>
@@ -370,7 +370,7 @@ async function AuditeeDashboard({
         >
           <span
             aria-hidden="true"
-            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-[11px] font-bold"
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-xs font-bold"
           >
             !
           </span>
@@ -457,7 +457,7 @@ async function AuditeeDashboard({
                 <a
                   href={`/api/export?cycleId=${cycleId}&unitId=${u.id}`}
                   aria-label={`Unduh laporan PDF ${u.name}`}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/20"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20"
                 >
                   <Download className="h-3.5 w-3.5" aria-hidden="true" /> PDF
                 </a>

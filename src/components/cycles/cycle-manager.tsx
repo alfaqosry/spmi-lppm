@@ -105,7 +105,7 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
                 <span>{c.questions} pertanyaan</span>
                 <span>{c.documents} dokumen</span>
                 <span className="flex items-center gap-1">

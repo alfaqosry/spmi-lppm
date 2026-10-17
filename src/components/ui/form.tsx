@@ -219,13 +219,13 @@ export function Field({
       </span>
       {children}
       {hint && (
-        <span id={hintId} className="block text-[11px] text-slate-500">
+        <span id={hintId} className="block text-xs text-slate-500">
           {hint}
         </span>
       )}
       <span id={errId} aria-live="polite" className="block empty:hidden">
         {shown ? (
-          <span className="flex items-start gap-1 text-[11px] font-medium text-rose-300">
+          <span className="flex items-start gap-1 text-xs font-medium text-rose-300">
             <AlertCircle
               className="mt-px h-3 w-3 shrink-0"
               aria-hidden="true"

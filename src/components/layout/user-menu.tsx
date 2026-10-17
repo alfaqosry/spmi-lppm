@@ -88,7 +88,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
           <span className="block max-w-[9rem] truncate text-xs font-semibold text-slate-100">
             {user.name}
           </span>
-          <span className="block max-w-[9rem] truncate text-[10px] text-slate-400">
+          <span className="block max-w-[9rem] truncate text-xs text-slate-400">
             {ROLE_LABEL[user.role]}
           </span>
         </span>
@@ -121,9 +121,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
                 <p className="truncate text-sm font-semibold text-slate-100">
                   {user.name}
                 </p>
-                <p className="truncate text-[11px] text-slate-400">
-                  {user.email}
-                </p>
+                <p className="truncate text-xs text-slate-400">{user.email}</p>
               </div>
             </div>
 

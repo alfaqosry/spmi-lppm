@@ -66,8 +66,10 @@ Step '1. Struktur direktori'
 foreach ($d in 'releases', 'shared', 'shared\storage\uploads', 'shared\public-uploads\branding', 'logs', 'backups', 'iis', 'builds') {
     New-Item -ItemType Directory -Force (Join-Path $SpmiHome $d) | Out-Null
 }
-# Batasi ACL folder shared (berisi rahasia): hanya Administrators + SYSTEM.
-& icacls (Join-Path $SpmiHome 'shared') /inheritance:r /grant:r 'Administrators:(OI)(CI)F' 'SYSTEM:(OI)(CI)F' | Out-Null
+# Batasi ACL folder berisi rahasia/data pribadi (shared, backups, logs): hanya Administrators + SYSTEM.
+foreach ($d in 'shared', 'backups', 'logs') {
+    & icacls (Join-Path $SpmiHome $d) /inheritance:r /grant:r 'Administrators:(OI)(CI)F' 'SYSTEM:(OI)(CI)F' | Out-Null
+}
 Write-Host "    $SpmiHome"
 
 # ---------------------------------------------------------------- 2. rahasia

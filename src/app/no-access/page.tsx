@@ -89,7 +89,7 @@ export default async function NoAccessPage() {
             </div>
 
             <div className="mt-6 rounded-xl border border-indigo-400/15 bg-indigo-500/[0.06] px-4 py-3 text-left">
-              <p className="text-[11px] uppercase tracking-wide text-slate-500">
+              <p className="text-xs uppercase tracking-wide text-slate-500">
                 Email LPM
               </p>
               <p className="mt-0.5 font-mono text-sm text-indigo-300">

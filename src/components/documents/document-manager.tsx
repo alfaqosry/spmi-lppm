@@ -88,9 +88,7 @@ export function DocumentManager({
                   <h2 className="line-clamp-2 text-sm font-semibold break-words text-white">
                     {d.title}
                   </h2>
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    {d.cycleName}
-                  </p>
+                  <p className="mt-1 text-xs text-slate-400">{d.cycleName}</p>
                 </div>
               </div>
 
@@ -107,7 +105,7 @@ export function DocumentManager({
                 )}
               </div>
 
-              <p className="mt-3 text-[11px] text-slate-500">
+              <p className="mt-3 text-xs text-slate-500">
                 {d.uploaderName} • {formatDateTime(d.createdAt)}
               </p>
 
@@ -242,7 +240,7 @@ function DocForm({
 
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="h-px flex-1 bg-slate-700/60" />
-        <span className="text-[11px] uppercase tracking-wide text-slate-500">
+        <span className="text-xs uppercase tracking-wide text-slate-500">
           atau
         </span>
         <span className="h-px flex-1 bg-slate-700/60" />
