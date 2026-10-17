@@ -2,53 +2,62 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireLpmAdmin } from "@/lib/guards";
 import { AppError, toActionError } from "@/lib/errors";
-
-async function requireLpm() {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "lpm_admin" && user.role !== "superadmin")) {
-    throw new AppError("Akses ditolak. Hanya Admin LPM.");
-  }
-  return user;
-}
+import { LIMITS, dateField, requireId, str } from "@/lib/validate";
+import { recordActivity } from "@/lib/logs";
+import { getClientIp } from "@/lib/net";
+import { cleanupUnreferencedUploads } from "@/lib/upload";
 
 export type ActionState = { ok?: boolean; error?: string } | undefined;
+
+function revalidateCycles() {
+  revalidatePath("/siklus");
+  revalidatePath("/dashboard");
+  revalidatePath("/audit");
+  revalidatePath("/analitik");
+}
+
+/** Baca & validasi field siklus dari form (whitelist eksplisit). */
+function readCycleForm(formData: FormData) {
+  const name = str(formData, "name", {
+    max: LIMITS.cycleName,
+    required: true,
+    label: "Nama siklus",
+  });
+  const startDate = dateField(formData, "startDate", "Tanggal mulai");
+  const endDate = dateField(formData, "endDate", "Tanggal selesai");
+  if (endDate < startDate) {
+    throw new AppError("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+  }
+  const isActive = formData.get("isActive") === "on";
+  return { name, startDate, endDate, isActive };
+}
 
 export async function createCycle(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   try {
-    await requireLpm();
-    const name = String(formData.get("name") || "").trim();
-    const startDate = String(formData.get("startDate") || "");
-    const endDate = String(formData.get("endDate") || "");
-    const isActive = formData.get("isActive") === "on";
+    const admin = await requireLpmAdmin();
+    const data = readCycleForm(formData);
 
-    if (!name || !startDate || !endDate) {
-      return { error: "Nama, tanggal mulai, dan tanggal selesai wajib diisi." };
-    }
-    if (new Date(endDate) < new Date(startDate)) {
-      return { error: "Tanggal selesai tidak boleh sebelum tanggal mulai." };
-    }
-
-    await prisma.$transaction(async (tx) => {
-      if (isActive) {
+    const created = await prisma.$transaction(async (tx) => {
+      if (data.isActive) {
         await tx.auditCycle.updateMany({ data: { isActive: false } });
       }
-      await tx.auditCycle.create({
-        data: {
-          name,
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
-          isActive,
-        },
-      });
+      return tx.auditCycle.create({ data });
     });
 
-    revalidatePath("/siklus");
-    revalidatePath("/dashboard");
+    await recordActivity({
+      userId: admin.id,
+      userName: admin.name,
+      action: "cycle.create",
+      entity: "cycle",
+      entityId: created.id,
+      ip: await getClientIp(),
+    });
+    revalidateCycles();
     return { ok: true };
   } catch (e) {
     return { error: toActionError(e, "Gagal menyimpan siklus.") };
@@ -60,37 +69,29 @@ export async function updateCycle(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    await requireLpm();
-    const id = Number(formData.get("id"));
-    const name = String(formData.get("name") || "").trim();
-    const startDate = String(formData.get("startDate") || "");
-    const endDate = String(formData.get("endDate") || "");
-    const isActive = formData.get("isActive") === "on";
-
-    if (!id || !name || !startDate || !endDate) {
-      return { error: "Data siklus tidak lengkap." };
-    }
+    const admin = await requireLpmAdmin();
+    const id = requireId(formData.get("id"), "Siklus");
+    const data = readCycleForm(formData);
 
     await prisma.$transaction(async (tx) => {
-      if (isActive) {
+      if (data.isActive) {
         await tx.auditCycle.updateMany({
           where: { id: { not: id } },
           data: { isActive: false },
         });
       }
-      await tx.auditCycle.update({
-        where: { id },
-        data: {
-          name,
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
-          isActive,
-        },
-      });
+      await tx.auditCycle.update({ where: { id }, data });
     });
 
-    revalidatePath("/siklus");
-    revalidatePath("/dashboard");
+    await recordActivity({
+      userId: admin.id,
+      userName: admin.name,
+      action: "cycle.update",
+      entity: "cycle",
+      entityId: id,
+      ip: await getClientIp(),
+    });
+    revalidateCycles();
     return { ok: true };
   } catch (e) {
     return { error: toActionError(e, "Gagal memperbarui siklus.") };
@@ -98,15 +99,24 @@ export async function updateCycle(
 }
 
 export async function setActiveCycle(id: number) {
-  await requireLpm();
+  const admin = await requireLpmAdmin();
+  const cycleId = requireId(id, "Siklus");
   await prisma.$transaction([
     prisma.auditCycle.updateMany({ data: { isActive: false } }),
-    prisma.auditCycle.update({ where: { id }, data: { isActive: true } }),
+    prisma.auditCycle.update({
+      where: { id: cycleId },
+      data: { isActive: true },
+    }),
   ]);
-  revalidatePath("/siklus");
-  revalidatePath("/dashboard");
-  revalidatePath("/audit");
-  revalidatePath("/analitik");
+  await recordActivity({
+    userId: admin.id,
+    userName: admin.name,
+    action: "cycle.activate",
+    entity: "cycle",
+    entityId: cycleId,
+    ip: await getClientIp(),
+  });
+  revalidateCycles();
 }
 
 /**
@@ -114,20 +124,49 @@ export async function setActiveCycle(id: number) {
  * Setelah dinonaktifkan, auditee tidak dapat lagi mengisi jawaban audit.
  */
 export async function deactivateCycle(id: number) {
-  await requireLpm();
+  const admin = await requireLpmAdmin();
+  const cycleId = requireId(id, "Siklus");
   await prisma.auditCycle.update({
-    where: { id },
+    where: { id: cycleId },
     data: { isActive: false },
   });
-  revalidatePath("/siklus");
-  revalidatePath("/dashboard");
-  revalidatePath("/audit");
-  revalidatePath("/analitik");
+  await recordActivity({
+    userId: admin.id,
+    userName: admin.name,
+    action: "cycle.deactivate",
+    entity: "cycle",
+    entityId: cycleId,
+    ip: await getClientIp(),
+  });
+  revalidateCycles();
 }
 
 export async function deleteCycle(id: number) {
-  await requireLpm();
-  await prisma.auditCycle.delete({ where: { id } });
-  revalidatePath("/siklus");
-  revalidatePath("/dashboard");
+  const admin = await requireLpmAdmin();
+  const cycleId = requireId(id, "Siklus");
+  // Kumpulkan berkas yang ikut terhapus (cascade) sebelum baris dihapus.
+  const [resp, docs] = await Promise.all([
+    prisma.auditResponse.findMany({
+      where: { cycleId, evidenceFile: { not: null } },
+      select: { evidenceFile: true },
+    }),
+    prisma.document.findMany({
+      where: { cycleId, filePath: { not: null } },
+      select: { filePath: true },
+    }),
+  ]);
+  await prisma.auditCycle.delete({ where: { id: cycleId } });
+  await cleanupUnreferencedUploads([
+    ...resp.map((r) => r.evidenceFile),
+    ...docs.map((d) => d.filePath),
+  ]);
+  await recordActivity({
+    userId: admin.id,
+    userName: admin.name,
+    action: "cycle.delete",
+    entity: "cycle",
+    entityId: cycleId,
+    ip: await getClientIp(),
+  });
+  revalidateCycles();
 }

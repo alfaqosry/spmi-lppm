@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { logError } from "@/lib/redact";
 
 /* =====================================================================
    Pengaturan aplikasi (AppSetting)
@@ -32,6 +33,8 @@ export const SETTING_DEFAULTS = {
   "log.login.enabled": "true",
   "log.activity.enabled": "true",
   "log.loginRetentionDays": "90",
+  /** Masa simpan log aktivitas (hari). 0 = tanpa batas. */
+  "log.activityRetentionDays": "365",
 
   // --- Integrasi SSO ---
   "sso.enabled": "true",
@@ -45,8 +48,9 @@ export const SETTING_DEFAULTS = {
 
   // --- Keamanan ---
   "security.sessionDays": "7",
-  "security.loginMaxAttempts": "8",
-  "security.loginWindowMinutes": "5",
+  // Batas percobaan login per kombinasi email+IP (standar: 5x per 1 menit).
+  "security.loginMaxAttempts": "5",
+  "security.loginWindowMinutes": "1",
 
   // --- Pemeliharaan ---
   "maintenance.enabled": "false",
@@ -105,7 +109,7 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
       }
     }
   } catch (e) {
-    console.error("[settings] gagal memuat pengaturan:", e);
+    logError("[settings] gagal memuat pengaturan:", e);
   }
   // Fallback env untuk SSO bila belum diatur di DB.
   for (const key of [
@@ -137,7 +141,10 @@ export function isOn(value: string | undefined): boolean {
 }
 
 /** Versi publik (tanpa nilai rahasia) untuk dikirim ke komponen klien. */
-export type PublicSettings = Record<SettingKey, { value: string; isSecret: boolean }>;
+export type PublicSettings = Record<
+  SettingKey,
+  { value: string; isSecret: boolean }
+>;
 
 /**
  * Bentuk data pengaturan untuk UI: key rahasia HANYA ditandai terisi/tidak,

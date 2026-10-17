@@ -15,6 +15,7 @@ import {
   Field,
   SubmitButton,
   useCloseOnSuccess,
+  BTN_SECONDARY,
 } from "@/components/ui/form";
 import {
   createDocument,
@@ -22,6 +23,7 @@ import {
   type ActionState,
 } from "@/lib/actions/documents";
 import { Badge, EmptyState } from "@/components/ui/primitives";
+import { ConfirmAction } from "@/components/ui/confirm-dialog";
 import { formatDateTime } from "@/lib/format";
 
 type DocRow = {
@@ -52,10 +54,11 @@ export function DocumentManager({
       {canManage && (
         <div className="mb-4 flex justify-end">
           <button
+            type="button"
             onClick={() => setCreating(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/40 hover:from-indigo-400 hover:to-violet-400"
+            className="flex min-h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/40 hover:from-indigo-600 hover:to-violet-600"
           >
-            <Plus className="h-4 w-4" /> Unggah Dokumen
+            <Plus className="h-4 w-4" aria-hidden="true" /> Unggah Dokumen
           </button>
         </div>
       )}
@@ -75,14 +78,19 @@ export function DocumentManager({
           {documents.map((d) => (
             <div key={d.id} className="card flex flex-col p-5">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-500/15 text-indigo-300">
+                <div
+                  aria-hidden="true"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-500/15 text-indigo-300"
+                >
                   <FileText className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="line-clamp-2 text-sm font-semibold text-white">
+                  <h2 className="line-clamp-2 text-sm font-semibold break-words text-white">
                     {d.title}
-                  </h3>
-                  <p className="mt-1 text-[11px] text-slate-400">{d.cycleName}</p>
+                  </h2>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {d.cycleName}
+                  </p>
                 </div>
               </div>
 
@@ -109,9 +117,14 @@ export function DocumentManager({
                     href={d.filePath}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-200 hover:bg-indigo-500/20"
+                    className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-200 hover:bg-indigo-500/20"
                   >
-                    <FileText className="h-3.5 w-3.5" /> Lihat File
+                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                    Lihat File
+                    <span className="sr-only">
+                      {" "}
+                      {d.title} (membuka tab baru)
+                    </span>
                   </a>
                 )}
                 {d.link && (
@@ -119,25 +132,32 @@ export function DocumentManager({
                     href={d.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-sky-400/25 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-200 hover:bg-sky-500/20"
+                    className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-sky-400/25 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-200 hover:bg-sky-500/20"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Buka Tautan
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                    Buka Tautan
+                    <span className="sr-only">
+                      {" "}
+                      {d.title} (membuka tab baru)
+                    </span>
                   </a>
                 )}
                 {canManage && (
-                  <form
-                    action={deleteDocument.bind(null, d.id)}
-                    onSubmit={(e) => {
-                      if (!confirm(`Hapus dokumen “${d.title}”?`)) e.preventDefault();
-                    }}
-                  >
-                    <button
-                      className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/20"
-                      aria-label="Hapus dokumen"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={() => deleteDocument(d.id)}
+                    title="Hapus dokumen?"
+                    message={
+                      <>
+                        Dokumen{" "}
+                        <strong className="text-slate-200">“{d.title}”</strong>{" "}
+                        akan dihapus permanen dan tidak lagi dapat diakses unit.
+                        Tindakan ini tidak dapat dibatalkan.
+                      </>
+                    }
+                    triggerLabel={`Hapus dokumen ${d.title}`}
+                    trigger={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+                    triggerClassName="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-400/25 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                  />
                 )}
               </div>
             </div>
@@ -146,7 +166,11 @@ export function DocumentManager({
       )}
 
       {canManage && (
-        <Modal open={creating} onClose={() => setCreating(false)} title="Unggah Dokumen">
+        <Modal
+          open={creating}
+          onClose={() => setCreating(false)}
+          title="Unggah Dokumen"
+        >
           <DocForm
             type={type}
             cycles={cycles}
@@ -198,9 +222,15 @@ function DocForm({
         />
       </Field>
 
-      <Field label="Unggah File (PDF, maks 10MB)">
+      <Field
+        label="Unggah File"
+        hint="Format PDF, maksimal 10 MB. Isi berkas atau tautan."
+      >
         <div className="flex items-center gap-2 rounded-xl border border-dashed border-indigo-400/30 bg-indigo-500/5 px-3 py-3">
-          <Upload className="h-4 w-4 text-indigo-300" />
+          <Upload
+            className="h-4 w-4 shrink-0 text-indigo-300"
+            aria-hidden="true"
+          />
           <input
             type="file"
             name="file"
@@ -211,18 +241,23 @@ function DocForm({
       </Field>
 
       <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-slate-700/60" />
+        <span aria-hidden="true" className="h-px flex-1 bg-slate-700/60" />
         <span className="text-[11px] uppercase tracking-wide text-slate-500">
           atau
         </span>
         <span className="h-px flex-1 bg-slate-700/60" />
       </div>
 
-      <Field label="Tautan / Link Dokumen">
+      <Field
+        label="Tautan / Link Dokumen"
+        hint="Opsional bila berkas sudah diunggah. Diawali https://"
+      >
         <div className="relative">
           <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             name="link"
+            type="url"
+            inputMode="url"
             placeholder="https://drive.google.com/…"
             className="input-base pl-9"
           />
@@ -230,14 +265,14 @@ function DocForm({
       </Field>
 
       <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
-        >
+        <button type="button" onClick={onDone} className={BTN_SECONDARY}>
           Batal
         </button>
-        <SubmitButton label="Unggah" icon={<Upload className="h-4 w-4" />} />
+        <SubmitButton
+          label="Unggah"
+          pendingLabel="Mengunggah…"
+          icon={<Upload className="h-4 w-4" />}
+        />
       </div>
     </form>
   );

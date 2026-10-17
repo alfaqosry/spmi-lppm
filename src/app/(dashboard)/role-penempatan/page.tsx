@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { UserCog } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -5,7 +6,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/primitives";
 import { AccountManager } from "@/components/accounts/account-manager";
 
-export const metadata = { title: "Role & Penempatan — SPMI" };
+export const metadata: Metadata = {
+  title: "Role & Penempatan",
+  description: "Kelola akun pengguna, peran, dan penempatan pada unit audit.",
+};
 
 export default async function RolePenempatanPage() {
   const user = await getCurrentUser();

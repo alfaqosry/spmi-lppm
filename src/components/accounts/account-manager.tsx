@@ -22,6 +22,8 @@ import {
   Field,
   SubmitButton,
   useCloseOnSuccess,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
 } from "@/components/ui/form";
 import {
   assignMember,
@@ -34,6 +36,8 @@ import {
   type ActionState,
 } from "@/lib/actions/units";
 import { Badge, EmptyState, StatCard } from "@/components/ui/primitives";
+import { ConfirmAction } from "@/components/ui/confirm-dialog";
+import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_HINT } from "@/lib/password";
 import { ROLE_LABEL } from "@/lib/format";
 import type { UnitRow } from "@/components/units/unit-manager";
 
@@ -89,14 +93,16 @@ export function AccountManager({
 }) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AccountRow | null>(null);
-  const [preset, setPreset] = useState<{ role: Role; unitId: number | null } | null>(
-    null
-  );
+  const [preset, setPreset] = useState<{
+    role: Role;
+    unitId: number | null;
+  } | null>(null);
   const [roleFilter, setRoleFilter] = useState<Role | "all">("all");
   const [query, setQuery] = useState("");
-  const [assign, setAssign] = useState<
-    { unitId: number; role: "head" | "member" } | null
-  >(null);
+  const [assign, setAssign] = useState<{
+    unitId: number;
+    role: "head" | "member";
+  } | null>(null);
 
   const stats = useMemo(
     () => ({
@@ -161,14 +167,24 @@ export function AccountManager({
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Total Akun" value={stats.total} icon={Users} />
-        <StatCard label="Kepala Unit" value={stats.kepala} icon={UserCog} tone="sky" />
+        <StatCard
+          label="Kepala Unit"
+          value={stats.kepala}
+          icon={UserCog}
+          tone="sky"
+        />
         <StatCard
           label="Anggota Unit"
           value={stats.anggota}
           icon={UserPlus}
           tone="amber"
         />
-        <StatCard label="Akun LPM" value={stats.lpm} icon={ShieldCheck} tone="emerald" />
+        <StatCard
+          label="Akun LPM"
+          value={stats.lpm}
+          icon={ShieldCheck}
+          tone="emerald"
+        />
       </div>
 
       {/* Status Ketua LPM (penandatangan laporan) */}
@@ -193,30 +209,35 @@ export function AccountManager({
         </p>
         <div className="flex flex-wrap gap-2">
           <button
+            type="button"
             onClick={() => openCreate("auditee_head")}
             className="flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20"
           >
             <UserCog className="h-3.5 w-3.5" /> Kepala Unit
           </button>
           <button
+            type="button"
             onClick={() => openCreate("auditee_member")}
             className="flex items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"
           >
             <UserPlus className="h-3.5 w-3.5" /> Anggota Unit
           </button>
           <button
+            type="button"
             onClick={() => openCreate("lpm_member")}
             className="flex items-center gap-2 rounded-xl border border-sky-400/25 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/20"
           >
             <ShieldCheck className="h-3.5 w-3.5" /> Anggota LPM
           </button>
           <button
+            type="button"
             onClick={() => openCreate("lpm_admin")}
             className="flex items-center gap-2 rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/20"
           >
             <ShieldCheck className="h-3.5 w-3.5" /> Admin LPM
           </button>
           <button
+            type="button"
             onClick={() => openCreate("pengunjung")}
             className="flex items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"
           >
@@ -230,18 +251,26 @@ export function AccountManager({
         <div className="relative flex-1 min-w-[200px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Cari akun berdasarkan nama, email, atau unit"
             placeholder="Cari nama, email, atau unit…"
             className="input-base pl-9"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div
+          className="flex flex-wrap gap-1.5"
+          role="group"
+          aria-label="Saring berdasarkan peran"
+        >
           {(["all", ...ROLE_OPTIONS.map((r) => r.value)] as const).map((r) => (
             <button
               key={r}
+              type="button"
+              aria-pressed={roleFilter === r}
               onClick={() => setRoleFilter(r as Role | "all")}
-              className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition ${
+              className={`min-h-9 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition ${
                 roleFilter === r
                   ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-200"
                   : "border-slate-600/40 bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
@@ -254,17 +283,33 @@ export function AccountManager({
       </div>
 
       {/* Tabel akun */}
+      <p className="sr-only" aria-live="polite">
+        {filtered.length} akun ditampilkan.
+      </p>
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
+            <caption className="sr-only">Daftar akun pengguna</caption>
             <thead>
               <tr className="border-b border-indigo-400/10 text-[11px] uppercase tracking-wide text-slate-400">
-                <th className="px-4 py-2.5 font-medium">Nama</th>
-                <th className="px-4 py-2.5 font-medium">Email</th>
-                <th className="px-4 py-2.5 font-medium">Peran</th>
-                <th className="px-4 py-2.5 font-medium">Unit</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 text-right font-medium">Aksi</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Nama
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Email
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Peran
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Unit
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Status
+                </th>
+                <th scope="col" className="px-4 py-2.5 text-right font-medium">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -275,7 +320,9 @@ export function AccountManager({
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-200">{a.name}</span>
+                      <span className="font-medium text-slate-200">
+                        {a.name}
+                      </span>
                       {a.isSso && (
                         <Badge className="border-sky-400/25 bg-sky-500/10 text-sky-300">
                           SSO
@@ -296,7 +343,9 @@ export function AccountManager({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{a.unitName ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-400">
+                    {a.unitName ?? "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge
                       className={
@@ -314,33 +363,42 @@ export function AccountManager({
                         <LpmHeadToggle account={a} />
                       )}
                       <button
+                        type="button"
                         onClick={() => setEditing(a)}
-                        className="rounded-lg border border-indigo-400/25 bg-indigo-500/10 p-1.5 text-indigo-300 hover:bg-indigo-500/20"
-                        aria-label="Ubah akun"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-indigo-400/25 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20"
+                        aria-label={`Ubah akun ${a.name}`}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </button>
-                      <form
-                        action={deleteAccount.bind(null, a.id)}
-                        onSubmit={(e) => {
-                          if (!confirm(`Hapus akun ${a.name}?`)) e.preventDefault();
-                        }}
-                      >
-                        <button
-                          className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/20"
-                          aria-label="Hapus akun"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </form>
+                      <ConfirmAction
+                        action={() => deleteAccount(a.id)}
+                        title="Hapus akun?"
+                        message={
+                          <>
+                            Akun{" "}
+                            <strong className="text-slate-200">{a.name}</strong>{" "}
+                            ({a.email}) akan dihapus permanen beserta
+                            penempatannya. Tindakan ini tidak dapat dibatalkan.
+                          </>
+                        }
+                        triggerLabel={`Hapus akun ${a.name}`}
+                        trigger={
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        }
+                        triggerClassName="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-400/25 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                    Tidak ada akun yang cocok.
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
+                    Tidak ada akun yang cocok dengan pencarian atau filter. Coba
+                    kata kunci lain atau pilih &ldquo;Semua&rdquo;.
                   </td>
                 </tr>
               )}
@@ -352,7 +410,8 @@ export function AccountManager({
       {/* Penempatan per unit */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-          <Building2 className="h-4 w-4 text-indigo-300" /> Penempatan Akun per Unit
+          <Building2 className="h-4 w-4 text-indigo-300" /> Penempatan Akun per
+          Unit
         </h2>
         {units.length === 0 ? (
           <EmptyState
@@ -375,10 +434,12 @@ export function AccountManager({
                   </div>
                   <div className="flex shrink-0 gap-1.5">
                     <button
+                      type="button"
                       onClick={() =>
                         setAssign({ unitId: unit.id, role: "member" })
                       }
-                      className="flex items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-300 hover:bg-amber-500/20"
+                      aria-label={`Tambah anggota ke ${unit.name}`}
+                      className="flex min-h-9 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-300 hover:bg-amber-500/20"
                     >
                       <Plus className="h-3 w-3" /> Anggota
                     </button>
@@ -398,11 +459,14 @@ export function AccountManager({
                         </span>
                         <RemoveMembershipButton
                           unitId={unit.id}
+                          unitName={unit.name}
                           userId={head.id}
+                          userName={head.name}
                         />
                       </>
                     ) : (
                       <button
+                        type="button"
                         onClick={() =>
                           setAssign({ unitId: unit.id, role: "head" })
                         }
@@ -429,7 +493,9 @@ export function AccountManager({
                             {m.name}
                             <RemoveMembershipButton
                               unitId={unit.id}
+                              unitName={unit.name}
                               userId={m.id}
+                              userName={m.name}
                               compact
                             />
                           </span>
@@ -461,7 +527,11 @@ export function AccountManager({
           }}
         />
       </Modal>
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Ubah Akun">
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title="Ubah Akun"
+      >
         {editing && (
           <AccountForm
             account={editing}
@@ -498,83 +568,81 @@ export function AccountManager({
 function RemoveMembershipButton({
   unitId,
   userId,
+  userName,
+  unitName,
   compact,
 }: {
   unitId: number;
   userId: number;
+  userName: string;
+  unitName: string;
   compact?: boolean;
 }) {
-  const [pending, start] = useTransition();
   return (
-    <button
-      type="button"
-      disabled={pending}
-      title="Hapus dari unit ini"
-      onClick={() => {
-        if (!confirm("Hapus penempatan akun ini dari unit tersebut?")) return;
-        start(async () => {
-          const res = await removeMember(unitId, userId);
-          if (res?.error) alert(res.error);
-        });
-      }}
-      className={
-        compact
-          ? "rounded-full p-0.5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
-          : "ml-auto rounded-lg p-1 text-slate-400 hover:bg-rose-500/15 hover:text-rose-300"
+    <ConfirmAction
+      action={() => removeMember(unitId, userId)}
+      title="Hapus penempatan?"
+      confirmLabel="Hapus Penempatan"
+      message={
+        <>
+          <strong className="text-slate-200">{userName}</strong> akan
+          dikeluarkan dari unit{" "}
+          <strong className="text-slate-200">{unitName}</strong>. Akunnya tetap
+          ada.
+        </>
       }
-      aria-label="Hapus penempatan"
-    >
-      {pending ? (
-        <Loader2 className="h-3 w-3 animate-spin" />
-      ) : (
-        <X className="h-3 w-3" />
-      )}
-    </button>
+      triggerLabel={`Hapus ${userName} dari ${unitName}`}
+      trigger={
+        <X className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} aria-hidden="true" />
+      }
+      triggerClassName={
+        compact
+          ? "touch-compact flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
+          : "ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-500/15 hover:text-rose-300"
+      }
+    />
   );
 }
 
 /** Tombol untuk menunjuk/mencabut seorang Admin LPM sebagai Ketua LPM. */
 function LpmHeadToggle({ account }: { account: AccountRow }) {
-  const [pending, start] = useTransition();
   const isHead = account.isLpmHead;
-
   return (
-    <button
-      type="button"
-      disabled={pending}
-      title={
-        isHead
-          ? "Cabut status Ketua LPM"
-          : "Tunjuk sebagai Ketua LPM (penandatangan laporan)"
+    <ConfirmAction
+      action={() =>
+        isHead ? unsetLpmHead(account.id) : setLpmHead(account.id)
       }
-      onClick={() => {
-        const msg = isHead
-          ? `Cabut status Ketua LPM dari ${account.name}?`
-          : `Tunjuk ${account.name} sebagai Ketua LPM? Ia akan menjadi penandatangan dokumen laporan (menggantikan Ketua LPM sebelumnya bila ada).`;
-        if (!confirm(msg)) return;
-        start(async () => {
-          const res = isHead
-            ? await unsetLpmHead(account.id)
-            : await setLpmHead(account.id);
-          if (res?.error) alert(res.error);
-        });
-      }}
-      className={`rounded-lg border p-1.5 ${
+      tone="primary"
+      title={isHead ? "Cabut status Ketua LPM?" : "Tunjuk sebagai Ketua LPM?"}
+      confirmLabel={isHead ? "Cabut" : "Tunjuk"}
+      message={
+        isHead ? (
+          <>
+            Status Ketua LPM akan dicabut dari{" "}
+            <strong className="text-slate-200">{account.name}</strong>.
+          </>
+        ) : (
+          <>
+            <strong className="text-slate-200">{account.name}</strong> akan
+            menjadi penandatangan dokumen laporan (menggantikan Ketua LPM
+            sebelumnya bila ada).
+          </>
+        )
+      }
+      triggerLabel={
+        isHead
+          ? `Cabut status Ketua LPM dari ${account.name}`
+          : `Tunjuk ${account.name} sebagai Ketua LPM`
+      }
+      trigger={<Crown className="h-4 w-4" aria-hidden="true" />}
+      triggerClassName={`flex h-9 w-9 items-center justify-center rounded-lg border ${
         isHead
           ? "border-amber-400/40 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
           : "border-slate-600/40 bg-slate-500/10 text-slate-400 hover:bg-amber-500/15 hover:text-amber-300"
       }`}
-      aria-label="Tunjuk sebagai Ketua LPM"
-    >
-      {pending ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <Crown className="h-3.5 w-3.5" />
-      )}
-    </button>
+    />
   );
 }
-
 
 /**
  * Modal penempatan: memilih akun yang SUDAH terdaftar untuk ditempatkan pada
@@ -607,7 +675,8 @@ function AssignMemberDialog({
     const q = query.trim().toLowerCase();
     return accounts
       .filter(
-        (a) => !a.memberships.some((m) => m.unitId === unitId && m.role === "head")
+        (a) =>
+          !a.memberships.some((m) => m.unitId === unitId && m.role === "head")
       )
       .filter((a) => {
         if (!q) return true;
@@ -661,6 +730,7 @@ function AssignMemberDialog({
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ketik nama atau email…"
@@ -703,7 +773,10 @@ function AssignMemberDialog({
       )}
 
       {candidates.length === 0 && (
-        <p className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500">
+        <p
+          role="status"
+          className="rounded-xl border border-dashed border-slate-600/40 px-3 py-3 text-center text-[11px] text-slate-500"
+        >
           Tidak ada akun yang cocok. Tambahkan akun baru terlebih dahulu.
         </p>
       )}
@@ -717,21 +790,23 @@ function AssignMemberDialog({
           <Plus className="h-3.5 w-3.5" /> Akun Baru
         </button>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onDone}
-            className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
-          >
+          <button type="button" onClick={onDone} className={BTN_SECONDARY}>
             Batal
           </button>
           <button
             type="button"
             onClick={submit}
             disabled={pending || selected === ""}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow disabled:opacity-50"
+            aria-busy={pending || undefined}
+            className={BTN_PRIMARY}
           >
-            {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Tempatkan
+            {pending && (
+              <Loader2
+                className="h-3.5 w-3.5 animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            {pending ? "Memproses…" : "Tempatkan"}
           </button>
         </div>
       </div>
@@ -788,7 +863,8 @@ function AccountForm({
           <input
             type="email"
             name="email"
-            placeholder="nama@lpm.ac.id"
+            autoComplete="off"
+            placeholder="nama@universitaspahlawan.ac.id"
             className="input-base"
             required
           />
@@ -797,15 +873,21 @@ function AccountForm({
 
       <Field
         label={account ? "Kata Sandi Baru (opsional)" : "Kata Sandi"}
-        hint={account ? "Biarkan kosong jika tidak ingin mengubah." : "Minimal 6 karakter."}
+        hint={
+          account
+            ? `Biarkan kosong jika tidak ingin mengubah. ${PASSWORD_POLICY_HINT}`
+            : PASSWORD_POLICY_HINT
+        }
       >
         <div className="relative">
           <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             type="password"
             name="password"
+            autoComplete="new-password"
             className="input-base pl-9"
             placeholder="••••••••"
+            minLength={PASSWORD_MIN_LENGTH}
             required={!account}
           />
         </div>
@@ -875,11 +957,7 @@ function AccountForm({
       )}
 
       <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
-        >
+        <button type="button" onClick={onDone} className={BTN_SECONDARY}>
           Batal
         </button>
         <SubmitButton label={account ? "Perbarui" : "Simpan"} />

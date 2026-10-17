@@ -4,7 +4,6 @@ import { useActionState, useState } from "react";
 import { motion } from "framer-motion";
 import {
   CalendarRange,
-  CheckCircle2,
   CircleDot,
   Clock,
   Pencil,
@@ -19,6 +18,7 @@ import {
   Field,
   SubmitButton,
   useCloseOnSuccess,
+  BTN_SECONDARY,
 } from "@/components/ui/form";
 import {
   createCycle,
@@ -29,6 +29,7 @@ import {
   type ActionState,
 } from "@/lib/actions/cycles";
 import { Badge, EmptyState } from "@/components/ui/primitives";
+import { ConfirmAction } from "@/components/ui/confirm-dialog";
 import { formatDate } from "@/lib/format";
 
 type CycleRow = {
@@ -50,10 +51,11 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
     <div>
       <div className="mb-4 flex justify-end">
         <button
+          type="button"
           onClick={() => setCreating(true)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/40 transition hover:from-indigo-400 hover:to-violet-400"
+          className="flex min-h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/40 transition hover:from-indigo-600 hover:to-violet-600"
         >
-          <Plus className="h-4 w-4" /> Siklus Baru
+          <Plus className="h-4 w-4" aria-hidden="true" /> Siklus Baru
         </button>
       </div>
 
@@ -74,11 +76,14 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
               className="card relative p-5"
             >
               {c.isActive && (
-                <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-emerald-400 to-indigo-400" />
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-emerald-400 to-indigo-400"
+                />
               )}
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-white">{c.name}</h3>
+                  <h2 className="text-sm font-semibold text-white">{c.name}</h2>
                   <p className="mt-1 text-xs text-slate-400">
                     {formatDate(c.startDate)} — {formatDate(c.endDate)}
                   </p>
@@ -100,7 +105,7 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
                 )}
               </div>
 
-              <div className="mt-4 flex gap-4 text-[11px] text-slate-400">
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
                 <span>{c.questions} pertanyaan</span>
                 <span>{c.documents} dokumen</span>
                 <span className="flex items-center gap-1">
@@ -108,64 +113,83 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
                   {c.open
                     ? "Pengisian dibuka"
                     : c.isActive
-                    ? "Pengisian ditutup (batas waktu)"
-                    : "Pengisian ditutup"}
+                      ? "Pengisian ditutup (batas waktu)"
+                      : "Pengisian ditutup"}
                 </span>
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {!c.isActive && (
                   <form action={setActiveCycle.bind(null, c.id)}>
-                    <button className="flex items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20">
-                      <Power className="h-3.5 w-3.5" /> Aktifkan
+                    <button
+                      type="submit"
+                      className="flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
+                    >
+                      <Power className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                      Aktifkan
                     </button>
                   </form>
                 )}
                 {c.isActive && (
-                  <form
-                    action={deactivateCycle.bind(null, c.id)}
-                    onSubmit={(e) => {
-                      if (
-                        !confirm(
-                          `Nonaktifkan siklus “${c.name}”? Setelah dinonaktifkan, auditee tidak dapat lagi mengisi jawaban audit.`
-                        )
-                      )
-                        e.preventDefault();
-                    }}
-                  >
-                    <button className="flex items-center gap-1.5 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20">
-                      <PowerOff className="h-3.5 w-3.5" /> Nonaktifkan
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={() => deactivateCycle(c.id)}
+                    title="Nonaktifkan siklus?"
+                    confirmLabel="Nonaktifkan"
+                    message={
+                      <>
+                        Setelah siklus{" "}
+                        <strong className="text-slate-200">“{c.name}”</strong>{" "}
+                        dinonaktifkan, auditee tidak dapat lagi mengisi jawaban
+                        audit. Anda dapat mengaktifkannya kembali kapan saja.
+                      </>
+                    }
+                    trigger={
+                      <>
+                        <PowerOff className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                        Nonaktifkan
+                      </>
+                    }
+                    triggerClassName="flex min-h-9 items-center gap-1.5 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20"
+                  />
                 )}
                 <button
+                  type="button"
                   onClick={() => setEditing(c)}
-                  className="flex items-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-2.5 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20"
+                  className="flex min-h-9 items-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-2.5 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20"
                 >
-                  <Pencil className="h-3.5 w-3.5" /> Ubah
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Ubah
                 </button>
-                <form
-                  action={deleteCycle.bind(null, c.id)}
-                  onSubmit={(e) => {
-                    if (
-                      !confirm(
-                        `Hapus siklus “${c.name}”? Seluruh pertanyaan, dokumen, dan jawaban terkait akan ikut terhapus.`
-                      )
-                    )
-                      e.preventDefault();
-                  }}
-                >
-                  <button className="flex items-center gap-1.5 rounded-lg border border-rose-400/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/20">
-                    <Trash2 className="h-3.5 w-3.5" /> Hapus
-                  </button>
-                </form>
+                <ConfirmAction
+                  action={() => deleteCycle(c.id)}
+                  title="Hapus siklus audit?"
+                  message={
+                    <>
+                      Siklus{" "}
+                      <strong className="text-slate-200">“{c.name}”</strong>{" "}
+                      beserta seluruh pertanyaan, dokumen, dan jawaban terkait
+                      akan dihapus permanen. Tindakan ini tidak dapat
+                      dibatalkan.
+                    </>
+                  }
+                  trigger={
+                    <>
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                      Hapus
+                    </>
+                  }
+                  triggerClassName="flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-400/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/20"
+                />
               </div>
             </motion.div>
           ))}
         </div>
       )}
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="Siklus Audit Baru">
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="Siklus Audit Baru"
+      >
         <CycleForm onDone={() => setCreating(false)} />
       </Modal>
 
@@ -174,13 +198,21 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
         onClose={() => setEditing(null)}
         title="Ubah Siklus Audit"
       >
-        {editing && <CycleForm cycle={editing} onDone={() => setEditing(null)} />}
+        {editing && (
+          <CycleForm cycle={editing} onDone={() => setEditing(null)} />
+        )}
       </Modal>
     </div>
   );
 }
 
-function CycleForm({ cycle, onDone }: { cycle?: CycleRow; onDone: () => void }) {
+function CycleForm({
+  cycle,
+  onDone,
+}: {
+  cycle?: CycleRow;
+  onDone: () => void;
+}) {
   const action = cycle ? updateCycle : createCycle;
   const [state, formAction] = useActionState<ActionState, FormData>(
     action,
@@ -201,7 +233,7 @@ function CycleForm({ cycle, onDone }: { cycle?: CycleRow; onDone: () => void }) 
           required
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Tanggal Mulai">
           <input
             type="date"
@@ -229,16 +261,13 @@ function CycleForm({ cycle, onDone }: { cycle?: CycleRow; onDone: () => void }) 
           className="h-4 w-4 accent-indigo-500"
         />
         <span className="text-xs text-slate-300">
-          Jadikan siklus ini sebagai <strong className="text-white">siklus aktif</strong>{" "}
-          (menonaktifkan siklus lain)
+          Jadikan siklus ini sebagai{" "}
+          <strong className="text-white">siklus aktif</strong> (menonaktifkan
+          siklus lain)
         </span>
       </label>
       <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-xl border border-slate-600/50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-500/10"
-        >
+        <button type="button" onClick={onDone} className={BTN_SECONDARY}>
           Batal
         </button>
         <SubmitButton label={cycle ? "Perbarui" : "Simpan"} />

@@ -15,13 +15,23 @@ export type CycleWindow = {
   endDate: Date;
 };
 
-/** Akhir hari (eksklusif) dari tanggal `endDate`. */
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/**
+ * Akhir hari (eksklusif) dari tanggal `endDate`, dihitung dalam WIB
+ * (Asia/Jakarta, UTC+07:00) — tidak bergantung pada zona waktu server.
+ * Kolom DATE dari MySQL dibaca Prisma sebagai 00:00 UTC pada tanggal itu,
+ * yang dalam WIB tetap jatuh pada tanggal yang sama.
+ */
 export function endOfCycleDay(endDate: Date): Date {
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
-  // Batas inklusif sampai akhir hari: tambah 1 hari (batas eksklusif).
-  end.setDate(end.getDate() + 1);
-  return end;
+  const wib = new Date(endDate.getTime() + WIB_OFFSET_MS);
+  // Awal hari berikutnya (00:00 WIB) = batas eksklusif.
+  const nextMidnightUtc = Date.UTC(
+    wib.getUTCFullYear(),
+    wib.getUTCMonth(),
+    wib.getUTCDate() + 1
+  );
+  return new Date(nextMidnightUtc - WIB_OFFSET_MS);
 }
 
 /** Apakah siklus masih dalam masa pengisian (aktif & belum lewat batas waktu). */

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CalendarClock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -6,7 +7,10 @@ import { PageHeader } from "@/components/ui/primitives";
 import { CycleManager } from "@/components/cycles/cycle-manager";
 import { isCycleOpen } from "@/lib/cycles";
 
-export const metadata = { title: "Siklus & Periode — SPMI" };
+export const metadata: Metadata = {
+  title: "Siklus & Periode",
+  description: "Kelola siklus dan periode audit mutu internal.",
+};
 
 export default async function SiklusPage() {
   const user = await getCurrentUser();

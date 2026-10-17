@@ -17,3 +17,12 @@ next-env.d.ts
 # uploads (file bukti/dokumen)
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# test & tooling artefacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# private upload storage (dev)
+/storage/

@@ -1,0 +1,84 @@
+name: Laporan bug
+description: Laporkan perilaku aplikasi yang tidak sesuai harapan.
+title: "fix: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih telah melapor. **Jangan** mencantumkan kata sandi, token,
+        atau data pribadi (email/NIK/no. HP) di laporan ini.
+        Untuk celah keamanan, hubungi tim Puskom secara privat — jangan buat issue publik.
+  - type: textarea
+    id: ringkasan
+    attributes:
+      label: Ringkasan
+      description: Jelaskan singkat apa yang salah.
+    validations:
+      required: true
+  - type: textarea
+    id: langkah
+    attributes:
+      label: Langkah reproduksi
+      placeholder: |
+        1. Masuk sebagai Admin LPM
+        2. Buka menu Siklus
+        3. Klik ...
+    validations:
+      required: true
+  - type: textarea
+    id: harapan
+    attributes:
+      label: Hasil yang diharapkan
+    validations:
+      required: true
+  - type: textarea
+    id: aktual
+    attributes:
+      label: Hasil aktual
+      description: Sertakan pesan error / tangkapan layar (data pribadi disamarkan).
+    validations:
+      required: true
+  - type: dropdown
+    id: peran
+    attributes:
+      label: Peran pengguna
+      multiple: true
+      options:
+        - Superadmin
+        - Admin LPM
+        - Anggota LPM
+        - Kepala Unit
+        - Anggota Unit
+        - Pengunjung
+  - type: dropdown
+    id: lingkungan
+    attributes:
+      label: Lingkungan
+      options:
+        - Produksi
+        - Staging
+        - Lokal (development)
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser & perangkat
+      placeholder: "Chrome 140 / Windows 11, Safari / iPhone 14"
+  - type: input
+    id: versi
+    attributes:
+      label: Versi / commit
+      placeholder: "v1.2.0 atau hash commit"
+  - type: dropdown
+    id: dampak
+    attributes:
+      label: Tingkat dampak
+      options:
+        - Rendah (kosmetik)
+        - Sedang (ada solusi sementara)
+        - Tinggi (fitur utama tidak bisa dipakai)
+        - Kritis (data hilang / keamanan)
+    validations:
+      required: true

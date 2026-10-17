@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Activity, Construction } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/primitives";
 
-export const metadata = { title: "Monev — SPMI" };
+export const metadata: Metadata = {
+  title: "Monitoring & Evaluasi",
+  description: "Modul monitoring dan evaluasi (monev) SPMI.",
+};
 
 export default async function MonevPage() {
   const user = await getCurrentUser();

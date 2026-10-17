@@ -1,0 +1,138 @@
+name: E2E
+
+# Uji end-to-end + aksesibilitas terhadap instance lokal di runner
+# (MySQL service + build produksi). TIDAK PERNAH diarahkan ke server produksi.
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Proyek Playwright (kosong = semua: chromium, firefox, webkit, pixel-7, iphone-14)"
+        required: false
+        default: ""
+  schedule:
+    # Setiap hari 02:00 WIB (19:00 UTC).
+    - cron: "0 19 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  NEXT_TELEMETRY_DISABLED: "1"
+  DATABASE_URL: "mysql://root:root@127.0.0.1:3306/lpm_spmi_e2e"
+  # Secret uji dibuat per run (bukan secret produksi).
+  AUTH_SECRET: "e2e-${{ github.run_id }}-${{ github.run_attempt }}-not-a-production-secret"
+  SEED_SUPERADMIN_EMAIL: "superadmin.e2e@example.test"
+  SEED_SUPERADMIN_PASSWORD: "E2eSuper-${{ github.run_id }}x9"
+  SEED_ADMIN_EMAIL: "admin.e2e@example.test"
+  SEED_ADMIN_PASSWORD: "E2eAdmin-${{ github.run_id }}x9"
+  E2E_EMAIL: "admin.e2e@example.test"
+  E2E_PASSWORD: "E2eAdmin-${{ github.run_id }}x9"
+  E2E_BASE_URL: "http://127.0.0.1:3002"
+  PORT: "3002"
+  HOSTNAME: "127.0.0.1"
+
+jobs:
+  e2e:
+    name: Playwright (${{ inputs.project || 'all' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lpm_spmi_e2e
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate + db push
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Install Playwright browsers
+        run: |
+          case "$PROJECT" in
+            "") BROWSERS="chromium firefox webkit" ;;
+            chromium|pixel-7) BROWSERS="chromium" ;;
+            webkit|iphone-14) BROWSERS="webkit" ;;
+            firefox) BROWSERS="firefox" ;;
+            *) BROWSERS="chromium firefox webkit" ;;
+          esac
+          npx playwright install --with-deps $BROWSERS
+        env:
+          PROJECT: ${{ inputs.project }}
+
+      - name: Start server (standalone)
+        run: |
+          # output: "standalone" -> salin aset statis & public ke bundle server.
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          mkdir -p storage/uploads
+          nohup node .next/standalone/server.js > server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null "$E2E_BASE_URL/login"; then
+              echo "Server siap."; exit 0
+            fi
+            sleep 2
+          done
+          echo "Server tidak merespons." >&2
+          cat server.log >&2
+          exit 1
+        env:
+          NODE_ENV: production
+          UPLOAD_DIR: ${{ github.workspace }}/storage/uploads
+
+      - name: Run Playwright
+        run: |
+          if [ -n "$PROJECT" ]; then
+            npx playwright test --project="$PROJECT"
+          else
+            npx playwright test
+          fi
+        env:
+          PROJECT: ${{ inputs.project }}
+
+      - name: Server log
+        if: failure()
+        run: cat server.log || true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -186,31 +186,39 @@ export function buildReportPdf(data: ReportData): Uint8Array {
     startY: y,
     theme: "grid",
     styles: { fontSize: 9, cellPadding: 5, textColor: SLATE },
-    headStyles: { fillColor: INDIGO, textColor: [255, 255, 255], fontStyle: "bold" },
+    headStyles: {
+      fillColor: INDIGO,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
     head: [["Indikator", "Nilai", "Keterangan"]],
     body: [
-      ["Unit yang diaudit", String(data.summary.units), "Jumlah unit dalam siklus"],
+      [
+        "Unit yang diaudit",
+        String(data.summary.units),
+        "Jumlah unit dalam siklus",
+      ],
       ["Standar audit", String(data.summary.standards), "Standar yang dinilai"],
       ["Butir pertanyaan", String(data.summary.questions), "Butir per standar"],
-      [
-        "Total penilaian",
-        String(data.summary.totalPossible),
-        "Butir × unit",
-      ],
+      ["Total penilaian", String(data.summary.totalPossible), "Butir × unit"],
       [
         "Jawaban terisi",
         `${data.summary.answered} (${data.summary.progress}%)`,
         "Progres pengisian",
       ],
-      ["Jawaban \"Ya\"", String(data.summary.ya), "Memenuhi standar"],
-      ["Jawaban \"Tidak\"", String(data.summary.tidak), "Belum memenuhi standar"],
+      ['Jawaban "Ya"', String(data.summary.ya), "Memenuhi standar"],
+      ['Jawaban "Tidak"', String(data.summary.tidak), "Belum memenuhi standar"],
       ["Terverifikasi", String(data.summary.verified), "Diverifikasi LPM"],
       ["Perlu revisi", String(data.summary.revision), "Menunggu perbaikan"],
-      ["Menunggu verifikasi", String(data.summary.pending), "Belum diverifikasi"],
+      [
+        "Menunggu verifikasi",
+        String(data.summary.pending),
+        "Belum diverifikasi",
+      ],
       [
         "Tingkat kepatuhan",
         `${data.summary.kepatuhan}%`,
-        "Persentase jawaban \"Ya\" dari yang terisi",
+        'Persentase jawaban "Ya" dari yang terisi',
       ],
     ],
   });
@@ -225,7 +233,17 @@ export function buildReportPdf(data: ReportData): Uint8Array {
     headStyles: { fillColor: INDIGO, textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: LIGHT },
     head: [
-      ["No", "Unit", "Kategori", "Progres", "Terjawab", "Ya", "Tidak", "Kepatuhan", "Revisi"],
+      [
+        "No",
+        "Unit",
+        "Kategori",
+        "Progres",
+        "Terjawab",
+        "Ya",
+        "Tidak",
+        "Kepatuhan",
+        "Revisi",
+      ],
     ],
     body: data.perUnit.map((u, i) => [
       String(i + 1),
@@ -308,7 +326,7 @@ export function buildReportPdf(data: ReportData): Uint8Array {
     doc.setFontSize(10);
     doc.setTextColor(...EMERALD);
     doc.text(
-      "Tidak ditemukan ketidaksesuaian (tidak ada jawaban \"Tidak\" maupun revisi).",
+      'Tidak ditemukan ketidaksesuaian (tidak ada jawaban "Tidak" maupun revisi).',
       MARGIN,
       y + 6
     );
@@ -316,7 +334,12 @@ export function buildReportPdf(data: ReportData): Uint8Array {
     autoTable(doc, {
       startY: y,
       theme: "grid",
-      styles: { fontSize: 7.5, cellPadding: 3.5, textColor: SLATE, valign: "top" },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 3.5,
+        textColor: SLATE,
+        valign: "top",
+      },
       headStyles: { fillColor: ROSE, textColor: [255, 255, 255] },
       columnStyles: {
         0: { cellWidth: 78 },
@@ -354,7 +377,18 @@ export function buildReportPdf(data: ReportData): Uint8Array {
       6: { cellWidth: 66 },
       7: { cellWidth: 66 },
     },
-    head: [["Unit", "Standar", "Pertanyaan", "Jwb", "Status", "Bukti", "Catatan", "RTL"]],
+    head: [
+      [
+        "Unit",
+        "Standar",
+        "Pertanyaan",
+        "Jwb",
+        "Status",
+        "Bukti",
+        "Catatan",
+        "RTL",
+      ],
+    ],
     body: data.detail.map((d) => [
       d.unit,
       d.standard,

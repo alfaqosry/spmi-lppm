@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { FileCheck2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -5,7 +6,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/primitives";
 import { DocumentManager } from "@/components/documents/document-manager";
 
-export const metadata = { title: "Penetapan — SPMI" };
+export const metadata: Metadata = {
+  title: "Dokumen Penetapan",
+  description:
+    "Repositori dokumen penetapan standar SPMI dari Lembaga Penjaminan Mutu.",
+};
 
 export default async function PenetapanPage() {
   const user = await getCurrentUser();

@@ -17,6 +17,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartPanel } from "@/components/charts/chart-panel";
+import { ProgressBar } from "@/components/ui/primitives";
 
 type Datum = { name: string; value: number; color: string };
 
@@ -32,26 +34,10 @@ const GRID = "color-mix(in oklab, var(--color-slate-500) 18%, transparent)";
 const TICK = { fill: "var(--color-slate-500)", fontSize: 11 } as const;
 const LEGEND = { fontSize: 11, color: "var(--color-slate-500)" } as const;
 
-function Panel({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="card p-4">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-        {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
-      </div>
-      <div className="h-64 w-full">{children}</div>
-    </div>
-  );
-}
-
+/**
+ * Grafik dasbor (recharts). Dimuat secara lazy lewat
+ * dashboard-charts-lazy.tsx agar tidak membebani first load JS.
+ */
 export function DashboardCharts({
   categoryData,
   statusData,
@@ -59,34 +45,80 @@ export function DashboardCharts({
   verificationData,
   overall,
 }: {
-  categoryData: { name: string; selesai: number; belum: number; persen: number }[];
+  categoryData: {
+    name: string;
+    selesai: number;
+    belum: number;
+    persen: number;
+  }[];
   statusData: Datum[];
   answerData: Datum[];
   verificationData: Datum[];
   overall: number;
 }) {
+  const asRows = (d: Datum[]) =>
+    d.map((x) => ({ label: x.name, value: x.value }));
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Panel
+      <ChartPanel
         title="Tingkat Penyelesaian per Kategori Unit"
         subtitle="Jumlah unit selesai vs belum per kategori"
+        valueLabel="Selesai / Belum"
+        rows={categoryData.map((c) => ({
+          label: c.name,
+          value: `${c.selesai} selesai, ${c.belum} belum (${c.persen}%)`,
+        }))}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={categoryData} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-            <XAxis dataKey="name" tick={TICK} axisLine={false} tickLine={false} />
-            <YAxis tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(129,140,248,0.08)" }} />
+          <BarChart
+            data={categoryData}
+            margin={{ top: 6, right: 8, left: -18, bottom: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={GRID}
+              vertical={false}
+            />
+            <XAxis
+              dataKey="name"
+              tick={TICK}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={TICK}
+              axisLine={false}
+              tickLine={false}
+              allowDecimals={false}
+            />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              cursor={{ fill: "rgba(129,140,248,0.08)" }}
+            />
             <Legend wrapperStyle={LEGEND} />
-            <Bar dataKey="selesai" name="Selesai" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="belum" name="Belum Selesai" stackId="a" fill="#334155" radius={[6, 6, 0, 0]} />
+            <Bar
+              dataKey="selesai"
+              name="Selesai"
+              stackId="a"
+              fill="#10b981"
+              radius={[0, 0, 0, 0]}
+            />
+            <Bar
+              dataKey="belum"
+              name="Belum Selesai"
+              stackId="a"
+              fill="#64748b"
+              radius={[6, 6, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
 
-      <Panel
+      <ChartPanel
         title="Breakdown Status Audit"
         subtitle="Distribusi status pengisian seluruh unit"
+        valueLabel="Jumlah unit"
+        rows={asRows(statusData)}
       >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -107,11 +139,13 @@ export function DashboardCharts({
             <Legend wrapperStyle={LEGEND} />
           </PieChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
 
-      <Panel
+      <ChartPanel
         title="Distribusi Capaian Kepatuhan SPMI"
         subtitle="Perbandingan jawaban Ya / Tidak / Belum dijawab"
+        valueLabel="Jumlah jawaban"
+        rows={asRows(answerData)}
       >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -131,14 +165,16 @@ export function DashboardCharts({
             <Legend wrapperStyle={LEGEND} />
           </PieChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
 
-      <Panel
+      <ChartPanel
         title="Status Verifikasi LPM"
         subtitle="Ringkasan keputusan verifikasi bukti auditee"
+        valueLabel="Jumlah jawaban"
+        rows={asRows(verificationData)}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={verificationData} outerRadius={86}>
+          <RadarChart data={verificationData} outerRadius="70%">
             <PolarGrid stroke={GRID} />
             <PolarAngleAxis dataKey="name" tick={TICK} />
             <Radar
@@ -150,26 +186,27 @@ export function DashboardCharts({
             <Tooltip contentStyle={tooltipStyle} />
           </RadarChart>
         </ResponsiveContainer>
-      </Panel>
+      </ChartPanel>
 
       <div className="card p-4 lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-white">
+            <h2 className="text-sm font-semibold text-white">
               Capaian Kepatuhan Institusi
-            </h3>
+            </h2>
             <p className="text-[11px] text-slate-400">
               Persentase butir pertanyaan yang telah dijawab pada siklus aktif.
             </p>
           </div>
-          <span className="text-2xl font-semibold text-emerald-300">{overall}%</span>
+          <span className="text-2xl font-semibold text-emerald-300">
+            {overall}%
+          </span>
         </div>
-        <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-800">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400"
-            style={{ width: `${overall}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={overall}
+          label="Capaian kepatuhan institusi"
+          className="mt-3 h-3 w-full"
+        />
       </div>
     </div>
   );

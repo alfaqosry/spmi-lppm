@@ -1,132 +1,193 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import {
-  COOKIE_NAME,
-  buildSessionUser,
+  clearSessionCookie,
+  getSession,
+  revokeUserSessions,
   setSessionCookie,
   verifyPassword,
 } from "@/lib/auth";
-import { rateLimit, resetRateLimit } from "@/lib/ratelimit";
-import { getSettings } from "@/lib/settings";
+import { rateLimit, resetRateLimit, LIMITS_RL } from "@/lib/ratelimit";
+import { getSettings, isOn } from "@/lib/settings";
 import { recordLogin, recordActivity } from "@/lib/logs";
+import { getClientIp, getUserAgent } from "@/lib/net";
+import { logError } from "@/lib/redact";
 
 export type AuthState = { error?: string } | undefined;
 
-/** Ambil alamat IP klien (best-effort) untuk pembatas laju. */
-async function clientIp(): Promise<string> {
-  const h = await headers();
-  const fwd = h.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return h.get("x-real-ip") ?? "unknown";
-}
+/** Batas standar institusi: 5 percobaan per 1 menit per email+IP. */
+const STD_LOGIN_LIMIT = 5;
+const STD_LOGIN_WINDOW_MS = 60_000;
 
 export async function loginAction(
   _prev: AuthState,
   formData: FormData
 ): Promise<AuthState> {
-  const email = String(formData.get("email") || "")
-    .trim()
-    .toLowerCase();
-  const password = String(formData.get("password") || "");
+  const emailRaw = formData.get("email");
+  const passwordRaw = formData.get("password");
+  if (typeof emailRaw !== "string" || typeof passwordRaw !== "string") {
+    return { error: "Email dan kata sandi wajib diisi." };
+  }
+  const email = emailRaw.trim().toLowerCase().slice(0, 190);
+  const password = passwordRaw.slice(0, 256);
 
   if (!email || !password) {
     return { error: "Email dan kata sandi wajib diisi." };
   }
 
-  const settings = await getSettings();
-  const maxAttempts = Math.max(1, Number(settings["security.loginMaxAttempts"]) || 8);
-  const windowMinutes = Math.max(
-    1,
-    Number(settings["security.loginWindowMinutes"]) || 5
-  );
+  const ip = await getClientIp();
+  const ua = await getUserAgent();
 
-  const ip = await clientIp();
-  const h = await headers();
-  const ua = h.get("user-agent") ?? null;
+  let destination = "/dashboard";
+  try {
+    const settings = await getSettings();
+    const maxAttempts = Math.min(
+      STD_LOGIN_LIMIT,
+      Math.max(
+        1,
+        Number(settings["security.loginMaxAttempts"]) || STD_LOGIN_LIMIT
+      )
+    );
+    const windowMs = Math.max(
+      STD_LOGIN_WINDOW_MS,
+      (Number(settings["security.loginWindowMinutes"]) || 1) * 60_000
+    );
 
-  // Anti brute force: batasi percobaan per IP.
-  const rl = rateLimit(`login:${ip}`, maxAttempts, windowMinutes * 60 * 1000);
-  if (!rl.ok) {
-    await recordLogin({
-      email,
-      success: false,
-      ip,
-      userAgent: ua,
-      message: "Dibatasi (rate limit)",
+    // Anti brute force: (1) per email+IP sesuai standar, (2) batas kasar per IP
+    // untuk password spraying lintas akun.
+    const keyEmailIp = `login:${email}|${ip}`;
+    const rlEmail = rateLimit(keyEmailIp, maxAttempts, windowMs);
+    const rlIp = rateLimit(
+      `login-ip:${ip}`,
+      LIMITS_RL.loginPerIp.limit,
+      LIMITS_RL.loginPerIp.windowMs
+    );
+    if (!rlEmail.ok || !rlIp.ok) {
+      await recordLogin({
+        email,
+        success: false,
+        ip,
+        userAgent: ua,
+        message: "Dibatasi (rate limit)",
+      });
+      const wait =
+        Math.max(rlEmail.retryAfter ?? 0, rlIp.retryAfter ?? 0) || 60;
+      return {
+        error: `Terlalu banyak percobaan masuk. Coba lagi dalam ${wait} detik.`,
+      };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        isActive: true,
+        password: true,
+        sessionVersion: true,
+      },
     });
-    return {
-      error: `Terlalu banyak percobaan masuk. Coba lagi dalam ${rl.retryAfter} detik.`,
-    };
-  }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: {
-      unit: true,
-      memberships: { include: { unit: { select: { name: true } } } },
-    },
-  });
+    // Pesan seragam untuk mencegah enumerasi akun.
+    const invalidMsg = "Email atau kata sandi salah.";
 
-  // Pesan seragam untuk mencegah enumerasi akun.
-  const invalidMsg = "Email atau kata sandi salah.";
+    // verifyPassword tetap dijalankan walau akun tidak ada (waktu respons seragam).
+    const valid = await verifyPassword(password, user?.password ?? null);
 
-  if (!user || !user.isActive) {
-    await recordLogin({
-      email,
-      userId: user?.id ?? null,
-      success: false,
-      ip,
-      userAgent: ua,
-      message: !user ? "Akun tidak ditemukan" : "Akun nonaktif",
+    if (!user || !user.isActive || !valid) {
+      await recordLogin({
+        email,
+        userId: user?.id ?? null,
+        success: false,
+        ip,
+        userAgent: ua,
+        message: !user
+          ? "Akun tidak ditemukan"
+          : !user.isActive
+            ? "Akun nonaktif"
+            : "Kata sandi salah",
+      });
+      return { error: invalidMsg };
+    }
+
+    // Mode pemeliharaan: hanya superadmin yang boleh masuk.
+    if (isOn(settings["maintenance.enabled"]) && user.role !== "superadmin") {
+      await recordLogin({
+        email,
+        userId: user.id,
+        success: false,
+        ip,
+        userAgent: ua,
+        message: "Ditolak: mode pemeliharaan",
+      });
+      return {
+        error:
+          settings["maintenance.message"] ||
+          "Sistem sedang dalam pemeliharaan. Silakan coba beberapa saat lagi.",
+      };
+    }
+
+    resetRateLimit(keyEmailIp);
+    destination = user.role === "pengunjung" ? "/no-access" : "/dashboard";
+    // Token sesi BARU setiap login (anti session fixation).
+    await setSessionCookie({
+      id: user.id,
+      sessionVersion: user.sessionVersion,
     });
-    return { error: invalidMsg };
-  }
-
-  const valid = await verifyPassword(password, user.password);
-  if (!valid) {
     await recordLogin({
       email,
       userId: user.id,
-      success: false,
+      success: true,
       ip,
       userAgent: ua,
-      message: "Kata sandi salah",
+      message: "Login berhasil",
     });
-    return { error: invalidMsg };
+    await recordActivity({
+      userId: user.id,
+      userName: user.name,
+      action: "auth.login",
+      entity: "user",
+      entityId: user.id,
+      ip,
+    });
+  } catch (e) {
+    logError("[login] gagal:", e);
+    return { error: "Terjadi kesalahan. Silakan coba lagi." };
   }
-
-  resetRateLimit(`login:${ip}`);
-  const session = buildSessionUser(user);
-  await setSessionCookie(session);
-  await recordLogin({
-    email,
-    userId: user.id,
-    success: true,
-    ip,
-    userAgent: ua,
-    message: "Login berhasil",
-  });
-  await recordActivity({
-    userId: user.id,
-    userName: user.name,
-    action: "auth.login",
-    entity: "user",
-    entityId: user.id,
-    ip,
-  });
-  redirect(user.role === "pengunjung" ? "/no-access" : "/dashboard");
+  redirect(destination);
 }
 
+/**
+ * Keluar: cabut seluruh sesi akun ini (naikkan sessionVersion) lalu hapus
+ * cookie. Token lama yang mungkin tersalin tidak lagi berlaku.
+ */
 export async function logoutAction() {
-  const store = await cookies();
-  store.delete(COOKIE_NAME);
-  // Hapus juga nama cookie lama (tanpa prefix __Host-) agar tidak tersisa.
-  store.delete(process.env.AUTH_COOKIE_NAME || "lpm_session");
-  // Hapus juga cookie sesi SSO UP agar keluar dari kedua sesi.
-  store.delete("sso_session");
-  store.delete("sso_access_token");
+  try {
+    const session = await getSession();
+    if (session) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.id },
+        select: { id: true, name: true, sessionVersion: true },
+      });
+      // Hanya cabut bila token ini memang masih sah (hindari logout paksa via token basi).
+      if (user && user.sessionVersion === session.sv) {
+        await revokeUserSessions(user.id);
+        await recordActivity({
+          userId: user.id,
+          userName: user.name,
+          action: "auth.logout",
+          entity: "user",
+          entityId: user.id,
+          ip: await getClientIp(),
+        });
+      }
+    }
+  } catch (e) {
+    logError("[logout] gagal mencabut sesi:", e);
+  }
+  await clearSessionCookie();
   redirect("/login");
 }

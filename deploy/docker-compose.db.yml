@@ -1,0 +1,36 @@
+# MySQL 8 khusus SPMI produksi (hanya listen di loopback).
+# Dipakai oleh scripts/deploy/setup-production.ps1:
+#   docker compose -p spmi -f deploy/docker-compose.db.yml --env-file E:/www/spmi-prod/shared/db.env up -d
+services:
+  db:
+    image: mysql:8.0
+    container_name: spmi-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?wajib}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lpm_spmi}
+      MYSQL_USER: ${MYSQL_USER:-spmi}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?wajib}
+      # Prisma menyimpan DateTime dalam UTC; konversi ke Asia/Jakarta di lapisan aplikasi.
+      TZ: UTC
+    ports:
+      - "127.0.0.1:33063:3306"
+    volumes:
+      - spmi_mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=256M
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  spmi_mysql_data:
+    name: spmi_mysql_data

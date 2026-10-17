@@ -1,12 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { getSettings, isOn } from "@/lib/settings";
+import { logError, maskEmail, redactText } from "@/lib/redact";
 
 /* =====================================================================
    Log login & log aktivitas
    ---------------------------------------------------------------------
    Pencatatan bersifat best-effort: kegagalan menulis log TIDAK boleh
    menggagalkan alur utama (login/aksi). Semua kegagalan hanya dicatat ke
-   konsol server.
+   konsol server (tersamarkan).
+
+   PRIVASI (UU PDP): email pada log login selalu DISAMARKAN (a***@domain);
+   akun tetap dapat ditelusuri lewat `userId`. Teks `detail`/`message`
+   dibersihkan dari email, nomor telepon, token, dan secret.
+   Penghapusan log lama: lihat `purgeExpiredData()` di src/lib/privacy.ts.
    ===================================================================== */
 
 export type LoginLogInput = {
@@ -26,24 +32,33 @@ export async function recordLogin(input: LoginLogInput): Promise<void> {
     if (!isOn(settings["log.login.enabled"])) return;
     await prisma.loginLog.create({
       data: {
-        email: input.email.slice(0, 190),
+        email: maskEmail(input.email).slice(0, 190),
         userId: input.userId ?? null,
         success: input.success,
         method: input.method ?? "password",
         ip: input.ip?.slice(0, 64) ?? null,
         userAgent: input.userAgent?.slice(0, 400) ?? null,
-        message: input.message?.slice(0, 255) ?? null,
+        message: input.message ? redactText(input.message).slice(0, 255) : null,
       },
     });
-    // Bersihkan log lama melebihi masa simpan (retention).
-    const days = Number(settings["log.loginRetentionDays"]) || 0;
-    if (days > 0) {
-      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      await prisma.loginLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
-    }
+    maybePurge();
   } catch (e) {
-    console.error("[login-log] gagal mencatat:", e);
+    logError("[login-log] gagal mencatat:", e);
   }
+}
+
+/**
+ * Jaring pengaman retensi: selain tugas terjadwal, jalankan penghapusan data
+ * kedaluwarsa paling sering sekali per jam per proses (dipicu oleh login).
+ */
+let lastPurgeAt = 0;
+function maybePurge() {
+  const now = Date.now();
+  if (now - lastPurgeAt < 60 * 60 * 1000) return;
+  lastPurgeAt = now;
+  import("@/lib/privacy")
+    .then((m) => m.purgeExpiredData())
+    .catch((e) => logError("[retention] gagal menghapus data kedaluwarsa:", e));
 }
 
 export type ActivityLogInput = {
@@ -69,11 +84,11 @@ export async function recordActivity(input: ActivityLogInput): Promise<void> {
         entity: input.entity?.slice(0, 80) ?? null,
         entityId:
           input.entityId != null ? String(input.entityId).slice(0, 80) : null,
-        detail: input.detail?.slice(0, 500) ?? null,
+        detail: input.detail ? redactText(input.detail).slice(0, 500) : null,
         ip: input.ip?.slice(0, 64) ?? null,
       },
     });
   } catch (e) {
-    console.error("[activity-log] gagal mencatat:", e);
+    logError("[activity-log] gagal mencatat:", e);
   }
 }

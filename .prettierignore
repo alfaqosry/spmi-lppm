@@ -1,0 +1,26 @@
+# Build & dependensi
+node_modules/
+.next/
+out/
+build/
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+
+# Hasil uji
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Unggahan pengguna & aset biner
+public/uploads/
+storage/
+*.pdf
+
+# Dokumen (PDF/berkas referensi)
+docs/**/*.pdf
+
+# Lockfile & berkas yang di-generate
+package-lock.json
+prisma/migrations/

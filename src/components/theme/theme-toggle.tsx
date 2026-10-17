@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
 type Theme = "light" | "dark";
@@ -18,42 +18,42 @@ function applyTheme(theme: Theme) {
   }
 }
 
+/** Berlangganan perubahan kelas `dark` pada <html> (sumber kebenaran tema). */
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  return () => observer.disconnect();
+}
+const getSnapshot = () => document.documentElement.classList.contains("dark");
+// Saat SSR/hidrasi: anggap terang agar markup stabil; diperbarui setelah hidrasi.
+const getServerSnapshot = () => false;
+
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
-
-  // Sinkronkan status dari DOM (sumber kebenaran yang di-set server / script anti-FOUC).
-  useEffect(() => {
-    setMounted(true);
-    setTheme(
-      document.documentElement.classList.contains("dark") ? "dark" : "light"
-    );
-  }, []);
-
-  function toggle() {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    applyTheme(next);
-  }
-
-  const isDark = theme === "dark";
+  const isDark = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot
+  );
 
   return (
     <button
       type="button"
-      onClick={toggle}
-      aria-label={isDark ? "Aktifkan tema terang" : "Aktifkan tema gelap"}
-      title={isDark ? "Tema terang" : "Tema gelap"}
-      className="flex items-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
+      onClick={() => applyTheme(isDark ? "light" : "dark")}
+      aria-label="Tema gelap"
+      aria-pressed={isDark}
+      title={isDark ? "Ganti ke tema terang" : "Ganti ke tema gelap"}
+      className="flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
     >
-      {/* Ikon stabil antara SSR & klien; baru ditukar setelah mounted. */}
-      {mounted && isDark ? (
-        <Sun className="h-3.5 w-3.5" />
+      {isDark ? (
+        <Sun className="h-4 w-4" aria-hidden="true" />
       ) : (
-        <Moon className="h-3.5 w-3.5" />
+        <Moon className="h-4 w-4" aria-hidden="true" />
       )}
-      <span className="hidden sm:inline">
-        {mounted && isDark ? "Terang" : "Gelap"}
+      <span aria-hidden="true" className="hidden sm:inline">
+        {isDark ? "Terang" : "Gelap"}
       </span>
     </button>
   );

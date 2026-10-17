@@ -2,29 +2,50 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireLpm } from "@/lib/guards";
 import { AppError, toActionError } from "@/lib/errors";
-
-async function requireLpm() {
-  const user = await getCurrentUser();
-  if (
-    !user ||
-    (user.role !== "lpm_admin" &&
-      user.role !== "lpm_member" &&
-      user.role !== "superadmin")
-  ) {
-    throw new AppError("Akses ditolak. Hanya pengguna LPM.");
-  }
-  return user;
-}
+import { LIMITS, checkText, intField, requireId, str } from "@/lib/validate";
+import { recordActivity } from "@/lib/logs";
+import { getClientIp } from "@/lib/net";
+import { cleanupUnreferencedUploads } from "@/lib/upload";
 
 export type ActionState = { ok?: boolean; error?: string } | undefined;
+
+/** Batas jumlah butir per simpan massal. */
+const BULK_MAX = 200;
+const ORDER_RANGE = { min: -100000, max: 100000 };
 
 function revalidateAll() {
   revalidatePath("/audit");
   revalidatePath("/dashboard");
   revalidatePath("/analitik");
   revalidatePath("/siklus");
+}
+
+async function audit(
+  user: { id: number; name: string },
+  action: string,
+  entityId: number | string
+) {
+  await recordActivity({
+    userId: user.id,
+    userName: user.name,
+    action,
+    entity: action.startsWith("standard") ? "standard" : "question",
+    entityId,
+    ip: await getClientIp(),
+  });
+}
+
+/** Pastikan standar ada & milik siklus yang sama. */
+async function assertStandardInCycle(standardId: number, cycleId: number) {
+  const std = await prisma.auditStandard.findUnique({
+    where: { id: standardId },
+    select: { cycleId: true },
+  });
+  if (!std || std.cycleId !== cycleId) {
+    throw new AppError("Standar tidak ditemukan pada siklus ini.");
+  }
 }
 
 /* =====================================================================
@@ -36,18 +57,21 @@ export async function createStandard(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    await requireLpm();
-    const cycleId = Number(formData.get("cycleId"));
-    const name = String(formData.get("name") || "").trim();
-    if (!cycleId || !name) {
-      return { error: "Siklus dan nama standar wajib diisi." };
-    }
+    const user = await requireLpm();
+    const cycleId = requireId(formData.get("cycleId"), "Siklus");
+    const name = str(formData, "name", {
+      max: LIMITS.standardName,
+      required: true,
+      label: "Nama standar",
+    });
 
     const existing = await prisma.auditStandard.findFirst({
       where: { cycleId, name },
     });
     if (existing) {
-      return { error: "Standar dengan nama tersebut sudah ada pada siklus ini." };
+      return {
+        error: "Standar dengan nama tersebut sudah ada pada siklus ini.",
+      };
     }
 
     const last = await prisma.auditStandard.findFirst({
@@ -56,9 +80,10 @@ export async function createStandard(
       select: { order: true },
     });
 
-    await prisma.auditStandard.create({
+    const created = await prisma.auditStandard.create({
       data: { cycleId, name, order: (last?.order ?? 0) + 1 },
     });
+    await audit(user, "standard.create", created.id);
     revalidateAll();
     return { ok: true };
   } catch (e) {
@@ -71,12 +96,16 @@ export async function updateStandard(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    await requireLpm();
-    const id = Number(formData.get("id"));
-    const name = String(formData.get("name") || "").trim();
-    if (!id || !name) return { error: "Data standar tidak lengkap." };
+    const user = await requireLpm();
+    const id = requireId(formData.get("id"), "Standar");
+    const name = str(formData, "name", {
+      max: LIMITS.standardName,
+      required: true,
+      label: "Nama standar",
+    });
 
     await prisma.auditStandard.update({ where: { id }, data: { name } });
+    await audit(user, "standard.update", id);
     revalidateAll();
     return { ok: true };
   } catch (e) {
@@ -86,8 +115,15 @@ export async function updateStandard(
 
 /** Hapus standar beserta seluruh butir pertanyaan di bawahnya. */
 export async function deleteStandard(id: number) {
-  await requireLpm();
-  await prisma.auditStandard.delete({ where: { id } });
+  const user = await requireLpm();
+  const standardId = requireId(id, "Standar");
+  const evidence = await prisma.auditResponse.findMany({
+    where: { question: { standardId }, evidenceFile: { not: null } },
+    select: { evidenceFile: true },
+  });
+  await prisma.auditStandard.delete({ where: { id: standardId } });
+  await cleanupUnreferencedUploads(evidence.map((r) => r.evidenceFile));
+  await audit(user, "standard.delete", standardId);
   revalidateAll();
 }
 
@@ -100,19 +136,22 @@ export async function createQuestion(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    await requireLpm();
-    const cycleId = Number(formData.get("cycleId"));
-    const standardId = Number(formData.get("standardId"));
-    const questionText = String(formData.get("questionText") || "").trim();
-    const order = Number(formData.get("order") || 0);
-    const scope = parseScope(formData);
+    const user = await requireLpm();
+    const cycleId = requireId(formData.get("cycleId"), "Siklus");
+    const standardId = requireId(formData.get("standardId"), "Standar");
+    const questionText = str(formData, "questionText", {
+      max: LIMITS.questionText,
+      required: true,
+      multiline: true,
+      label: "Teks pertanyaan",
+    });
+    const order = intField(formData, "order", { ...ORDER_RANGE, fallback: 0 });
+    const scope = await parseScope(formData);
+    if (!scope.data)
+      return { error: scope.error ?? "Cakupan pertanyaan tidak valid." };
+    await assertStandardInCycle(standardId, cycleId);
 
-    if (!cycleId || !standardId || !questionText) {
-      return { error: "Standar dan teks pertanyaan wajib diisi." };
-    }
-    if (!scope.data) return { error: scope.error ?? "Cakupan pertanyaan tidak valid." };
-
-    await prisma.auditQuestion.create({
+    const created = await prisma.auditQuestion.create({
       data: {
         cycleId,
         standardId,
@@ -123,6 +162,7 @@ export async function createQuestion(
         scopeUnitId: scope.data.scopeUnitId,
       },
     });
+    await audit(user, "question.create", created.id);
     revalidateAll();
     return { ok: true };
   } catch (e) {
@@ -139,43 +179,63 @@ export async function createQuestionsBulk(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    await requireLpm();
-    const cycleId = Number(formData.get("cycleId"));
-    const standardId = Number(formData.get("standardId"));
-    const startOrder = Number(formData.get("startOrder") || 0);
-    const scope = parseScope(formData);
+    const user = await requireLpm();
+    const cycleId = requireId(formData.get("cycleId"), "Siklus");
+    const standardId = requireId(formData.get("standardId"), "Standar");
+    const startOrder = intField(formData, "startOrder", {
+      ...ORDER_RANGE,
+      fallback: 0,
+    });
+    const scope = await parseScope(formData);
 
+    const rawTexts = String(formData.get("texts") ?? "[]");
+    if (rawTexts.length > BULK_MAX * (LIMITS.questionText + 10)) {
+      return { error: "Data pertanyaan terlalu besar." };
+    }
     let texts: string[] = [];
     try {
-      const parsed = JSON.parse(String(formData.get("texts") || "[]"));
+      const parsed: unknown = JSON.parse(rawTexts);
       if (Array.isArray(parsed)) {
-        texts = parsed.map((t) => String(t).trim()).filter(Boolean);
+        texts = parsed
+          .filter((t): t is string => typeof t === "string")
+          .map((t) =>
+            checkText(t, {
+              max: LIMITS.questionText,
+              multiline: true,
+              label: "Teks pertanyaan",
+            })
+          )
+          .filter(Boolean);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof AppError) throw err;
       texts = [];
     }
 
-    if (!cycleId || !standardId) {
-      return { error: "Data standar tidak lengkap." };
-    }
     if (texts.length === 0) {
       return { error: "Belum ada butir pertanyaan baru untuk disimpan." };
+    }
+    if (texts.length > BULK_MAX) {
+      return { error: `Maksimal ${BULK_MAX} butir pertanyaan per simpan.` };
     }
     if (!scope.data) {
       return { error: scope.error ?? "Cakupan pertanyaan tidak valid." };
     }
+    await assertStandardInCycle(standardId, cycleId);
 
+    const scopeData = scope.data;
     await prisma.auditQuestion.createMany({
       data: texts.map((questionText, i) => ({
         cycleId,
         standardId,
         questionText,
         order: startOrder + i,
-        scopeType: scope.data!.scopeType,
-        scopeCategory: scope.data!.scopeCategory,
-        scopeUnitId: scope.data!.scopeUnitId,
+        scopeType: scopeData.scopeType,
+        scopeCategory: scopeData.scopeCategory,
+        scopeUnitId: scopeData.scopeUnitId,
       })),
     });
+    await audit(user, "question.bulk_create", `${standardId}:${texts.length}`);
     revalidateAll();
     return { ok: true };
   } catch (e) {
@@ -188,15 +248,29 @@ export async function updateQuestion(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    await requireLpm();
-    const id = Number(formData.get("id"));
-    const standardId = Number(formData.get("standardId"));
-    const questionText = String(formData.get("questionText") || "").trim();
-    const order = Number(formData.get("order") || 0);
-    const scope = parseScope(formData);
+    const user = await requireLpm();
+    const id = requireId(formData.get("id"), "Pertanyaan");
+    const standardIdRaw = formData.get("standardId");
+    const standardId = standardIdRaw
+      ? requireId(standardIdRaw, "Standar")
+      : null;
+    const questionText = str(formData, "questionText", {
+      max: LIMITS.questionText,
+      required: true,
+      multiline: true,
+      label: "Teks pertanyaan",
+    });
+    const order = intField(formData, "order", { ...ORDER_RANGE, fallback: 0 });
+    const scope = await parseScope(formData);
+    if (!scope.data)
+      return { error: scope.error ?? "Cakupan pertanyaan tidak valid." };
 
-    if (!id || !questionText) return { error: "Data pertanyaan tidak lengkap." };
-    if (!scope.data) return { error: scope.error ?? "Cakupan pertanyaan tidak valid." };
+    const current = await prisma.auditQuestion.findUnique({
+      where: { id },
+      select: { cycleId: true },
+    });
+    if (!current) return { error: "Pertanyaan tidak ditemukan." };
+    if (standardId) await assertStandardInCycle(standardId, current.cycleId);
 
     await prisma.auditQuestion.update({
       where: { id },
@@ -209,6 +283,7 @@ export async function updateQuestion(
         scopeUnitId: scope.data.scopeUnitId,
       },
     });
+    await audit(user, "question.update", id);
     revalidateAll();
     return { ok: true };
   } catch (e) {
@@ -217,41 +292,59 @@ export async function updateQuestion(
 }
 
 export async function deleteQuestion(id: number) {
-  await requireLpm();
-  await prisma.auditQuestion.delete({ where: { id } });
+  const user = await requireLpm();
+  const questionId = requireId(id, "Pertanyaan");
+  const evidence = await prisma.auditResponse.findMany({
+    where: { auditQuestionId: questionId, evidenceFile: { not: null } },
+    select: { evidenceFile: true },
+  });
+  await prisma.auditQuestion.delete({ where: { id: questionId } });
+  await cleanupUnreferencedUploads(evidence.map((r) => r.evidenceFile));
+  await audit(user, "question.delete", questionId);
   revalidateAll();
 }
 
 /**
- * Baca & validasi cakupan pertanyaan dari FormData.
+ * Baca & validasi cakupan pertanyaan dari FormData (enum + referensi unit).
  * Mengembalikan { data } jika valid, atau { error } jika tidak.
  */
-function parseScope(
-  formData: FormData
-):
+async function parseScope(formData: FormData): Promise<
   | {
       data: {
-        scopeType: string;
+        scopeType: "all" | "category" | "unit";
         scopeCategory: string | null;
         scopeUnitId: number | null;
       };
       error?: undefined;
     }
-  | { data?: undefined; error: string } {
+  | { data?: undefined; error: string }
+> {
   const scopeType = String(formData.get("scopeType") || "all");
-  const scopeCategory = String(formData.get("scopeCategory") || "").trim();
-  const scopeUnitId = Number(formData.get("scopeUnitId") || 0);
+  if (scopeType !== "all" && scopeType !== "category" && scopeType !== "unit") {
+    return { error: "Cakupan pertanyaan tidak valid." };
+  }
 
   if (scopeType === "category") {
+    const scopeCategory = str(formData, "scopeCategory", {
+      max: LIMITS.category,
+      label: "Kategori",
+    });
     if (!scopeCategory) {
       return { error: "Pilih kategori unit untuk cakupan pertanyaan." };
     }
     return { data: { scopeType, scopeCategory, scopeUnitId: null } };
   }
   if (scopeType === "unit") {
-    if (!scopeUnitId) {
+    const raw = formData.get("scopeUnitId");
+    if (!raw || raw === "0") {
       return { error: "Pilih unit untuk cakupan pertanyaan." };
     }
+    const scopeUnitId = requireId(raw, "Unit");
+    const unit = await prisma.unit.findUnique({
+      where: { id: scopeUnitId },
+      select: { id: true },
+    });
+    if (!unit) return { error: "Unit cakupan tidak ditemukan." };
     return { data: { scopeType, scopeCategory: null, scopeUnitId } };
   }
   return { data: { scopeType: "all", scopeCategory: null, scopeUnitId: null } };

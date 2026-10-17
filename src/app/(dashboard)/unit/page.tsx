@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -5,7 +6,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/primitives";
 import { UnitManager } from "@/components/units/unit-manager";
 
-export const metadata = { title: "Unit Audit — SPMI" };
+export const metadata: Metadata = {
+  title: "Unit Audit",
+  description: "Kelola unit audit: program studi, biro, pusat, dan lembaga.",
+};
 
 export default async function UnitPage() {
   const user = await getCurrentUser();

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { FileSearch } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -5,7 +6,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/primitives";
 import { DocumentManager } from "@/components/documents/document-manager";
 
-export const metadata = { title: "Evaluasi — SPMI" };
+export const metadata: Metadata = {
+  title: "Dokumen Evaluasi",
+  description: "Repositori dokumen evaluasi SPMI dari Lembaga Penjaminan Mutu.",
+};
 
 export default async function EvaluasiPage() {
   const user = await getCurrentUser();

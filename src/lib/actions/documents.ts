@@ -2,28 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
-import { saveUpload } from "@/lib/upload";
-import { AppError, toActionError, isSafeHttpUrl } from "@/lib/errors";
-
-async function requireLpm() {
-  const user = await getCurrentUser();
-  if (
-    !user ||
-    (user.role !== "lpm_admin" &&
-      user.role !== "lpm_member" &&
-      user.role !== "superadmin")
-  ) {
-    throw new AppError("Akses ditolak. Hanya pengguna LPM.");
-  }
-  return user;
-}
+import { requireLpm } from "@/lib/guards";
+import { cleanupUnreferencedUploads, saveUpload } from "@/lib/upload";
+import { toActionError, isSafeHttpUrl } from "@/lib/errors";
+import { LIMITS, fileField, oneOf, requireId, str } from "@/lib/validate";
+import { enforceRateLimit, LIMITS_RL } from "@/lib/ratelimit";
+import { recordActivity } from "@/lib/logs";
+import { getClientIp } from "@/lib/net";
 
 export type ActionState = { ok?: boolean; error?: string } | undefined;
 
 /** Jenis dokumen yang sah (whitelist, mencegah nilai sembarang). */
 const DOCUMENT_TYPES = ["penetapan", "evaluasi"] as const;
-type ValidDocumentType = (typeof DOCUMENT_TYPES)[number];
 
 export async function createDocument(
   _prev: ActionState,
@@ -31,36 +21,46 @@ export async function createDocument(
 ): Promise<ActionState> {
   try {
     const user = await requireLpm();
-    const cycleId = Number(formData.get("cycleId"));
-    const typeRaw = String(formData.get("type") || "penetapan");
-    const title = String(formData.get("title") || "").trim();
-    const link = String(formData.get("link") || "").trim();
-    const file = formData.get("file") as File | null;
-
-    if (!cycleId || !title) {
-      return { error: "Siklus dan judul dokumen wajib diisi." };
-    }
-    if (!DOCUMENT_TYPES.includes(typeRaw as ValidDocumentType)) {
-      return { error: "Jenis dokumen tidak valid." };
-    }
-    const type = typeRaw as ValidDocumentType;
+    const cycleId = requireId(formData.get("cycleId"), "Siklus");
+    const type = oneOf(
+      formData.get("type") || "penetapan",
+      DOCUMENT_TYPES,
+      "Jenis dokumen tidak valid."
+    );
+    const title = str(formData, "title", {
+      max: LIMITS.title,
+      required: true,
+      label: "Judul dokumen",
+    });
+    const link = str(formData, "link", { max: LIMITS.url, label: "Tautan" });
+    const file = fileField(formData, "file");
 
     if (link && !isSafeHttpUrl(link)) {
       return { error: "Tautan tidak valid. Gunakan alamat http/https." };
     }
+    if (!file && !link) {
+      return { error: "Unggah file atau isi tautan dokumen." };
+    }
+
+    const cycle = await prisma.auditCycle.findUnique({
+      where: { id: cycleId },
+      select: { id: true },
+    });
+    if (!cycle) return { error: "Siklus tidak ditemukan." };
 
     let filePath: string | null = null;
-    if (file && file.size > 0) {
+    if (file) {
+      enforceRateLimit(
+        `upload:${user.id}`,
+        LIMITS_RL.upload.limit,
+        LIMITS_RL.upload.windowMs
+      );
       const res = await saveUpload(file, type);
       if (!res.ok) return { error: res.error };
       filePath = res.path;
     }
 
-    if (!filePath && !link) {
-      return { error: "Unggah file atau isi tautan dokumen." };
-    }
-
-    await prisma.document.create({
+    const doc = await prisma.document.create({
       data: {
         cycleId,
         type,
@@ -71,6 +71,15 @@ export async function createDocument(
       },
     });
 
+    await recordActivity({
+      userId: user.id,
+      userName: user.name,
+      action: "document.create",
+      entity: "document",
+      entityId: doc.id,
+      detail: `${type}: ${title}`,
+      ip: await getClientIp(),
+    });
     revalidatePath(`/${type}`);
     return { ok: true };
   } catch (e) {
@@ -79,7 +88,18 @@ export async function createDocument(
 }
 
 export async function deleteDocument(id: number) {
-  await requireLpm();
-  const doc = await prisma.document.delete({ where: { id } });
+  const user = await requireLpm();
+  const docId = requireId(id, "Dokumen");
+  const doc = await prisma.document.delete({ where: { id: docId } });
+  // Hapus berkas fisik bila tidak dipakai dokumen/jawaban lain.
+  await cleanupUnreferencedUploads([doc.filePath]);
+  await recordActivity({
+    userId: user.id,
+    userName: user.name,
+    action: "document.delete",
+    entity: "document",
+    entityId: docId,
+    ip: await getClientIp(),
+  });
   revalidatePath(`/${doc.type}`);
 }

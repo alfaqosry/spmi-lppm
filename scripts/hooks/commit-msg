@@ -1,0 +1,52 @@
+#!/bin/sh
+# Validasi pesan commit sesuai Conventional Commits 1.0.0.
+# Format : <type>[(scope)][!]: <deskripsi>
+# Contoh : feat(audit): tambah ekspor PDF per unit
+#          fix!: ubah format respons API ekspor
+# Dipasang via: npm run hooks:install  (git config core.hooksPath scripts/hooks)
+
+MSG_FILE="$1"
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+  echo "commit-msg: berkas pesan commit tidak ditemukan." >&2
+  exit 1
+fi
+
+# Ambil baris pertama yang bukan komentar & tidak kosong; buang CR (Windows).
+SUBJECT=$(tr -d '\r' < "$MSG_FILE" | grep -v '^#' | sed '/^[[:space:]]*$/d' | head -n 1)
+
+if [ -z "$SUBJECT" ]; then
+  echo "commit-msg: pesan commit kosong." >&2
+  exit 1
+fi
+
+# Pesan otomatis dari git (merge, revert, fixup/squash autosquash) diizinkan.
+if printf '%s\n' "$SUBJECT" | grep -Eq '^(Merge (branch|pull request|remote-tracking branch|tag|commit) |Merge [0-9a-f]{7,} into |Revert "|fixup! |squash! |amend! |Initial commit$)'; then
+  exit 0
+fi
+
+TYPES='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+PATTERN="^($TYPES)(\([a-z0-9._/-]+\))?!?: [^[:space:]].{0,99}$"
+
+if printf '%s\n' "$SUBJECT" | grep -Eq "$PATTERN"; then
+  exit 0
+fi
+
+cat >&2 <<MSG
+
+  Pesan commit tidak sesuai Conventional Commits:
+
+    $SUBJECT
+
+  Format : <type>(<scope>)!: <deskripsi>
+  Type   : feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
+  Scope  : opsional, huruf kecil (mis. audit, auth, ui)
+  !      : opsional, menandai BREAKING CHANGE
+  Panjang judul maksimal 100 karakter setelah ": ".
+
+  Contoh : feat(audit): tambah filter siklus pada laporan
+           fix(auth): perbaiki redirect setelah logout
+           chore!: hapus dukungan Node 18
+
+  Lihat CONTRIBUTING.md untuk detail.
+MSG
+exit 1

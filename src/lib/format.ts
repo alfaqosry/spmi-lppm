@@ -1,8 +1,38 @@
+/**
+ * Zona waktu aplikasi. Seluruh tanggal ditampilkan / diekspor dalam WIB
+ * (Asia/Jakarta, UTC+07:00, tanpa DST) terlepas dari zona waktu server.
+ */
+export const APP_TIME_ZONE = "Asia/Jakarta";
+const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/**
+ * ISO 8601 dengan offset WIB, mis. "2026-10-17T14:05:09.123+07:00".
+ * Dipakai untuk seluruh timestamp pada respons JSON API.
+ */
+export function toIsoJakarta(
+  value: Date | string | null | undefined
+): string | null {
+  if (!value) return null;
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+  const shifted = new Date(d.getTime() + JAKARTA_OFFSET_MS);
+  return shifted.toISOString().replace("Z", "+07:00");
+}
+
+/** Tanggal saja (YYYY-MM-DD) untuk kolom bertipe DATE. */
+export function toIsoDate(
+  value: Date | string | null | undefined
+): string | null {
+  const iso = toIsoJakarta(value);
+  return iso ? iso.slice(0, 10) : null;
+}
+
 export function formatDate(value: Date | string | null | undefined) {
   if (!value) return "-";
   const d = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
+    timeZone: APP_TIME_ZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -14,6 +44,7 @@ export function formatDateTime(value: Date | string | null | undefined) {
   const d = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
+    timeZone: APP_TIME_ZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",
