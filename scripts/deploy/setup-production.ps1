@@ -67,7 +67,8 @@ foreach ($d in 'releases', 'shared', 'shared\storage\uploads', 'shared\public-up
     New-Item -ItemType Directory -Force (Join-Path $SpmiHome $d) | Out-Null
 }
 # Batasi ACL folder berisi rahasia/data pribadi (shared, backups, logs): hanya Administrators + SYSTEM.
-foreach ($d in 'shared', 'backups', 'logs') {
+# Tanpa /T: berkas mewarisi ACL folder. JANGAN kunci 'logs' — daemon PM2 harus bisa menulis di sana.
+foreach ($d in 'shared', 'backups') {
     & icacls (Join-Path $SpmiHome $d) /inheritance:r /grant:r 'Administrators:(OI)(CI)F' 'SYSTEM:(OI)(CI)F' | Out-Null
 }
 Write-Host "    $SpmiHome"

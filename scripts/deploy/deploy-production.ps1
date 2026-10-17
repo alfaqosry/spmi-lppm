@@ -42,6 +42,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib-db.ps1')
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $ts = Get-Date -Format 'yyyyMMdd-HHmmss'
 $Build = Join-Path $SpmiHome "builds\$ts"
@@ -100,9 +101,7 @@ function Pm2Reload {
 }
 function RestoreDb([string]$Dump) {
     Write-Host "    > restore DB dari $Dump" -ForegroundColor DarkGray
-    $db = ReadEnvFile (Join-Path $Shared 'db.env')
-    & cmd /c "docker exec -i spmi-db mysql -uroot -p$($db.MYSQL_ROOT_PASSWORD) $($db.MYSQL_DATABASE) < `"$Dump`""
-    if ($LASTEXITCODE -ne 0) { throw 'Restore DB gagal — pulihkan manual dari backup!' }
+    Invoke-DbRestore $Dump
 }
 
 # Build & migrasi memakai Node LTS khusus SPMI bila tersedia (sama dengan runtime PM2).
@@ -173,9 +172,9 @@ try {
     # -------------------------------------------------------------- d. BACKUP
     Step 'd. Backup'
     New-Item -ItemType Directory -Force $BackupDir | Out-Null
-    $db = ReadEnvFile (Join-Path $Shared 'db.env')
     $DumpFile = Join-Path $BackupDir 'db.sql'
-    Exec 'mysqldump' { cmd /c "docker exec spmi-db mysqldump -uroot -p$($db.MYSQL_ROOT_PASSWORD) --single-transaction --routines --triggers --default-character-set=utf8mb4 $($db.MYSQL_DATABASE) > `"$DumpFile`" 2>nul" }
+    Write-Host '    > mysqldump' -ForegroundColor DarkGray
+    Invoke-DbDump $DumpFile
     Copy-Item (Join-Path $Shared '.env') (Join-Path $BackupDir '.env')
     @{ timestamp = $ts; previousRelease = $PrevRelease; newRelease = $Release; commit = $Commit; version = $Version } | ConvertTo-Json | Set-Content (Join-Path $BackupDir 'manifest.json') -Encoding UTF8
     Write-Host "    $BackupDir ($([math]::Round((Get-Item $DumpFile).Length / 1KB)) KB)"
@@ -219,13 +218,21 @@ catch {
     Write-Host "DEPLOY GAGAL: $($_.Exception.Message)" -ForegroundColor Red
     if ($InMaintenance -and -not $NoAutoRollback) {
         Step 'i. Rollback otomatis'
+        # Setiap langkah berdiri sendiri: kegagalan satu langkah tidak menghentikan langkah lain.
+        $rbOk = $true
+        try { if ($DumpFile -and (Test-Path $DumpFile)) { RestoreDb $DumpFile } }
+        catch { $rbOk = $false; Write-Host "    Restore DB GAGAL: $($_.Exception.Message)" -ForegroundColor Red }
         try {
-            if ($DumpFile -and (Test-Path $DumpFile)) { RestoreDb $DumpFile }
             if ($Activated -and $PrevRelease) { SetJunction $Current $PrevRelease; Pm2Reload }
-            elseif ($Activated) { Warn 'Tidak ada rilis sebelumnya; pm2 spmi dihentikan.'; pm2 stop spmi | Out-Null }
-            if ($PrevRelease) { MaintenanceOff; Write-Host 'Rollback selesai — rilis sebelumnya aktif.' -ForegroundColor Yellow }
-            else { Warn 'Situs tetap dalam mode pemeliharaan (belum ada rilis sehat).' }
-        } catch { Write-Host "ROLLBACK GAGAL: $($_.Exception.Message) — tangani manual!" -ForegroundColor Red }
+            elseif ($Activated) { Warn 'Tidak ada rilis sebelumnya; pm2 spmi dihentikan.'; $p = $ErrorActionPreference; $ErrorActionPreference = 'Continue'; pm2 stop spmi 2>&1 | Out-Null; $ErrorActionPreference = $p }
+        } catch { $rbOk = $false; Write-Host "    Aktivasi rilis sebelumnya GAGAL: $($_.Exception.Message)" -ForegroundColor Red }
+        # Pemeliharaan hanya dicabut bila rilis yang aktif terbukti sehat.
+        $healthy = $false
+        if ($PrevRelease) { & (Join-Path $PSScriptRoot 'smoke-test.ps1') -Retries 15; $healthy = ($LASTEXITCODE -eq 0) }
+        if ($healthy) {
+            MaintenanceOff
+            Write-Host "Rollback selesai — rilis sebelumnya aktif$(if (-not $rbOk) { ' (DENGAN PERINGATAN, periksa log)' })." -ForegroundColor Yellow
+        } else { Write-Host 'ROLLBACK BELUM PULIH: situs tetap dalam mode pemeliharaan — tangani manual (lihat docs/04-DEPLOYMENT-IIS.md).' -ForegroundColor Red }
     } elseif ($InMaintenance) { Warn '-NoAutoRollback: situs tetap dalam mode pemeliharaan.' }
     if (Test-Path $Release) {
         if (-not $Activated -or $PrevRelease) {

@@ -10,13 +10,12 @@ param(
     [string]$SecondaryDir = 'D:\backup\spmi'
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib-db.ps1')
 $ts = Get-Date -Format 'yyyyMMdd-HHmmss'
 $dir = Join-Path $SpmiHome "backups\daily-$ts"
 New-Item -ItemType Directory -Force $dir | Out-Null
-$db = @{}; foreach ($l in Get-Content (Join-Path $SpmiHome 'shared\db.env')) { if ($l -match '^([A-Z_]+)=(.*)$') { $db[$Matches[1]] = $Matches[2] } }
 
-& cmd /c "docker exec spmi-db mysqldump -uroot -p$($db.MYSQL_ROOT_PASSWORD) --single-transaction --routines --triggers --default-character-set=utf8mb4 $($db.MYSQL_DATABASE) > `"$dir\db.sql`" 2>nul"
-if ($LASTEXITCODE -ne 0) { throw 'mysqldump gagal.' }
+Invoke-DbDump (Join-Path $dir 'db.sql')
 
 # Mirror unggahan (bertambah terus; disalin inkremental, bukan per-hari).
 foreach ($p in 'storage\uploads', 'public-uploads') {

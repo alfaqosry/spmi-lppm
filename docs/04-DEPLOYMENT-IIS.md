@@ -203,25 +203,23 @@ ada, dan `X-Powered-By` tidak ada.
 
 ## 9. Tugas Terjadwal (Windows Task Scheduler)
 
-| Tugas                      | Jadwal            | Perintah                                                                                                                                                                            |
-| -------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SPMI Backup Harian         | 01:00 setiap hari | `powershell -NoProfile -ExecutionPolicy Bypass -File E:\www\lpm-new\scripts\deploy\backup.ps1`                                                                                      |
-| SPMI Salin Backup Off-host | 02:00 setiap hari | `robocopy E:\www\spmi-prod\backups E:\backup\spmi /MIR` (+ salinan ke NAS/luar server)                                                                                              |
-| SPMI Purge Privasi         | 02:30 setiap hari | Skrip pembersihan data sesuai retensi [RoPA](legal/RoPA.md) (log login/aktivitas kedaluwarsa, akun pengunjung tidak aktif) — gunakan skrip purge yang disertakan pada rilis privasi |
-| PM2 resurrect              | _At startup_      | `pm2 resurrect` (bila PM2 tidak dipasang sebagai layanan)                                                                                                                           |
-| win-acme renew             | dibuat win-acme   | otomatis                                                                                                                                                                            |
+Didaftarkan oleh `scripts\deploy\register-tasks.ps1` (idempoten, akun `SYSTEM`, folder `\SPMI\`).
+Skrip yang dijalankan adalah salinan di `E:\www\spmi-prod\ops\` (diperbarui setiap deploy), bukan repo dev.
 
-Contoh pendaftaran:
+| Tugas                      | Jadwal          | Skrip                   | Isi                                                                                                                              |
+| -------------------------- | --------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `\SPMI\SPMI Backup Harian` | 01:30 harian    | `ops\backup.ps1`        | Dump DB → `backups\daily-<ts>\db.sql`, mirror unggahan → `backups\uploads-mirror\`, retensi 30 hari, salinan ke `D:\backup\spmi` |
+| `\SPMI\SPMI Retensi Data`  | 02:00 harian    | `ops\privacy-purge.ps1` | Menjalankan `current\tools\privacy-purge.cjs` (hapus log login/aktivitas melewati masa simpan; UU PDP)                           |
+| `PM2 Resurrect`            | saat startup    | (sudah ada di server)   | Memulihkan proses PM2 dari `C:\pm2\dump.pm2` — jalankan `pm2 save` setelah perubahan proses                                      |
+| win-acme renew             | dibuat win-acme | otomatis                | Perpanjangan sertifikat Let's Encrypt                                                                                            |
 
-```powershell
-$a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File E:\www\lpm-new\scripts\deploy\backup.ps1'
-$t = New-ScheduledTaskTrigger -Daily -At 1:00
-Register-ScheduledTask -TaskName 'SPMI Backup Harian' -Action $a -Trigger $t -User 'SYSTEM' -RunLevel Highest
-```
+Dump/restore memakai `scripts\deploy\lib-db.ps1`: kredensial dibaca dari env **di dalam** kontainer
+`spmi-db`, berkas dipindah dengan `docker cp` (tidak ada sandi di baris perintah host).
+**Uji restore minimal sekali per semester** ke database terpisah (contoh: `Invoke-DbRestore <dump> restore_test`).
 
-`backup.ps1`: `mysqldump --single-transaction` ke `backups\daily-<ts>\db.sql`, mirror `shared\storage\uploads`
-dan `shared\public-uploads` ke `backups\uploads-mirror\`, hapus backup harian > 30 hari, catat ke `logs\backup.log`.
-**Uji restore minimal sekali per semester** ke database terpisah.
+> Folder `shared` dan `backups` dikunci (Administrators + SYSTEM). **Jangan** mengunci folder `logs`
+> atau memakai `icacls /T` dengan flag `(OI)(CI)` pada berkas — daemon PM2 harus bisa menulis log
+> (insiden 17 Okt 2026: PM2 gagal start dengan `EPERM` pada `pm2-out.log`).
 
 ## 10. Pemantauan
 
@@ -241,6 +239,8 @@ Rotasi log PM2: `pm2 install pm2-logrotate` lalu `pm2 set pm2-logrotate:max_size
 
 | Gejala                                                               | Kemungkinan penyebab                                                                                                 | Penanganan                                                                                                                                             |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **PM2 `spmi` stopped / `EPERM` pada `logs\pm2-*.log`**               | ACL folder `logs` dikunci sehingga daemon PM2 tidak bisa menulis log                                                 | `takeown /F E:\www\spmi-prod\logs /R /A` lalu `icacls E:\www\spmi-prod\logs /reset /T`; `pm2 start E:\www\spmi-prod\ecosystem.config.cjs`              |
+| **Node listen di IP publik / `http://<nama-host>:3002`**             | `pm2 restart --update-env` menimpa `HOSTNAME` dengan env shell                                                       | Jangan `pm2 restart --update-env`; selalu `pm2 startOrReload E:\www\spmi-prod\ecosystem.config.cjs` (env eksplisit `HOSTNAME=127.0.0.1`)               |
 | **502.3 / 502 Bad Gateway** dari IIS                                 | Proses Node mati/restart, belum listen di 3002, atau ARR timeout                                                     | `pm2 status`, `pm2 logs spmi`; pastikan `HOSTNAME=127.0.0.1 PORT=3002`; naikkan `proxy timeout`; cek `max_memory_restart`                              |
 | **502.4** "No server is available"                                   | Proxy ARR belum diaktifkan                                                                                           | §1.1 `proxy /enabled:True`                                                                                                                             |
 | 500.50 URL Rewrite                                                   | Server variable belum diizinkan                                                                                      | `allowedServerVariables` `HTTP_X_FORWARDED_PROTO` (dibuat oleh setup)                                                                                  |
