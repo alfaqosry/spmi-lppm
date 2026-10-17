@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BarChart3, Download } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -10,6 +10,7 @@ import {
   ProgressBar,
 } from "@/components/ui/primitives";
 import { AnalyticsChartsLazy } from "@/components/analytics/analytics-charts-lazy";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 import { percent, STATUS_LABEL, STATUS_STYLE } from "@/lib/format";
 import { isQuestionForUnit } from "@/lib/scope";
 import { CheckCircle2, FileWarning, Percent, Users } from "lucide-react";
@@ -184,13 +185,15 @@ export default async function AnalitikPage({
                 Tampilkan
               </button>
             </form>
-            <a
-              href={`/api/export?cycleId=${cycle.id}`}
+            <ExportPdfButton
+              cycleId={cycle.id}
+              ariaLabel={`Unduh laporan PDF ${cycle.name}`}
+              iconClassName="h-4 w-4"
+              align="end"
               className="flex min-h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-semibold text-on-accent shadow-lg shadow-indigo-900/30 hover:from-indigo-600 hover:to-violet-600"
             >
-              <Download className="h-4 w-4" aria-hidden="true" /> Unduh Laporan
-              PDF
-            </a>
+              Unduh Laporan PDF
+            </ExportPdfButton>
           </div>
         }
       />
@@ -323,14 +326,15 @@ export default async function AnalitikPage({
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <a
-                      href={`/api/export?cycleId=${cycle.id}&unitId=${u.id}`}
+                    <ExportPdfButton
+                      cycleId={cycle.id}
+                      unitId={u.id}
+                      ariaLabel={`Unduh laporan PDF ${u.name}`}
+                      align="end"
                       className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20"
-                      aria-label={`Unduh laporan PDF ${u.name}`}
                     >
-                      <Download className="h-3.5 w-3.5" aria-hidden="true" />{" "}
                       PDF
-                    </a>
+                    </ExportPdfButton>
                   </td>
                 </tr>
               ))}

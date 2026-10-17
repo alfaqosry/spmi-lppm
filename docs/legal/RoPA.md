@@ -35,16 +35,16 @@
 
 ## A-2. Login SSO dan Sinkronisasi Identitas
 
-| Butir            | Isi                                                                                                                                                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tujuan           | Autentikasi tunggal sivitas melalui SSO UP                                                                                                                                                                         |
-| Kategori subjek  | Sivitas yang login via SSO (dosen, tendik, mahasiswa)                                                                                                                                                              |
-| Kategori data    | `sub`/sso_id, username (NIDN/NIM/NIP), nama, email, klaim role SSO; token akses OAuth (cookie sementara)                                                                                                           |
-| Dasar hukum      | Pasal 20 ayat (2) huruf c / e — perlu konfirmasi Bagian Hukum                                                                                                                                                      |
-| Sumber           | SSO UP (`src/app/api/sso/[...sso]/route.ts`)                                                                                                                                                                       |
-| Penerima         | Sistem SPMI; akun baru tampil ke Admin LPM sebagai Pengunjung                                                                                                                                                      |
-| Retensi          | Profil: sama dengan A-1. Akun Pengunjung yang tidak pernah diberi peran: hapus otomatis setelah 180 hari tidak aktif (tugas purge privasi). Cookie `sso_session`/`sso_access_token`: masa berlaku token (≤ 24 jam) |
-| Langkah keamanan | Client Secret hanya di server (disamarkan di UI); klaim role SSO tidak dipercaya; akun baru tanpa akses; TLS                                                                                                       |
+| Butir            | Isi                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tujuan           | Autentikasi tunggal sivitas melalui SSO UP                                                                                                                                                                                                                                                                                                                                                                |
+| Kategori subjek  | Sivitas yang login via SSO (dosen, tendik, mahasiswa)                                                                                                                                                                                                                                                                                                                                                     |
+| Kategori data    | `sub`/sso_id, username (NIDN/NIM/NIP), nama, email, klaim role SSO; token akses OAuth (cookie sementara)                                                                                                                                                                                                                                                                                                  |
+| Dasar hukum      | Pasal 20 ayat (2) huruf c / e — perlu konfirmasi Bagian Hukum                                                                                                                                                                                                                                                                                                                                             |
+| Sumber           | SSO UP (`src/app/api/sso/[...sso]/route.ts`)                                                                                                                                                                                                                                                                                                                                                              |
+| Penerima         | Sistem SPMI; akun baru tampil ke Admin LPM sebagai Pengunjung                                                                                                                                                                                                                                                                                                                                             |
+| Retensi          | Profil: sama dengan A-1. Akun Pengunjung yang tidak pernah diberi peran: ditinjau dan dihapus **manual** oleh Admin LPM bila tidak lagi diperlukan; aturan kualitas data DQ-36 (tugas harian) menandai akun pengunjung berumur > 180 hari. Penghapusan otomatis belum diterapkan karena belum ada pencatatan waktu login terakhir. Cookie `sso_session`/`sso_access_token`: masa berlaku token (≤ 24 jam) |
+| Langkah keamanan | Client Secret hanya di server (disamarkan di UI); klaim role SSO tidak dipercaya; akun baru tanpa akses; TLS                                                                                                                                                                                                                                                                                              |
 
 ## A-3. Log Login (Keamanan)
 
@@ -146,10 +146,10 @@
 
 ## Ringkasan Retensi
 
-| Data                         | Retensi                       | Mekanisme                                                       |
-| ---------------------------- | ----------------------------- | --------------------------------------------------------------- |
-| Log login                    | 90 hari (dapat diatur)        | Otomatis saat login + purge harian                              |
-| Log aktivitas                | 1 tahun (usulan)              | Purge harian (perlu implementasi)                               |
-| Akun Pengunjung tak berperan | 180 hari tidak aktif (usulan) | Purge harian                                                    |
-| Jawaban, bukti, laporan      | Siklus + 5 tahun (usulan)     | Manual oleh Admin LPM (hapus siklus) + pembersihan berkas yatim |
-| Backup harian                | 30 hari                       | `backup.ps1`                                                    |
+| Data                         | Retensi                                | Mekanisme                                                       |
+| ---------------------------- | -------------------------------------- | --------------------------------------------------------------- |
+| Log login                    | 90 hari (dapat diatur)                 | Otomatis saat login + purge harian                              |
+| Log aktivitas                | 365 hari (`log.activityRetentionDays`) | Purge harian 02:00 (`\SPMI\SPMI Retensi Data`)                  |
+| Akun Pengunjung tak berperan | 180 hari (tinjauan)                    | Manual oleh Admin LPM; ditandai harian oleh DQ-36               |
+| Jawaban, bukti, laporan      | Siklus + 5 tahun (usulan)              | Manual oleh Admin LPM (hapus siklus) + pembersihan berkas yatim |
+| Backup harian                | 30 hari                                | `backup.ps1`                                                    |

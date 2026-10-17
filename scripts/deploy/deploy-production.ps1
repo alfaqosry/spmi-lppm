@@ -162,6 +162,9 @@ try {
     Exec 'salin Prisma client' { robocopy 'node_modules\.prisma' (Join-Path $Release 'node_modules\.prisma') /E /NFL /NDL /NJH /NJS /NP | Out-Null; if ($LASTEXITCODE -lt 8) { $global:LASTEXITCODE = 0 } }
     SetJunction (Join-Path $Release 'public\uploads') (Join-Path $Shared 'public-uploads')
     # Alat operasional: skrip retensi data dibundel (Prisma diambil dari node_modules rilis).
+    if (Test-Path 'scripts\data-quality.ts') {
+        Exec 'bundel tools\data-quality.cjs' { npx esbuild scripts/data-quality.ts --bundle --platform=node --target=node20 --format=cjs --external:@prisma/client --log-level=warning "--outfile=$(Join-Path $Release 'tools\data-quality.cjs')" }
+    }
     Exec 'bundel tools\privacy-purge.cjs' { npx esbuild scripts/privacy-purge.ts --bundle --platform=node --target=node20 --format=cjs --external:@prisma/client --log-level=warning "--outfile=$(Join-Path $Release 'tools\privacy-purge.cjs')" }
     # Skrip ops (backup, purge, smoke test, rollback) disalin ke <Home>\ops agar Task Scheduler tidak bergantung pada repo dev.
     Exec 'salin ops' { robocopy 'scripts\deploy' (Join-Path $SpmiHome 'ops') *.ps1 /NFL /NDL /NJH /NJS /NP | Out-Null; if ($LASTEXITCODE -lt 8) { $global:LASTEXITCODE = 0 } }

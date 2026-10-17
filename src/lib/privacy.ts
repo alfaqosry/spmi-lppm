@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
-import { toIsoDate, toIsoJakarta } from "@/lib/format";
+import { APP_TIME_ZONE, toIsoDate, toIsoJakarta } from "@/lib/format";
 import { maskEmail } from "@/lib/redact";
 
 /* =====================================================================
@@ -84,6 +84,26 @@ export async function purgeExpiredData(): Promise<PurgeResult> {
 const EXPORT_LOG_LIMIT = 5000;
 
 /**
+ * Metadata lokal eksplisit untuk respons JSON (`/api/health`, `/api/me/export`).
+ * Lihat docs/iso/STANDAR-KODE-DATA.md: ISO 639-1 (bahasa), BCP 47 (locale),
+ * ISO 3166-1 alpha-2 (negara), IANA tz + ISO 8601 (waktu). ISO 4217 N/A.
+ */
+export const LOCALE_METADATA = {
+  language: "id",
+  locale: "id-ID",
+  country: "ID",
+  timezone: APP_TIME_ZONE,
+  utcOffset: "+07:00",
+  dateFormat: "ISO 8601",
+  currency: null,
+  currencyNote:
+    "SPMI tidak memproses data moneter; kode mata uang ISO 4217 tidak berlaku (N/A).",
+} as const;
+
+/** Nilai header `Content-Language` (ISO 639-1) untuk respons API. */
+export const CONTENT_LANGUAGE = LOCALE_METADATA.language;
+
+/**
  * Kumpulkan seluruh data pribadi milik pengguna untuk diekspor (JSON).
  * TIDAK menyertakan hash kata sandi, versi sesi, atau data pengguna lain.
  * Semua timestamp ISO 8601 dengan offset +07:00.
@@ -147,6 +167,7 @@ export async function buildMyDataExport(userId: number) {
         "Salinan data pribadi Anda pada Sistem Informasi SPMI (UU 27/2022 tentang Pelindungan Data Pribadi). " +
         "Hash kata sandi dan data pengguna lain tidak disertakan.",
     },
+    locale: LOCALE_METADATA,
     profile: {
       id: user.id,
       name: user.name,

@@ -11,7 +11,8 @@ import {
   type ResponseRow,
   type StandardRow,
 } from "@/components/audit/audit-workspace";
-import { isCycleOpen, cycleClosedReason } from "@/lib/cycles";
+import { cycleDeadline } from "@/components/audit/audit-helpers";
+import { DeadlineBanner } from "@/components/audit/deadline-banner";
 
 export const metadata: Metadata = {
   title: "Audit & Verifikasi",
@@ -184,8 +185,9 @@ export default async function AuditPage() {
   });
 
   // Status keterbukaan siklus (aktif & belum lewat batas waktu).
-  const cycleOpen = isCycleOpen(activeCycle);
-  const closedReason = cycleClosedReason(activeCycle);
+  // HE-01: batas pengisian (WIB) + sisa hari ditampilkan kepada auditee.
+  const deadline = cycleDeadline(activeCycle);
+  const cycleOpen = deadline.state !== "closed";
   const canAnswer =
     (user.role === "auditee_head" || user.role === "auditee_member") &&
     cycleOpen;
@@ -203,23 +205,7 @@ export default async function AuditPage() {
               : ""
         }`}
       />
-      {!cycleOpen && closedReason && (
-        <div
-          role="status"
-          className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
-        >
-          <span
-            aria-hidden="true"
-            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-xs font-bold"
-          >
-            !
-          </span>
-          <div>
-            <p className="font-semibold">Periode pengisian ditutup</p>
-            <p className="mt-0.5 text-xs text-amber-200">{closedReason}</p>
-          </div>
-        </div>
-      )}
+      <DeadlineBanner deadline={deadline} />
       <AuditeeAuditWorkspace
         cycleId={activeCycle.id}
         cycleName={activeCycle.name}

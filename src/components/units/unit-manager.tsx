@@ -18,6 +18,10 @@ import {
 } from "@/lib/actions/units";
 import { Badge, EmptyState } from "@/components/ui/primitives";
 import { ConfirmAction } from "@/components/ui/confirm-dialog";
+import {
+  unitDeleteImpact,
+  type UnitImpactCounts,
+} from "@/components/units/unit-impact";
 
 export const UNIT_CATEGORIES = [
   "Program Studi",
@@ -35,6 +39,8 @@ export type UnitRow = {
   category: string;
   description: string;
   userCount: number;
+  /** Ringkasan data yang ikut terhapus bila unit dihapus (HE-05). */
+  impact?: UnitImpactCounts;
 };
 
 export function UnitManager({ units }: { units: UnitRow[] }) {
@@ -44,9 +50,17 @@ export function UnitManager({ units }: { units: UnitRow[] }) {
 export function UnitTab({ units }: { units: UnitRow[] }) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<UnitRow | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <div>
+      <div role="status" aria-live="polite" className="empty:hidden">
+        {notice && (
+          <p className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-200">
+            {notice}
+          </p>
+        )}
+      </div>
       <div className="mb-4 flex justify-end">
         <button
           type="button"
@@ -104,14 +118,13 @@ export function UnitTab({ units }: { units: UnitRow[] }) {
                   <ConfirmAction
                     action={() => deleteUnit(u.id)}
                     title="Hapus unit audit?"
-                    message={
-                      <>
-                        Unit{" "}
-                        <strong className="text-slate-200">“{u.name}”</strong>{" "}
-                        beserta penempatan akunnya akan dihapus permanen.
-                        Tindakan ini tidak dapat dibatalkan.
-                      </>
+                    confirmLabel="Hapus Permanen"
+                    onDone={() =>
+                      setNotice(
+                        `Unit “${u.name}” beserta seluruh datanya telah dihapus.`
+                      )
                     }
+                    message={<UnitDeleteMessage unit={u} />}
                     triggerLabel={`Hapus unit ${u.name}`}
                     trigger={<Trash2 className="h-4 w-4" aria-hidden="true" />}
                     triggerClassName="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-400/25 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
@@ -138,6 +151,31 @@ export function UnitTab({ units }: { units: UnitRow[] }) {
         {editing && <UnitForm unit={editing} onDone={() => setEditing(null)} />}
       </Modal>
     </div>
+  );
+}
+
+/** Pesan dialog hapus unit beserta dampaknya (HE-05). */
+function UnitDeleteMessage({ unit }: { unit: UnitRow }) {
+  return (
+    <>
+      Unit <strong className="text-slate-200">“{unit.name}”</strong> akan
+      dihapus permanen beserta data berikut di{" "}
+      <strong className="text-slate-200">semua siklus</strong>:
+      {unit.impact ? (
+        <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-slate-300">
+          {unitDeleteImpact(unit.impact).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : (
+        <>
+          {" "}
+          penempatan akun, seluruh jawaban audit &amp; berkas bukti, serta
+          progres unit.
+        </>
+      )}
+      <span className="mt-1.5 block">Tindakan ini tidak dapat dibatalkan.</span>
+    </>
   );
 }
 

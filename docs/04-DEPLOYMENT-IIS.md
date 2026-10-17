@@ -189,7 +189,7 @@ ada, dan `X-Powered-By` tidak ada.
      HTTP-01, gunakan validasi DNS-01 (plugin Cloudflare win-acme).
    - **Cloudflare Origin Certificate** (berlaku hingga 15 tahun, hanya dipercaya Cloudflare): buat di
      _SSL/TLS → Origin Server_, impor PFX ke _Local Computer\Personal_, ikat ke binding `https` 443 (SNI).
-4. **Edge:** aktifkan _Always Use HTTPS_, TLS minimum 1.2, _HSTS_ (aplikasi sudah mengirim `max-age=63072000; includeSubDomains; preload`).
+4. **Edge:** aktifkan _Always Use HTTPS_, TLS minimum 1.2, _HSTS_ (aplikasi mengirim `max-age=63072000; includeSubDomains`, tanpa `preload` — daftar preload browser bersifat sulit dibatalkan untuk seluruh subdomain universitas).
 5. **Batasi origin:** firewall Windows hanya mengizinkan port 80/443 dari rentang IP Cloudflare
    (<https://www.cloudflare.com/ips/>) agar header `CF-Connecting-IP` tidak dapat dipalsukan.
 

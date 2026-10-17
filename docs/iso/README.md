@@ -1,0 +1,29 @@
+# Penerapan Standar ISO — SPMI
+
+Ringkasan penerapan standar ISO/IEC pada Sistem Informasi SPMI (LPM Universitas Pahlawan Tuanku Tambusai),
+`https://spmi.universitaspahlawan.ac.id`. Status per 17 Oktober 2026.
+
+Keterangan: ✅ diterapkan · ⏳ menunggu tindakan di luar kode (institusi/pengguna) · N/A tidak berlaku.
+
+| Standar                           | Status                           | Yang dikerjakan                                                                                                                                                                 | Dokumen                                                                                                  |
+| --------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| ISO/IEC 25010:2023 + 25023        | ✅                               | 9 karakteristik kualitas, masing-masing dengan metrik terukur. Response time produksi: origin p50 8–18 ms; via Cloudflare p50 143–173 ms. Coverage `src/lib` 95%                | [25010-KUALITAS-PRODUK](25010-KUALITAS-PRODUK.md)                                                        |
+| ISO/IEC 25012 (kualitas data)     | ✅                               | Kamus data seluruh tabel; cek kualitas data harian 02:30 (38 aturan, hanya-baca); skor produksi 98,9%. Tidak ada kolom nomor HP (normalisasi +62 N/A)                           | [25012-KUALITAS-DATA](25012-KUALITAS-DATA.md), [KAMUS-DATA](KAMUS-DATA.md)                               |
+| ISO 9241-11/210/110 (usability)   | ✅ dokumen · ⏳ uji pengguna     | Konteks penggunaan, persona, user journey, rencana uji, kuesioner SUS siap cetak, evaluasi heuristik (31 temuan; 8 temuan tingkat 3 diperbaiki di v1.2.0)                       | [9241-USABILITAS/](9241-USABILITAS/README.md)                                                            |
+| ISO/IEC/IEEE 29119 (pengujian)    | ✅ · ⏳ UAT                      | Test Policy, Strategy, Plan, 130 test case, keterlacakan 61 kebutuhan, Completion Report, formulir UAT                                                                          | [29119-PENGUJIAN/](29119-PENGUJIAN/README.md)                                                            |
+| ISO/IEC/IEEE 12207 (siklus hidup) | ✅                               | Pemetaan proses, rencana pemeliharaan (SLA P1–P4), manajemen perubahan, CHANGELOG                                                                                               | [12207-SIKLUS-HIDUP](12207-SIKLUS-HIDUP.md), [RENCANA-PEMELIHARAAN](RENCANA-PEMELIHARAAN.md)             |
+| ISO 8601 / 4217 / 639-1 / 3166-1  | ✅                               | `id`, `id-ID`, `ID`, `Asia/Jakarta`, `+07:00` tercantum eksplisit di `/api/health` & `/api/me/export` (+ `Content-Language: id`); ISO 4217 N/A (tidak ada data uang)            | [STANDAR-KODE-DATA](STANDAR-KODE-DATA.md)                                                                |
+| ISO/IEC 27001/27002:2022          | ✅ kontrol teknis · ⏳ institusi | Statement of Applicability 93 kontrol (46 ✅, 45 ⏳ institusi, 2 N/A); backup harian otomatis (restore teruji); rotasi log harian, retensi 90 hari; watchdog Docker/DB/aplikasi | [27001-SOA](27001-SOA.md)                                                                                |
+| ISO/IEC 27034 (keamanan aplikasi) | ✅                               | Threat model STRIDE (36 ancaman), risk register (30 risiko), 31 kontrol keamanan aplikasi, CodeQL (SAST) di CI                                                                  | [27034](27034-KEAMANAN-APLIKASI.md), [STRIDE](THREAT-MODEL-STRIDE.md), [RISK-REGISTER](RISK-REGISTER.md) |
+| ISO/IEC 27701 + OWASP MASVS       | ✅ · MASVS N/A                   | Pemetaan kontrol PIMS ke UU 27/2022 PDP; MASVS tidak berlaku (tidak ada aplikasi mobile — pemicu didokumentasikan)                                                              | [27701-PRIVASI](27701-PRIVASI.md)                                                                        |
+| ISO/IEC 40500 (WCAG 2.0)          | ✅                               | Memenuhi WCAG 2.1 AA (superset WCAG 2.0 = ISO/IEC 40500): Lighthouse Accessibility 100, axe 0 pelanggaran di 5 profil browser                                                   | [09-DAFTAR-STANDAR §5](../09-DAFTAR-STANDAR.md#5-aksesibilitas)                                          |
+| ISO 9001                          | Opsional                         | Pemetaan klausul 4–10 ke proses yang sudah ada (PDCA)                                                                                                                           | [9001-PEMETAAN](9001-PEMETAAN.md)                                                                        |
+| ISO/IEC 42001 (AI)                | Tidak berlaku                    | Sistem tidak memakai AI; kondisi pemicunya didokumentasikan                                                                                                                     | [42001-AI](42001-AI.md)                                                                                  |
+
+## Tindakan institusi yang masih terbuka (ringkas)
+
+- 27001: 45 kontrol organisasi/SDM/fisik (kebijakan keamanan informasi, pelatihan, akses fisik ruang server, dll.).
+- 27701/UU PDP: penunjukan Pejabat PDP, konfirmasi PSE, tinjauan Bagian Hukum.
+- 9241/29119: pelaksanaan uji usabilitas (SUS) dan UAT bertanda tangan.
+- Risiko tinggi di [RISK-REGISTER](RISK-REGISTER.md): Microsoft Defender real-time **nonaktif** di server, image MySQL 8.0 sudah EOL,
+  backup belum ada salinan di luar server, belum ada uji penetrasi pihak ketiga, akun berhak tinggi tanpa MFA.

@@ -18,7 +18,9 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit
 
 $tasks = @(
     @{ Name = 'SPMI Backup Harian'; Script = 'backup.ps1'; At = '01:30' },
-    @{ Name = 'SPMI Retensi Data'; Script = 'privacy-purge.ps1'; At = '02:00' }
+    @{ Name = 'SPMI Retensi Data'; Script = 'privacy-purge.ps1'; At = '02:00' },
+    @{ Name = 'SPMI Kualitas Data'; Script = 'data-quality.ps1'; At = '02:30' },
+    @{ Name = 'SPMI Rotasi Log'; Script = 'rotate-logs.ps1'; At = '00:15' }
 )
 foreach ($t in $tasks) {
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' `

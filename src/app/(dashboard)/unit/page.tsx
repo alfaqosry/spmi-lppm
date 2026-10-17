@@ -17,10 +17,31 @@ export default async function UnitPage() {
   if (user.role !== "lpm_admin" && user.role !== "superadmin")
     redirect("/dashboard");
 
-  const units = await prisma.unit.findMany({
-    orderBy: { name: "asc" },
-    include: { _count: { select: { users: true } } },
-  });
+  const [units, evidence] = await Promise.all([
+    prisma.unit.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: {
+          select: {
+            users: true,
+            memberships: true,
+            responses: true,
+            progress: true,
+            scopedQuestions: true,
+          },
+        },
+      },
+    }),
+    // Ringkasan dampak hapus unit (HE-05): jumlah berkas bukti per unit.
+    prisma.auditResponse.groupBy({
+      by: ["unitId"],
+      where: { evidenceFile: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
+  const evidencePerUnit = new Map(
+    evidence.map((e) => [e.unitId, e._count._all])
+  );
 
   return (
     <div>
@@ -36,6 +57,13 @@ export default async function UnitPage() {
           category: u.category,
           description: u.description ?? "",
           userCount: u._count.users,
+          impact: {
+            memberships: u._count.memberships,
+            responses: u._count.responses,
+            progress: u._count.progress,
+            scopedQuestions: u._count.scopedQuestions,
+            evidence: evidencePerUnit.get(u.id) ?? 0,
+          },
         }))}
       />
     </div>

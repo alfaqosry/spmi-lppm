@@ -65,7 +65,7 @@ Isi kolom Status: ☐ belum diuji · ☑ lulus · ☒ gagal (tulis nomor isu). P
 | L-02 | Sandi salah             | Isi sandi salah                               | Pesan "Email atau kata sandi salah."; tercatat di log login (gagal)                 |   ☐    |
 | L-03 | Email tidak terdaftar   | Isi email acak                                | Pesan sama dengan L-02 (tanpa enumerasi)                                            |   ☐    |
 | L-04 | Akun nonaktif           | Nonaktifkan akun, coba login                  | Pesan sama dengan L-02                                                              |   ☐    |
-| L-05 | Pembatasan percobaan    | Gagal > batas (default 8) dalam 5 menit       | Pesan "Terlalu banyak percobaan…"; login benar pun ditolak sampai jendela habis     |   ☐    |
+| L-05 | Pembatasan percobaan    | Gagal > batas (default 5) dalam 1 menit       | Pesan "Terlalu banyak percobaan…"; login benar pun ditolak sampai jendela habis     |   ☐    |
 | L-06 | Cookie sesi aman        | Login di produksi, periksa DevTools           | Cookie `__Host-lpm_session` HttpOnly, Secure, SameSite=Lax, Path=/                  |   ☐    |
 | L-07 | SSO pengguna baru       | Login SSO dengan akun yang belum ada          | Akun dibuat sebagai Pengunjung → `/no-access`                                       |   ☐    |
 | L-08 | SSO email admin         | Email ada di daftar admin SSO, akun belum ada | Akun dibuat sebagai Admin LPM                                                       |   ☐    |

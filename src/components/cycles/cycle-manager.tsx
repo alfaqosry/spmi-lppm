@@ -10,7 +10,6 @@ import {
   Plus,
   Power,
   PowerOff,
-  Trash2,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -23,7 +22,6 @@ import {
 import {
   createCycle,
   updateCycle,
-  deleteCycle,
   setActiveCycle,
   deactivateCycle,
   type ActionState,
@@ -31,6 +29,8 @@ import {
 import { Badge, EmptyState } from "@/components/ui/primitives";
 import { ConfirmAction } from "@/components/ui/confirm-dialog";
 import { formatDate } from "@/lib/format";
+import { DeleteCycleButton } from "@/components/cycles/delete-cycle-dialog";
+import type { CycleImpactCounts } from "@/components/cycles/cycle-impact";
 
 type CycleRow = {
   id: number;
@@ -39,16 +39,25 @@ type CycleRow = {
   endDate: string;
   isActive: boolean;
   open: boolean;
-  questions: number;
-  documents: number;
-};
+  /** Batas waktu (endDate) telah lewat. */
+  expired: boolean;
+} & CycleImpactCounts;
 
 export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<CycleRow | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const activeCycle = cycles.find((c) => c.isActive) ?? null;
 
   return (
     <div>
+      <div role="status" aria-live="polite" className="empty:hidden">
+        {notice && (
+          <p className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-200">
+            {notice}
+          </p>
+        )}
+      </div>
       <div className="mb-4 flex justify-end">
         <button
           type="button"
@@ -120,21 +129,38 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {!c.isActive && (
-                  <form action={setActiveCycle.bind(null, c.id)}>
-                    <button
-                      type="submit"
-                      className="flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
-                    >
-                      <Power className="h-3.5 w-3.5" aria-hidden="true" />{" "}
-                      Aktifkan
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={() => setActiveCycle(c.id)}
+                    title="Aktifkan siklus?"
+                    tone="primary"
+                    confirmLabel="Aktifkan"
+                    onDone={() =>
+                      setNotice(
+                        activeCycle
+                          ? `Siklus “${c.name}” sekarang aktif. Siklus “${activeCycle.name}” telah dinonaktifkan.`
+                          : `Siklus “${c.name}” sekarang aktif.`
+                      )
+                    }
+                    message={
+                      <ActivateMessage cycle={c} activeCycle={activeCycle} />
+                    }
+                    trigger={
+                      <>
+                        <Power className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                        Aktifkan
+                      </>
+                    }
+                    triggerClassName="flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
+                  />
                 )}
                 {c.isActive && (
                   <ConfirmAction
                     action={() => deactivateCycle(c.id)}
                     title="Nonaktifkan siklus?"
                     confirmLabel="Nonaktifkan"
+                    onDone={() =>
+                      setNotice(`Siklus “${c.name}” telah dinonaktifkan.`)
+                    }
                     message={
                       <>
                         Setelah siklus{" "}
@@ -159,26 +185,10 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Ubah
                 </button>
-                <ConfirmAction
-                  action={() => deleteCycle(c.id)}
-                  title="Hapus siklus audit?"
-                  message={
-                    <>
-                      Siklus{" "}
-                      <strong className="text-slate-200">“{c.name}”</strong>{" "}
-                      beserta seluruh pertanyaan, dokumen, dan jawaban terkait
-                      akan dihapus permanen. Tindakan ini tidak dapat
-                      dibatalkan.
-                    </>
-                  }
-                  trigger={
-                    <>
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />{" "}
-                      Hapus
-                    </>
-                  }
-                  triggerClassName="flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-400/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/20"
-                />
+                {/* Dipisah dari "Ubah" agar tidak salah klik (HE-04). */}
+                <div className="ml-auto">
+                  <DeleteCycleButton cycle={c} onDone={setNotice} />
+                </div>
               </div>
             </motion.div>
           ))}
@@ -203,6 +213,39 @@ export function CycleManager({ cycles }: { cycles: CycleRow[] }) {
         )}
       </Modal>
     </div>
+  );
+}
+
+/** Penjelasan dampak mengaktifkan siklus (HE-11). */
+function ActivateMessage({
+  cycle,
+  activeCycle,
+}: {
+  cycle: CycleRow;
+  activeCycle: CycleRow | null;
+}) {
+  return (
+    <>
+      Siklus <strong className="text-slate-200">“{cycle.name}”</strong> akan
+      menjadi siklus aktif dan auditee akan mengisi jawaban audit pada siklus
+      ini.
+      {activeCycle ? (
+        <>
+          {" "}
+          Siklus{" "}
+          <strong className="text-slate-200">“{activeCycle.name}”</strong> yang
+          saat ini aktif akan <strong>dinonaktifkan</strong>, sehingga auditee
+          tidak dapat lagi mengisi jawaban pada siklus tersebut.
+        </>
+      ) : null}
+      {cycle.expired && (
+        <span className="mt-1.5 block text-amber-200">
+          Perhatian: batas waktu siklus ini ({formatDate(cycle.endDate)}) sudah
+          lewat. Pengisian tetap tertutup sampai batas waktunya diubah melalui
+          tombol Ubah.
+        </span>
+      )}
+    </>
   );
 }
 

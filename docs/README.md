@@ -19,6 +19,7 @@ bersama perubahan kode terkait (lihat [07-STANDAR-ENGINEERING.md](07-STANDAR-ENG
 | [06-PENGUJIAN.md](06-PENGUJIAN.md)                       | Strategi pengujian (Vitest, Playwright, axe), cara menjalankan, checklist UAT per modul                                                                    |
 | [07-STANDAR-ENGINEERING.md](07-STANDAR-ENGINEERING.md)   | Konvensi penamaan, bahasa, pola lapisan, penanganan error, checklist keamanan PR, aksesibilitas, format tanggal                                            |
 | [09-DAFTAR-STANDAR.md](09-DAFTAR-STANDAR.md)             | Checklist 20 kategori standar pengembangan (keamanan, privasi, a11y, performa, CI/CD, operasional) beserta bukti, status, dan backlog                      |
+| [iso/README.md](iso/README.md)                           | Penerapan standar ISO/IEC (25010, 25012, 9241, 29119, 12207, 27001/27002, 27034, 27701, 8601/639/3166, 9001, 42001) beserta status dan dokumennya          |
 
 ### Architecture Decision Records
 

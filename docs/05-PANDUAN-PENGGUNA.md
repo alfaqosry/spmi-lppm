@@ -21,7 +21,7 @@ Panduan ini disusun per peran. Temukan peran Anda di menu profil (ikon nama di k
 
 - **Login via SSO UP** (disarankan bagi dosen/tendik/mahasiswa): klik tombol **Login via SSO UP**, masuk dengan
   akun SSO Universitas Pahlawan, Anda dikembalikan ke SPMI secara otomatis.
-- **Email & kata sandi**: untuk akun yang dibuat LPM. Setelah beberapa kali gagal (default 8 kali dalam 5 menit),
+- **Email & kata sandi**: untuk akun yang dibuat LPM. Setelah beberapa kali gagal (default 5 kali per menit per email+IP, dan 30 kali per menit per IP),
   Anda harus menunggu sebelum mencoba lagi.
 - Pertama kali masuk, baca dan setujui **Kebijakan Privasi** bila diminta.
 
@@ -174,7 +174,7 @@ Superadmin memiliki seluruh fitur Admin LPM ditambah menu **Pengaturan**:
 | Identitas & SEO  | Nama sistem, nama singkat, deskripsi, organisasi, logo/favicon/OG (PNG/JPG/WEBP/GIF/ICO ≤ 2 MB, tanpa SVG), kata kunci, URL dasar, verifikasi Google, `index`/`noindex` | Sistem internal sebaiknya `noindex`                                                                                                   |
 | Integrasi SSO    | Aktif/nonaktif, URL, Client ID, Client Secret (disamarkan), Redirect URI, Scope, Prompt, email admin SSO, **Uji Koneksi**                                               | Redirect URI harus `https://spmi.universitaspahlawan.ac.id/api/sso/callback`. Kosongkan kolom secret untuk mempertahankan nilai lama. |
 | Log & Pemantauan | Aktif/nonaktif log login dan log aktivitas, masa simpan log login, bersihkan log                                                                                        | Jangan mematikan log tanpa alasan — dibutuhkan untuk investigasi insiden                                                              |
-| Keamanan         | Masa sesi (hari), maks. percobaan login, jendela pembatasan (menit)                                                                                                     | Default 7 hari / 8 kali / 5 menit                                                                                                     |
+| Keamanan         | Masa sesi (hari), maks. percobaan login, jendela pembatasan (menit)                                                                                                     | Default 7 hari / 5 kali / 1 menit (rentang yang diizinkan: 1–30 hari, 1–5 kali, 1–60 menit)                                           |
 | Pemeliharaan     | Mode pemeliharaan + pesan                                                                                                                                               | Saat aktif hanya superadmin yang dapat masuk dashboard                                                                                |
 | Superadmin       | Daftar & tambah superadmin                                                                                                                                              | Batasi jumlah superadmin seminimal mungkin                                                                                            |
 

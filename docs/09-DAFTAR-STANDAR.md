@@ -36,6 +36,8 @@ Keterangan: ✅ terpenuhi · ⚠️ terpenuhi sebagian (lihat catatan) · ⏳ me
 | 19  | Operasional & deployment         | Backup, rollback, smoke test, SSL, log       | ✅; ⏳ salinan backup di luar server                                   |
 | 20  | Dokumentasi proyek               | Docs-as-code                                 | ✅ Markdown; ⏳ build PDF siap cetak                                   |
 
+> Penerapan standar **ISO/IEC** (25010, 25012, 9241, 29119, 12207, 27001/27002, 27034, 27701, 8601/639/3166, 9001, 42001): lihat [iso/README.md](iso/README.md).
+
 ## 1. Keamanan Aplikasi
 
 **Acuan:** OWASP Top 10 (2021), OWASP ASVS 4.0 Level 2, Mozilla Web Security Guidelines.

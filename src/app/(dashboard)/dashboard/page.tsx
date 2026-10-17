@@ -6,7 +6,6 @@ import {
   Building2,
   CalendarClock,
   ClipboardCheck,
-  Download,
   Percent,
   TrendingUp,
 } from "lucide-react";
@@ -19,7 +18,11 @@ import {
 import { DashboardChartsLazy } from "@/components/dashboard/dashboard-charts-lazy";
 import { percent, STATUS_LABEL, STATUS_STYLE } from "@/lib/format";
 import { isQuestionForUnit } from "@/lib/scope";
-import { isCycleOpen } from "@/lib/cycles";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
+import {
+  describeDeadline,
+  type DeadlineInfo,
+} from "@/components/dashboard/deadline";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -46,7 +49,7 @@ export default async function DashboardPage() {
         unitIds={unitIdsOf(user)}
         cycleId={activeCycle?.id ?? null}
         cycleName={activeCycle?.name ?? "-"}
-        cycleOpen={isCycleOpen(activeCycle)}
+        deadline={activeCycle ? describeDeadline(activeCycle) : null}
       />
     );
   }
@@ -290,12 +293,12 @@ async function AuditeeDashboard({
   unitIds,
   cycleId,
   cycleName,
-  cycleOpen,
+  deadline,
 }: {
   unitIds: number[];
   cycleId: number | null;
   cycleName: string;
-  cycleOpen: boolean;
+  deadline: DeadlineInfo | null;
 }) {
   if (unitIds.length === 0 || !cycleId) {
     return (
@@ -363,26 +366,7 @@ async function AuditeeDashboard({
           units.length > 1 ? ` • ${units.length} unit` : ""
         }`}
       />
-      {!cycleOpen && (
-        <div
-          role="status"
-          className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
-        >
-          <span
-            aria-hidden="true"
-            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-xs font-bold"
-          >
-            !
-          </span>
-          <div>
-            <p className="font-semibold">Periode pengisian ditutup</p>
-            <p className="mt-0.5 text-xs text-amber-200">
-              Siklus audit ini telah dinonaktifkan atau melewati batas waktu.
-              Anda tidak dapat lagi mengisi jawaban audit.
-            </p>
-          </div>
-        </div>
-      )}
+      {deadline && <DeadlinePanel deadline={deadline} />}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           label="Pertanyaan"
@@ -454,18 +438,90 @@ async function AuditeeDashboard({
                 <Badge className="border-indigo-400/25 bg-indigo-500/10 text-indigo-300">
                   {u.category}
                 </Badge>
-                <a
-                  href={`/api/export?cycleId=${cycleId}&unitId=${u.id}`}
-                  aria-label={`Unduh laporan PDF ${u.name}`}
+                <ExportPdfButton
+                  cycleId={cycleId}
+                  unitId={u.id}
+                  ariaLabel={`Unduh laporan PDF ${u.name}`}
+                  align="end"
                   className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20"
                 >
-                  <Download className="h-3.5 w-3.5" aria-hidden="true" /> PDF
-                </a>
+                  PDF
+                </ExportPdfButton>
               </span>
             </li>
           ))}
         </ul>
       </section>
+    </div>
+  );
+}
+
+/** Batas waktu pengisian siklus aktif bagi auditee (HE-01). */
+function DeadlinePanel({ deadline }: { deadline: DeadlineInfo }) {
+  if (deadline.state === "closed") {
+    return (
+      <div
+        role="status"
+        className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+      >
+        <span
+          aria-hidden="true"
+          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/20 text-xs font-bold"
+        >
+          !
+        </span>
+        <div>
+          <p className="font-semibold">Periode pengisian ditutup</p>
+          <p className="mt-0.5 text-xs text-amber-200">
+            {deadline.closedReason === "inactive"
+              ? "Siklus audit ini telah dinonaktifkan oleh LPM."
+              : `Batas pengisian telah berakhir pada ${deadline.deadlineLabel}.`}{" "}
+            Anda tidak dapat lagi mengisi jawaban audit. Hubungi LPM bila
+            memerlukan perpanjangan.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const warning = deadline.state === "warning";
+  return (
+    <div
+      className={`mb-4 flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+        warning
+          ? "border-amber-400/40 bg-amber-500/10 text-amber-200"
+          : "border-indigo-400/20 bg-indigo-500/5 text-slate-200"
+      }`}
+    >
+      <CalendarClock
+        className={`mt-0.5 h-5 w-5 shrink-0 ${
+          warning ? "text-amber-300" : "text-indigo-300"
+        }`}
+        aria-hidden="true"
+      />
+      <div className="min-w-0 flex-1">
+        <p>
+          <span className="font-semibold">Batas pengisian:</span>{" "}
+          {deadline.deadlineLabel}
+        </p>
+        {warning && (
+          <p className="mt-0.5 text-xs text-amber-200">
+            Batas waktu sudah dekat. Segera lengkapi dan perbaiki jawaban audit
+            sebelum periode pengisian ditutup.
+          </p>
+        )}
+      </div>
+      <Badge
+        className={
+          warning
+            ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
+            : "border-indigo-400/25 bg-indigo-500/10 text-indigo-300"
+        }
+      >
+        {warning && <span className="sr-only">Peringatan: </span>}
+        {deadline.remainingLabel.charAt(0).toUpperCase() +
+          deadline.remainingLabel.slice(1)}
+      </Badge>
     </div>
   );
 }

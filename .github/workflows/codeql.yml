@@ -1,0 +1,44 @@
+name: CodeQL
+
+# SAST (ISO/IEC 27034 ASC "analisis kode statis"; ISO/IEC 27001 A.8.25/A.8.28/A.8.29).
+# Lihat docs/iso/27034-KEAMANAN-APLIKASI.md.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Senin 02:23 UTC (09:23 WIB) — menangkap kueri CodeQL baru walau kode tidak berubah.
+    - cron: "23 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # JS/TS dianalisis langsung dari sumber; tidak perlu build.
+          build-mode: none
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

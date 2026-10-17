@@ -144,6 +144,16 @@ export async function deactivateCycle(id: number) {
 export async function deleteCycle(id: number) {
   const admin = await requireLpmAdmin();
   const cycleId = requireId(id, "Siklus");
+  // Siklus aktif sedang dipakai auditee: wajib dinonaktifkan dulu (HE-04, ISO 9241-110 toleransi kesalahan).
+  const target = await prisma.auditCycle.findUnique({
+    where: { id: cycleId },
+    select: { isActive: true },
+  });
+  if (target?.isActive) {
+    throw new AppError(
+      "Siklus aktif tidak dapat dihapus. Nonaktifkan siklus terlebih dahulu."
+    );
+  }
   // Kumpulkan berkas yang ikut terhapus (cascade) sebelum baris dihapus.
   const [resp, docs] = await Promise.all([
     prisma.auditResponse.findMany({

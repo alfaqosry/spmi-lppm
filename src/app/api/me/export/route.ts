@@ -1,6 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
 import { jsonError } from "@/lib/errors";
-import { buildMyDataExport, exportAuditDetail } from "@/lib/privacy";
+import {
+  buildMyDataExport,
+  CONTENT_LANGUAGE,
+  exportAuditDetail,
+} from "@/lib/privacy";
 import { rateLimit, rateLimitMessage, LIMITS_RL } from "@/lib/ratelimit";
 import { recordActivity } from "@/lib/logs";
 import { clientIpFromHeaders } from "@/lib/net";
@@ -11,7 +15,8 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/me/export — "Ekspor data saya" (hak akses subjek data, UU 27/2022).
  * Mengembalikan seluruh data pribadi milik pengguna yang sedang login sebagai
- * JSON UTF-8 (lampiran), timestamp ISO 8601 +07:00. Berlaku untuk semua peran
+ * JSON UTF-8 (lampiran), timestamp ISO 8601 +07:00, metadata `locale` eksplisit
+ * dan header `Content-Language: id`. Berlaku untuk semua peran
  * termasuk pengunjung, dan tetap tersedia saat mode pemeliharaan.
  */
 export async function GET(request: Request) {
@@ -49,6 +54,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
+        "Content-Language": CONTENT_LANGUAGE,
         "Content-Disposition": `attachment; filename="data-saya-spmi-${date}.json"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",

@@ -63,27 +63,27 @@ Matriks menu (sumber: `src/components/layout/nav-items.ts` dan guard di setiap `
 
 ## 3. Kebutuhan Fungsional
 
-| Kode  | Kebutuhan                                                                                          | Implementasi                                                                           |
-| ----- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| KF-01 | Login email + kata sandi (bcrypt) dengan pembatas percobaan                                        | `src/lib/actions/auth.ts` (`loginAction`), `src/lib/ratelimit.ts`                      |
-| KF-02 | Login via SSO UP (OAuth 2.0 Authorization Code) dengan auto-provisioning akun sebagai `pengunjung` | `src/app/api/sso/[...sso]/route.ts`, `src/lib/sso.ts`                                  |
-| KF-03 | Logout (hapus cookie sesi aplikasi + cookie SSO)                                                   | `logoutAction` di `src/lib/actions/auth.ts`                                            |
-| KF-04 | Ubah kata sandi mandiri (min. 8 karakter; akun SSO-only ditolak)                                   | `src/lib/actions/profile.ts`                                                           |
-| KF-05 | CRUD siklus audit; hanya satu siklus aktif; nonaktifkan manual                                     | `src/lib/actions/cycles.ts`                                                            |
-| KF-06 | CRUD unit audit dengan kategori bebas (saran: `CATEGORIES`)                                        | `src/lib/actions/units.ts`, `src/lib/scope.ts`                                         |
-| KF-07 | CRUD akun, penempatan multi-unit (rangkap jabatan), maks. 1 Kepala Unit per unit                   | `src/lib/actions/units.ts` (`assignMember`, `removeMember`, `syncUserAccess`)          |
-| KF-08 | Penunjukan tunggal Ketua LPM (penandatangan laporan)                                               | `setLpmHead` / `unsetLpmHead` di `src/lib/actions/units.ts`                            |
-| KF-09 | Repositori dokumen Penetapan & Evaluasi (PDF atau tautan http/https)                               | `src/lib/actions/documents.ts`                                                         |
-| KF-10 | Standar (induk) dan butir pertanyaan (tunggal & massal) dengan cakupan all/category/unit           | `src/lib/actions/questions.ts`, `src/lib/scope.ts`                                     |
-| KF-11 | Pengisian jawaban Ya/Tidak + bukti/alasan, ditolak bila siklus tertutup                            | `saveResponse` di `src/lib/actions/responses.ts`                                       |
-| KF-12 | Verifikasi LPM (verified / revision + catatan wajib)                                               | `verifyResponse` di `src/lib/actions/responses.ts`                                     |
-| KF-13 | Pengisian RTL oleh auditee                                                                         | `saveRtl` di `src/lib/actions/responses.ts`                                            |
-| KF-14 | Progres unit otomatis (`belum_mulai` / `mengisi` / `selesai`)                                      | `src/lib/progress.ts`                                                                  |
-| KF-15 | Dashboard monitoring & analitik kepatuhan per standar/kategori                                     | `src/app/(dashboard)/dashboard`, `src/app/(dashboard)/analitik`                        |
-| KF-16 | Ekspor PDF keseluruhan dan per unit dengan blok tanda tangan Ketua LPM                             | `src/app/api/export/route.ts`, `src/lib/report/*`                                      |
-| KF-17 | Pengaturan sistem (identitas/SEO, SSO, log, keamanan, pemeliharaan, superadmin)                    | `src/lib/actions/settings.ts`, `src/lib/settings.ts`                                   |
-| KF-18 | Log login & log aktivitas (dapat dimatikan, retensi log login)                                     | `src/lib/logs.ts`                                                                      |
-| KF-19 | Privasi: persetujuan (consent), ekspor data pribadi (`/api/me/export`), pembersihan data terjadwal | _Sedang ditambahkan_ — lihat [legal/RoPA.md](legal/RoPA.md) dan [03-API.md](03-API.md) |
+| Kode  | Kebutuhan                                                                                          | Implementasi                                                                                                                        |
+| ----- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| KF-01 | Login email + kata sandi (bcrypt) dengan pembatas percobaan                                        | `src/lib/actions/auth.ts` (`loginAction`), `src/lib/ratelimit.ts`                                                                   |
+| KF-02 | Login via SSO UP (OAuth 2.0 Authorization Code) dengan auto-provisioning akun sebagai `pengunjung` | `src/app/api/sso/[...sso]/route.ts`, `src/lib/sso.ts`                                                                               |
+| KF-03 | Logout (hapus cookie sesi aplikasi + cookie SSO)                                                   | `logoutAction` di `src/lib/actions/auth.ts`                                                                                         |
+| KF-04 | Ubah kata sandi mandiri (min. 8 karakter; akun SSO-only ditolak)                                   | `src/lib/actions/profile.ts`                                                                                                        |
+| KF-05 | CRUD siklus audit; hanya satu siklus aktif; nonaktifkan manual                                     | `src/lib/actions/cycles.ts`                                                                                                         |
+| KF-06 | CRUD unit audit dengan kategori bebas (saran: `CATEGORIES`)                                        | `src/lib/actions/units.ts`, `src/lib/scope.ts`                                                                                      |
+| KF-07 | CRUD akun, penempatan multi-unit (rangkap jabatan), maks. 1 Kepala Unit per unit                   | `src/lib/actions/units.ts` (`assignMember`, `removeMember`, `syncUserAccess`)                                                       |
+| KF-08 | Penunjukan tunggal Ketua LPM (penandatangan laporan)                                               | `setLpmHead` / `unsetLpmHead` di `src/lib/actions/units.ts`                                                                         |
+| KF-09 | Repositori dokumen Penetapan & Evaluasi (PDF atau tautan http/https)                               | `src/lib/actions/documents.ts`                                                                                                      |
+| KF-10 | Standar (induk) dan butir pertanyaan (tunggal & massal) dengan cakupan all/category/unit           | `src/lib/actions/questions.ts`, `src/lib/scope.ts`                                                                                  |
+| KF-11 | Pengisian jawaban Ya/Tidak + bukti/alasan, ditolak bila siklus tertutup                            | `saveResponse` di `src/lib/actions/responses.ts`                                                                                    |
+| KF-12 | Verifikasi LPM (verified / revision + catatan wajib)                                               | `verifyResponse` di `src/lib/actions/responses.ts`                                                                                  |
+| KF-13 | Pengisian RTL oleh auditee                                                                         | `saveRtl` di `src/lib/actions/responses.ts`                                                                                         |
+| KF-14 | Progres unit otomatis (`belum_mulai` / `mengisi` / `selesai`)                                      | `src/lib/progress.ts`                                                                                                               |
+| KF-15 | Dashboard monitoring & analitik kepatuhan per standar/kategori                                     | `src/app/(dashboard)/dashboard`, `src/app/(dashboard)/analitik`                                                                     |
+| KF-16 | Ekspor PDF keseluruhan dan per unit dengan blok tanda tangan Ketua LPM                             | `src/app/api/export/route.ts`, `src/lib/report/*`                                                                                   |
+| KF-17 | Pengaturan sistem (identitas/SEO, SSO, log, keamanan, pemeliharaan, superadmin)                    | `src/lib/actions/settings.ts`, `src/lib/settings.ts`                                                                                |
+| KF-18 | Log login & log aktivitas (dapat dimatikan, retensi log login)                                     | `src/lib/logs.ts`                                                                                                                   |
+| KF-19 | Privasi: persetujuan (consent), ekspor data pribadi (`/api/me/export`), pembersihan data terjadwal | Diterapkan (v1.1.0) — `src/lib/privacy.ts`, `/api/me/export`, tugas `\SPMI\SPMI Retensi Data`; lihat [legal/RoPA.md](legal/RoPA.md) |
 
 ## 4. Kebutuhan Non-Fungsional
 
@@ -569,7 +569,7 @@ sequenceDiagram
 | AB-21 | Nama standar unik per siklus; urutan standar baru = urutan terakhir + 1. Hapus standar menghapus seluruh butirnya.                                                                                                   | `createStandard`, `deleteStandard`                                                                   |
 | AB-22 | Dokumen wajib berkas PDF **atau** tautan http/https; jenis hanya `penetapan`/`evaluasi`.                                                                                                                             | `createDocument`                                                                                     |
 | AB-23 | Nilai rahasia pengaturan (`sso.clientSecret`) tidak pernah dikirim ke klien; nilai kosong/terselubung tidak menimpa nilai tersimpan.                                                                                 | `getSettingsForAdmin`, `saveSettings` — `src/lib/settings.ts`                                        |
-| AB-24 | Log login dihapus otomatis setelah `log.loginRetentionDays` (default 90 hari) saat ada login baru.                                                                                                                   | `recordLogin` — `src/lib/logs.ts`                                                                    |
+| AB-24 | Log login (default 90 hari) dan log aktivitas (default 365 hari) dihapus otomatis oleh tugas harian 02:00, dengan jaring pengaman saat login (maks. 1×/jam).                                                         | `recordLogin` — `src/lib/logs.ts`                                                                    |
 | AB-25 | Admin tidak dapat menghapus akunnya sendiri.                                                                                                                                                                         | `deleteAccount`                                                                                      |
 
 ---

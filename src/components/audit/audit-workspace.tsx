@@ -1,13 +1,17 @@
 "use client";
 
 import {
+  startTransition,
   useActionState,
+  useCallback,
   useEffect,
   useId,
   useMemo,
   useRef,
   useState,
+  type FormEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -33,6 +37,7 @@ import {
   Field,
   SubmitButton,
   useCloseOnSuccess,
+  BTN_DANGER,
   BTN_PRIMARY,
   BTN_SECONDARY,
 } from "@/components/ui/form";
@@ -66,6 +71,12 @@ import {
   type ActionState as RespState,
 } from "@/lib/actions/responses";
 import { STATUS_LABEL, STATUS_STYLE, percent } from "@/lib/format";
+import {
+  isResponseDirty,
+  standardDeleteImpact,
+  type StandardDeleteImpact,
+} from "@/components/audit/audit-helpers";
+import { DeleteStandardButton } from "@/components/audit/delete-standard-button";
 
 export type { Question, UnitOption };
 
@@ -155,8 +166,10 @@ export function AdminAuditWorkspace({
         {tab === "instrumen" && (
           <InstrumenPanel
             cycleId={cycleId}
+            cycleName={cycleName}
             questions={questions}
             standards={standards}
+            responses={responses}
             units={units}
           />
         )}
@@ -184,13 +197,17 @@ type CategoryBucket = {
 
 function InstrumenPanel({
   cycleId,
+  cycleName,
   questions,
   standards,
+  responses,
   units,
 }: {
   cycleId: number;
+  cycleName: string;
   questions: QuestionRow[];
   standards: StandardRow[];
+  responses: ResponseRow[];
   units: UnitOption[];
 }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -284,9 +301,11 @@ function InstrumenPanel({
   return (
     <CategoryDetail
       cycleId={cycleId}
+      cycleName={cycleName}
       categoryKey={selected}
       questions={questions}
       standards={standards}
+      responses={responses}
       units={units}
       onBack={() => setSelected(null)}
     />
@@ -295,16 +314,20 @@ function InstrumenPanel({
 
 function CategoryDetail({
   cycleId,
+  cycleName,
   categoryKey,
   questions,
   standards,
+  responses,
   units,
   onBack,
 }: {
   cycleId: number;
+  cycleName: string;
   categoryKey: string;
   questions: QuestionRow[];
   standards: StandardRow[];
+  responses: ResponseRow[];
   units: UnitOption[];
   onBack: () => void;
 }) {
@@ -502,6 +525,13 @@ function CategoryDetail({
             standardName={g.standardName}
             questions={g.questions}
             cycleId={cycleId}
+            cycleName={cycleName}
+            impact={standardDeleteImpact(
+              g.standardId,
+              questions,
+              responses,
+              unitNameById
+            )}
             scope={scope}
             standards={standards}
             units={units}
@@ -528,6 +558,8 @@ function StandardBlock({
   standardName,
   questions,
   cycleId,
+  cycleName,
+  impact,
   scope,
   standards,
   units,
@@ -538,6 +570,8 @@ function StandardBlock({
   standardName: string;
   questions: QuestionRow[];
   cycleId: number;
+  cycleName: string;
+  impact: StandardDeleteImpact;
   scope: { scopeType: string; scopeCategory: string; scopeUnitId: string };
   standards: StandardRow[];
   units: UnitOption[];
@@ -592,20 +626,11 @@ function StandardBlock({
             >
               <Pencil className="h-4 w-4" aria-hidden="true" />
             </button>
-            <ConfirmAction
+            <DeleteStandardButton
+              standardName={standardName}
+              cycleName={cycleName}
+              impact={impact}
               action={() => deleteStandard(standardId)}
-              title="Hapus standar?"
-              message={
-                <>
-                  Standar{" "}
-                  <strong className="text-slate-200">“{standardName}”</strong>{" "}
-                  beserta seluruh butir pertanyaan dan jawaban terkait akan
-                  dihapus permanen.
-                </>
-              }
-              triggerLabel={`Hapus standar ${standardName}`}
-              trigger={<Trash2 className="h-4 w-4" aria-hidden="true" />}
-              triggerClassName="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-500/10 hover:text-rose-300"
             />
           </div>
         )}
@@ -1348,10 +1373,98 @@ export function AuditeeAuditWorkspace({
   units: UnitOption[];
   canEdit: boolean;
 }) {
+  const router = useRouter();
   const [activeUnitId, setActiveUnitId] = useState<number | null>(
     myUnits[0]?.id ?? null
   );
   const activeUnit = myUnits.find((u) => u.id === activeUnitId) ?? null;
+  // HE-02: tampilkan hanya butir berstatus "Perlu Revisi".
+  const [revisionOnly, setRevisionOnly] = useState(false);
+  // HE-08: kunci butir/RTL yang memiliki isian belum disimpan.
+  const [dirtyKeys, setDirtyKeys] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  // Tindakan yang menunggu konfirmasi "buang perubahan".
+  const [pendingLeave, setPendingLeave] = useState<
+    { kind: "unit"; unitId: number } | { kind: "href"; href: string } | null
+  >(null);
+  const leaveCancelRef = useRef<HTMLButtonElement>(null);
+
+  const setDirty = useCallback((key: string, dirty: boolean) => {
+    setDirtyKeys((prev) => {
+      if (prev.has(key) === dirty) return prev;
+      const next = new Set(prev);
+      if (dirty) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+  const dirtyCount = dirtyKeys.size;
+
+  // Peringatan bawaan peramban saat menutup tab / memuat ulang / keluar situs.
+  useEffect(() => {
+    if (dirtyCount === 0) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirtyCount]);
+
+  // Navigasi sisi klien (<Link>) tidak memicu beforeunload: cegat klik tautan
+  // internal pada fase capture, lalu minta konfirmasi lewat dialog.
+  useEffect(() => {
+    if (dirtyCount === 0) return;
+    const onClick = (e: MouseEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      )
+        return;
+      const a = (e.target as Element | null)?.closest?.("a[href]");
+      if (!(a instanceof HTMLAnchorElement)) return;
+      if (a.target && a.target !== "_self") return;
+      if (a.hasAttribute("download")) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search
+      )
+        return; // hanya pindah anchor (#) pada halaman yang sama
+      e.preventDefault();
+      e.stopPropagation();
+      setPendingLeave({
+        kind: "href",
+        href: url.pathname + url.search + url.hash,
+      });
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [dirtyCount]);
+
+  const switchUnit = (unitId: number) => {
+    if (unitId === activeUnitId) return;
+    if (dirtyCount > 0) setPendingLeave({ kind: "unit", unitId });
+    else setActiveUnitId(unitId);
+  };
+
+  const confirmLeave = () => {
+    const p = pendingLeave;
+    setPendingLeave(null);
+    if (!p) return;
+    if (p.kind === "unit") {
+      setActiveUnitId(p.unitId);
+    } else {
+      setDirtyKeys(new Set());
+      router.push(p.href);
+    }
+  };
 
   // Respons untuk unit aktif saja.
   const unitResponses = useMemo(
@@ -1397,6 +1510,10 @@ export function AuditeeAuditWorkspace({
   const answeredCount = relevant.filter(
     (q) => responseByQuestion.get(q.id)?.answer
   ).length;
+  const revisionCount = relevant.filter(
+    (q) => responseByQuestion.get(q.id)?.status === "revision"
+  ).length;
+  const showRevisionOnly = revisionOnly && revisionCount > 0;
 
   if (myUnits.length === 0) {
     return (
@@ -1407,6 +1524,11 @@ export function AuditeeAuditWorkspace({
       />
     );
   }
+
+  const pendingUnitName =
+    pendingLeave?.kind === "unit"
+      ? (myUnits.find((u) => u.id === pendingLeave.unitId)?.name ?? "")
+      : "";
 
   return (
     <div className="space-y-4">
@@ -1427,7 +1549,7 @@ export function AuditeeAuditWorkspace({
                 key={u.id}
                 type="button"
                 aria-pressed={activeUnitId === u.id}
-                onClick={() => setActiveUnitId(u.id)}
+                onClick={() => switchUnit(u.id)}
                 className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                   activeUnitId === u.id
                     ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-200"
@@ -1479,11 +1601,50 @@ export function AuditeeAuditWorkspace({
             </div>
           </div>
 
-          <p className="text-xs text-slate-500">
-            Jawab <strong className="text-slate-300">Ya</strong> dengan bukti,
-            atau <strong className="text-slate-300">Tidak</strong> dengan
-            alasan.
-          </p>
+          {/* HE-02: ringkasan & filter butir "Perlu Revisi". */}
+          {revisionCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3">
+              <p className="flex items-start gap-2 text-sm text-rose-200">
+                <RotateCcw
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>
+                  <strong>{revisionCount} butir perlu revisi</strong> menurut
+                  LPM. Baca catatan LPM, perbaiki jawaban/bukti, lalu simpan
+                  ulang.
+                </span>
+              </p>
+              <button
+                type="button"
+                aria-pressed={showRevisionOnly}
+                onClick={() => setRevisionOnly((v) => !v)}
+                className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                  showRevisionOnly
+                    ? "border-rose-400/50 bg-rose-500/25 text-rose-100"
+                    : "border-rose-400/30 bg-transparent text-rose-200 hover:bg-rose-500/15"
+                }`}
+              >
+                {showRevisionOnly
+                  ? "Tampilkan semua butir"
+                  : "Tampilkan hanya yang perlu revisi"}
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">
+              Jawab <strong className="text-slate-300">Ya</strong> dengan bukti,
+              atau <strong className="text-slate-300">Tidak</strong> dengan
+              alasan. Setiap butir disimpan sendiri-sendiri.
+            </p>
+            <p
+              aria-live="polite"
+              className="text-xs font-semibold text-amber-300 empty:hidden"
+            >
+              {dirtyCount > 0 ? `${dirtyCount} isian belum disimpan` : ""}
+            </p>
+          </div>
 
           <div className="space-y-4">
             {groups.map((g) => (
@@ -1496,14 +1657,64 @@ export function AuditeeAuditWorkspace({
                 responseByQuestion={responseByQuestion}
                 unitNameById={unitNameById}
                 canEdit={canEdit}
+                revisionOnly={showRevisionOnly}
+                dirtyKeys={dirtyKeys}
+                onDirtyChange={setDirty}
               />
             ))}
           </div>
         </>
       )}
+
+      <Modal
+        open={pendingLeave !== null}
+        onClose={() => setPendingLeave(null)}
+        title="Buang isian yang belum disimpan?"
+        role="alertdialog"
+        size="sm"
+        icon={<RotateCcw className="h-5 w-5 text-amber-300" />}
+        description={
+          <>
+            Ada <strong className="text-slate-200">{dirtyCount}</strong> isian
+            jawaban/RTL yang belum disimpan
+            {pendingLeave?.kind === "unit" ? (
+              <>
+                . Berpindah ke unit{" "}
+                <strong className="text-slate-200">{pendingUnitName}</strong>{" "}
+                akan membuang perubahan tersebut.
+              </>
+            ) : (
+              <>. Meninggalkan halaman ini akan membuang perubahan tersebut.</>
+            )}{" "}
+            Pilih &quot;Tetap di sini&quot;, lalu klik &quot;Simpan
+            Jawaban&quot; pada butir bertanda &quot;Belum disimpan&quot;.
+          </>
+        }
+        initialFocus={leaveCancelRef}
+      >
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            ref={leaveCancelRef}
+            type="button"
+            onClick={() => setPendingLeave(null)}
+            className={BTN_SECONDARY}
+          >
+            Tetap di sini
+          </button>
+          <button type="button" onClick={confirmLeave} className={BTN_DANGER}>
+            Buang perubahan
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
+
+const dirtyKeyOf = (
+  unitId: number | null,
+  questionId: number,
+  part: "answer" | "rtl"
+) => `${unitId ?? 0}:${questionId}:${part}`;
 
 function AspectGroup({
   name,
@@ -1513,6 +1724,9 @@ function AspectGroup({
   responseByQuestion,
   unitNameById,
   canEdit,
+  revisionOnly,
+  dirtyKeys,
+  onDirtyChange,
 }: {
   name: string;
   unitId: number | null;
@@ -1521,17 +1735,39 @@ function AspectGroup({
   responseByQuestion: Map<number, ResponseRow>;
   unitNameById: Map<number, string>;
   canEdit: boolean;
+  revisionOnly: boolean;
+  dirtyKeys: ReadonlySet<string>;
+  onDirtyChange: (key: string, dirty: boolean) => void;
 }) {
   const answered = questions.filter(
     (q) => responseByQuestion.get(q.id)?.answer
   ).length;
-  const complete = questions.length > 0 && answered >= questions.length;
+  // HE-02: butir "Perlu Revisi" belum selesai walau sudah terjawab.
+  const revisions = questions.filter(
+    (q) => responseByQuestion.get(q.id)?.status === "revision"
+  ).length;
+  const dirtyInGroup = questions.filter(
+    (q) =>
+      dirtyKeys.has(dirtyKeyOf(unitId, q.id, "answer")) ||
+      dirtyKeys.has(dirtyKeyOf(unitId, q.id, "rtl"))
+  ).length;
+  const complete =
+    questions.length > 0 && answered >= questions.length && revisions === 0;
   const [open, setOpen] = useState(!complete);
+  // Mode filter revisi memaksa grup berisi revisi terbuka.
+  const expanded = open || (revisionOnly && revisions > 0);
   const panelId = useId();
 
   return (
     <div
-      className={`card overflow-hidden ${complete ? "border-emerald-400/40" : ""}`}
+      hidden={revisionOnly && revisions === 0}
+      className={`card overflow-hidden ${
+        revisions > 0
+          ? "border-rose-400/40"
+          : complete
+            ? "border-emerald-400/40"
+            : ""
+      }`}
     >
       {complete && (
         <div className="h-0.5 w-full bg-gradient-to-r from-emerald-400 to-teal-400" />
@@ -1539,9 +1775,10 @@ function AspectGroup({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
+        aria-expanded={expanded}
         aria-controls={panelId}
-        className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-500/[0.06]"
+        disabled={revisionOnly && revisions > 0}
+        className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-500/[0.06] disabled:cursor-default"
       >
         <div className="flex min-w-0 items-center gap-3">
           <span
@@ -1557,41 +1794,61 @@ function AspectGroup({
             {answered}/{questions.length} terjawab
           </span>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {dirtyInGroup > 0 && (
+            <Badge className="border-amber-400/40 bg-amber-500/15 text-amber-200">
+              {dirtyInGroup} belum disimpan
+            </Badge>
+          )}
+          {revisions > 0 && (
+            <Badge className="border-rose-400/40 bg-rose-500/15 text-rose-200">
+              <RotateCcw className="mr-1 h-3 w-3" aria-hidden="true" />
+              {revisions} perlu revisi
+            </Badge>
+          )}
           {complete ? (
             <Badge className="border-emerald-400/30 bg-emerald-500/15 text-emerald-300">
               <Check className="mr-1 h-3 w-3" /> Lengkap
             </Badge>
           ) : (
-            <Badge className="border-amber-400/30 bg-amber-500/15 text-amber-300">
-              {questions.length - answered} tersisa
-            </Badge>
+            answered < questions.length && (
+              <Badge className="border-amber-400/30 bg-amber-500/15 text-amber-300">
+                {questions.length - answered} tersisa
+              </Badge>
+            )
           )}
           <ChevronDown
-            className={`h-4 w-4 text-slate-400 transition ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+            className={`h-4 w-4 text-slate-400 transition ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
 
-      {open && (
-        <div
-          id={panelId}
-          className="space-y-4 border-t border-indigo-400/10 p-3 sm:p-4"
-        >
-          {questions.map((q, idx) => (
+      {/* HE-08: disembunyikan dengan atribut `hidden` (bukan di-unmount) agar
+          isian yang belum disimpan tidak hilang saat grup dilipat. */}
+      <div
+        id={panelId}
+        hidden={!expanded}
+        className="space-y-4 border-t border-indigo-400/10 p-3 sm:p-4"
+      >
+        {questions.map((q, idx) => {
+          const existing = responseByQuestion.get(q.id);
+          return (
             <ResponseForm
               key={q.id}
               index={idx + 1}
               cycleId={cycleId}
               unitId={unitId}
               question={q}
-              existing={responseByQuestion.get(q.id)}
+              existing={existing}
               unitNameById={unitNameById}
               canEdit={canEdit}
+              hidden={revisionOnly && existing?.status !== "revision"}
+              onDirtyChange={onDirtyChange}
             />
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1604,6 +1861,8 @@ function ResponseForm({
   existing,
   unitNameById,
   canEdit,
+  hidden,
+  onDirtyChange,
 }: {
   index: number;
   cycleId: number;
@@ -1612,6 +1871,8 @@ function ResponseForm({
   existing?: ResponseRow;
   unitNameById: Map<number, string>;
   canEdit: boolean;
+  hidden: boolean;
+  onDirtyChange: (key: string, dirty: boolean) => void;
 }) {
   const [state, formAction] = useActionState<RespState, FormData>(
     saveResponse,
@@ -1624,11 +1885,91 @@ function ResponseForm({
     saveRtl,
     undefined
   );
+  const formRef = useRef<HTMLFormElement>(null);
+  const [answerDirty, setAnswerDirty] = useState(false);
+  const [rtlDirty, setRtlDirty] = useState(false);
+
+  // Setelah simpan berhasil: bersihkan penanda "belum disimpan" (derivasi saat
+  // render, pola "menyimpan info dari render sebelumnya").
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
+    if (state?.ok) setAnswerDirty(false);
+  }
+  const [handledRtl, setHandledRtl] = useState(rtlState);
+  if (rtlState !== handledRtl) {
+    setHandledRtl(rtlState);
+    if (rtlState?.ok) setRtlDirty(false);
+  }
+
+  // Laporkan status "belum disimpan" ke ruang kerja (beforeunload, ganti unit).
+  const answerKey = dirtyKeyOf(unitId, question.id, "answer");
+  const rtlKey = dirtyKeyOf(unitId, question.id, "rtl");
+  useEffect(() => {
+    onDirtyChange(answerKey, answerDirty);
+    return () => onDirtyChange(answerKey, false);
+  }, [answerKey, answerDirty, onDirtyChange]);
+  useEffect(() => {
+    onDirtyChange(rtlKey, rtlDirty);
+    return () => onDirtyChange(rtlKey, false);
+  }, [rtlKey, rtlDirty, onDirtyChange]);
+
+  const recomputeDirty = () => {
+    const form = formRef.current;
+    if (!form) return;
+    const fd = new FormData(form);
+    const file = fd.get("file");
+    const text = (k: string) => {
+      const v = fd.get(k);
+      return typeof v === "string" ? v : null;
+    };
+    setAnswerDirty(
+      isResponseDirty(existing, {
+        answer: text("answer"),
+        evidenceLink: text("evidenceLink"),
+        reason: text("reason"),
+        hasFile: file instanceof File && file.size > 0,
+      })
+    );
+  };
+
+  // Kirim tanpa reset formulir otomatis React: bila server menolak (mis. berkas
+  // terlalu besar), isian pengguna tetap utuh dan dapat diperbaiki.
+  const submitAnswer = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    const fd = new FormData(e.currentTarget, submitter);
+    startTransition(() => formAction(fd));
+  };
+  const submitRtl = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => rtlAction(fd));
+  };
+
+  // Setelah berhasil, kosongkan pilihan berkas (sudah terunggah).
+  useEffect(() => {
+    if (!state?.ok) return;
+    const input =
+      formRef.current?.querySelector<HTMLInputElement>('input[type="file"]');
+    if (input) input.value = "";
+  }, [state]);
 
   const status = existing?.status ?? "pending";
+  const isRevision = existing?.status === "revision";
+  const dirty = answerDirty || rtlDirty;
 
   return (
-    <div className="rounded-xl border border-slate-700/40 bg-slate-900/30 p-3 sm:p-4">
+    <div
+      hidden={hidden}
+      className={`rounded-xl border p-3 sm:p-4 ${
+        dirty
+          ? "border-amber-400/50 bg-amber-500/[0.04]"
+          : isRevision
+            ? "border-rose-400/40 bg-rose-500/[0.04]"
+            : "border-slate-700/40 bg-slate-900/30"
+      }`}
+    >
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-800/50 text-xs font-semibold text-slate-300">
           {index}
@@ -1644,13 +1985,34 @@ function ResponseForm({
             <ScopeBadge question={question} unitNameById={unitNameById} />
           )}
         </div>
-        {existing?.answer && (
-          <Badge className={STATUS_STYLE[status]}>{STATUS_LABEL[status]}</Badge>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {existing?.answer && (
+            <Badge className={STATUS_STYLE[status]}>
+              {STATUS_LABEL[status]}
+            </Badge>
+          )}
+          {dirty && (
+            <Badge className="border-amber-400/40 bg-amber-500/15 text-amber-200">
+              Belum disimpan
+            </Badge>
+          )}
+        </div>
       </div>
 
+      {isRevision && existing?.lpmNotes && (
+        <p className="mt-3 rounded-lg border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 sm:ml-9">
+          <strong>Catatan revisi LPM:</strong> {existing.lpmNotes}
+        </p>
+      )}
+
       {canEdit ? (
-        <form action={formAction} className="mt-3 space-y-3 sm:pl-9">
+        <form
+          ref={formRef}
+          action={formAction}
+          onSubmit={submitAnswer}
+          onChange={recomputeDirty}
+          className="mt-3 space-y-3 sm:pl-9"
+        >
           <input type="hidden" name="cycleId" value={cycleId} />
           {unitId != null && (
             <input type="hidden" name="unitId" value={unitId} />
@@ -1820,19 +2182,24 @@ function ResponseForm({
           <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-amber-300">
             <RotateCcw className="h-3.5 w-3.5" /> Rencana Tindak Lanjut (RTL)
           </p>
-          {existing.lpmNotes && (
+          {existing.lpmNotes && !isRevision && (
             <p className="mb-2 text-xs text-rose-300">
               Catatan LPM: {existing.lpmNotes}
             </p>
           )}
           {canEdit ? (
-            <form action={rtlAction} className="space-y-2">
+            <form action={rtlAction} onSubmit={submitRtl} className="space-y-2">
               <input type="hidden" name="id" value={existing.id} />
               <ActionFeedback state={rtlState} />
               <Field label="Rencana tindak lanjut" labelHidden>
                 <textarea
                   name="rtl"
                   defaultValue={existing.rtl ?? ""}
+                  onChange={(e) =>
+                    setRtlDirty(
+                      e.target.value.trim() !== (existing.rtl ?? "").trim()
+                    )
+                  }
                   rows={2}
                   placeholder="Rencana perbaikan yang akan dilakukan unit…"
                   className="input-base resize-none"
