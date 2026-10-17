@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      actions: read # wajib untuk repo privat (status workflow run)
       contents: read
       security-events: write
     steps:
