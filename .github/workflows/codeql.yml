@@ -39,7 +39,41 @@ jobs:
           build-mode: none
           queries: security-extended
 
+      # Repo privat: unggah ke tab Security butuh GitHub Advanced Security (berbayar).
+      # Default "never" -> hasil disimpan sebagai artifact & dicek di langkah berikut.
+      # Setelah Advanced Security aktif, set variabel repo CODEQL_UPLOAD=always.
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript-typescript"
+          upload: ${{ vars.CODEQL_UPLOAD || 'never' }}
+          output: codeql-results
+
+      - name: Simpan hasil SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif
+          path: codeql-results
+          retention-days: 30
+
+      - name: Gagal bila ada temuan keamanan
+        run: |
+          node -e '
+            const fs = require("fs"), path = require("path");
+            const dir = "codeql-results";
+            let n = 0;
+            for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".sarif"))) {
+              const sarif = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+              for (const run of sarif.runs || []) {
+                for (const r of run.results || []) {
+                  if (r.level === "note" || r.suppressions?.length) continue;
+                  n++;
+                  const loc = r.locations?.[0]?.physicalLocation;
+                  console.log(`::error file=${loc?.artifactLocation?.uri},line=${loc?.region?.startLine}::${r.ruleId}: ${r.message?.text}`);
+                }
+              }
+            }
+            console.log(`Temuan CodeQL (warning/error): ${n}`);
+            process.exit(n > 0 ? 1 : 0);
+          '
