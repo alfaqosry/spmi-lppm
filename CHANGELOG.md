@@ -7,6 +7,19 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-20
+
+### Added
+
+- Cakupan standar (semua unit / kategori / unit tertentu) pada `audit_standards` (alfaqosry, `e7095b2`).
+
+### Changed
+
+- Migrasi skema manual `prisma/sql/2026-10-20-cakupan-standar.sql`: `prisma db push` 6.19 menghasilkan
+  `DROP FOREIGN KEY` ganda untuk perubahan ini. Diuji pada salinan produksi: jumlah baris 12 tabel
+  identik, `migrate diff` kosong setelah migrasi. Tanpa `DROP TABLE`/`DROP COLUMN`/`DELETE`.
+- Akun demo dihapus dari halaman login (alfaqosry, `12ade39`).
+
 ## [1.2.1] - 2026-10-17
 
 ### Changed
@@ -111,7 +124,8 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.3...v1.2.0
 [1.1.3]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.2...v1.1.3
