@@ -64,7 +64,7 @@ export async function createStandard(
       required: true,
       label: "Nama standar",
     });
-    const scope = parseScope(formData);
+    const scope = await parseScope(formData);
     if (!scope.data) return { error: scope.error ?? "Cakupan standar tidak valid." };
 
     const existing = await prisma.auditStandard.findFirst({
@@ -121,7 +121,7 @@ export async function updateStandard(
       required: true,
       label: "Nama standar",
     });
-    const scope = parseScope(formData);
+    const scope = await parseScope(formData);
     if (!scope.data) return { error: scope.error ?? "Cakupan standar tidak valid." };
 
     await prisma.auditStandard.update({
