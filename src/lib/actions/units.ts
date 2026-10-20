@@ -9,7 +9,8 @@ import {
   type SessionUser,
 } from "@/lib/auth";
 import { requireLpmAdmin } from "@/lib/guards";
-import { AppError, toActionError } from "@/lib/errors";
+import { AppError, runAction, toActionError } from "@/lib/errors";
+import { checkboxField } from "@/lib/checkbox";
 import {
   LIMITS,
   emailField,
@@ -136,6 +137,27 @@ export async function updateUnit(
     const actor = await requireLpmAdmin();
     const id = requireId(formData.get("id"), "Unit");
     const data = readUnitForm(formData);
+    const current = await prisma.unit.findUnique({
+      where: { id },
+      select: { category: true },
+    });
+    if (!current) throw new AppError("Unit tidak ditemukan.");
+    if (current.category !== data.category) {
+      // Aturan cakupan (AB-28): butir khusus unit ini yang berada di bawah standar
+      // berkategori lama akan melanggar "butir ⊆ standar" bila kategori unit berubah.
+      const conflicts = await prisma.auditQuestion.count({
+        where: {
+          scopeType: "unit",
+          scopeUnitId: id,
+          standard: { scopeType: "category", scopeCategory: current.category },
+        },
+      });
+      if (conflicts > 0) {
+        throw new AppError(
+          `Kategori unit tidak dapat diubah: ${conflicts} butir khusus unit ini berada di bawah standar kategori "${current.category}". Pindahkan butir tersebut ke standar umum/khusus unit terlebih dahulu.`
+        );
+      }
+    }
     await prisma.unit.update({ where: { id }, data });
     await audit(actor, "unit.update", "unit", id);
     revalidatePath("/unit");
@@ -146,24 +168,37 @@ export async function updateUnit(
   }
 }
 
-export async function deleteUnit(id: number) {
-  const actor = await requireLpmAdmin();
-  const unitId = requireId(id, "Unit");
-  // Anggota unit kehilangan akses ke unit ini → cabut sesinya.
-  const members = await prisma.unitMembership.findMany({
-    where: { unitId },
-    select: { userId: true },
-  });
-  const evidence = await prisma.auditResponse.findMany({
-    where: { unitId, evidenceFile: { not: null } },
-    select: { evidenceFile: true },
-  });
-  await prisma.unit.delete({ where: { id: unitId } });
-  for (const m of members) await syncUserAccess(m.userId);
-  await cleanupUnreferencedUploads(evidence.map((r) => r.evidenceFile));
-  await audit(actor, "unit.delete", "unit", unitId);
-  revalidatePath("/unit");
-  revalidatePath("/dashboard");
+export async function deleteUnit(id: number): Promise<ActionState> {
+  return runAction(async () => {
+    const actor = await requireLpmAdmin();
+    const unitId = requireId(id, "Unit");
+    // Standar/butir khusus unit ini akan menjadi yatim (FK SET NULL) bila unit
+    // dihapus → tolak agar instrumen tidak hilang/tersembunyi diam-diam.
+    const [scopedStandards, scopedQuestions] = await Promise.all([
+      prisma.auditStandard.count({ where: { scopeUnitId: unitId } }),
+      prisma.auditQuestion.count({ where: { scopeUnitId: unitId } }),
+    ]);
+    if (scopedStandards + scopedQuestions > 0) {
+      throw new AppError(
+        `Unit tidak dapat dihapus: masih ada ${scopedStandards} standar dan ${scopedQuestions} butir khusus unit ini. Hapus atau pindahkan instrumen tersebut terlebih dahulu.`
+      );
+    }
+    // Anggota unit kehilangan akses ke unit ini → cabut sesinya.
+    const members = await prisma.unitMembership.findMany({
+      where: { unitId },
+      select: { userId: true },
+    });
+    const evidence = await prisma.auditResponse.findMany({
+      where: { unitId, evidenceFile: { not: null } },
+      select: { evidenceFile: true },
+    });
+    await prisma.unit.delete({ where: { id: unitId } });
+    for (const m of members) await syncUserAccess(m.userId);
+    await cleanupUnreferencedUploads(evidence.map((r) => r.evidenceFile));
+    await audit(actor, "unit.delete", "unit", unitId);
+    revalidatePath("/unit");
+    revalidatePath("/dashboard");
+  }, "Gagal menghapus unit.");
 }
 
 /* ------------------------------- AKUN ---------------------------------- */
@@ -338,7 +373,8 @@ export async function updateAccount(
       "Peran tidak valid."
     );
     const unitId = idField(formData, "unitId");
-    const isActive = formData.get("isActive") !== "off";
+    // Checkbox tak dicentang tidak dikirim browser → harus dibaca sebagai false.
+    const isActive = checkboxField(formData, "isActive");
 
     const target = await loadTargetForChange(actor, id);
     assertCanAssignRole(actor, role);
@@ -502,30 +538,32 @@ export async function removeMember(
   }
 }
 
-export async function deleteAccount(id: number) {
-  const actor = await requireLpmAdmin();
-  const targetId = requireId(id, "Akun");
-  if (actor.id === targetId)
-    throw new AppError("Tidak dapat menghapus akun sendiri.");
-  const target = await loadTargetForChange(actor, targetId);
-  if (target.role === "superadmin") {
-    const remaining = await prisma.user.count({
-      where: { role: "superadmin", isActive: true, id: { not: targetId } },
-    });
-    if (remaining === 0)
-      throw new AppError("Tidak dapat menghapus Superadmin terakhir.");
-  }
-  // Baris user dihapus → getCurrentUser() menolak token apa pun milik akun ini.
-  await prisma.user.delete({ where: { id: targetId } });
-  await audit(
-    actor,
-    "account.delete",
-    "user",
-    targetId,
-    `Menghapus akun ${maskEmail(target.email)}`
-  );
-  revalidatePath("/unit");
-  revalidatePath("/role-penempatan");
+export async function deleteAccount(id: number): Promise<ActionState> {
+  return runAction(async () => {
+    const actor = await requireLpmAdmin();
+    const targetId = requireId(id, "Akun");
+    if (actor.id === targetId)
+      throw new AppError("Tidak dapat menghapus akun sendiri.");
+    const target = await loadTargetForChange(actor, targetId);
+    if (target.role === "superadmin") {
+      const remaining = await prisma.user.count({
+        where: { role: "superadmin", isActive: true, id: { not: targetId } },
+      });
+      if (remaining === 0)
+        throw new AppError("Tidak dapat menghapus Superadmin terakhir.");
+    }
+    // Baris user dihapus → getCurrentUser() menolak token apa pun milik akun ini.
+    await prisma.user.delete({ where: { id: targetId } });
+    await audit(
+      actor,
+      "account.delete",
+      "user",
+      targetId,
+      `Menghapus akun ${maskEmail(target.email)}`
+    );
+    revalidatePath("/unit");
+    revalidatePath("/role-penempatan");
+  }, "Gagal menghapus akun.");
 }
 
 /* --------------------------- KETUA LPM -------------------------------- */

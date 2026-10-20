@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/primitives";
 import { AnalyticsChartsLazy } from "@/components/analytics/analytics-charts-lazy";
 import { ExportPdfButton } from "@/components/reports/export-pdf-button";
+import { CycleSelect } from "@/components/analytics/cycle-select";
 import { percent, STATUS_LABEL, STATUS_STYLE } from "@/lib/format";
 import { isQuestionForUnit } from "@/lib/scope";
 import { CheckCircle2, FileWarning, Percent, Users } from "lucide-react";
@@ -157,34 +158,14 @@ export default async function AnalitikPage({
         title="Analitik & Laporan Audit"
         description="Analisis kualitas institusi dan ekspor laporan untuk keperluan akreditasi."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <form
-              className="flex flex-wrap items-center gap-2"
-              role="search"
-              aria-label="Pilih siklus"
-            >
-              <label htmlFor="cycleId" className="sr-only">
-                Siklus audit
-              </label>
-              <select
-                id="cycleId"
-                name="cycleId"
-                defaultValue={cycle.id}
-                className="input-base max-w-[220px]"
-              >
-                {cycles.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.isActive ? "(aktif)" : ""}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="min-h-10 rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-3 py-2 text-xs font-medium text-indigo-200 hover:bg-indigo-500/20"
-              >
-                Tampilkan
-              </button>
-            </form>
+          <CycleSelect
+            cycles={cycles.map((c) => ({
+              id: c.id,
+              name: c.name,
+              isActive: c.isActive,
+            }))}
+            selectedId={cycle.id}
+          >
             <ExportPdfButton
               cycleId={cycle.id}
               ariaLabel={`Unduh laporan PDF ${cycle.name}`}
@@ -194,7 +175,7 @@ export default async function AnalitikPage({
             >
               Unduh Laporan PDF
             </ExportPdfButton>
-          </div>
+          </CycleSelect>
         }
       />
 

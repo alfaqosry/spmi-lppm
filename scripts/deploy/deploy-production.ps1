@@ -10,7 +10,9 @@
                        (standalone + .next\static + public; public\uploads = junction ke shared)
       d. Backup      : mysqldump spmi-db + salinan .env → <Home>\backups\<ts>\ (+ manifest.json)
       e. Maintenance : IIS menyajikan 503 + maintenance.html
-      f. Migrasi     : prisma db push (tanpa --accept-data-loss: perubahan destruktif = gagal)
+      d2. SQL manual : prisma/sql/*.sql tertunda digladikan pada salinan backup (jumlah baris harus identik,
+                       db push harus lolos); bila skema sudah sesuai, dicatat sebagai baseline
+      f. Migrasi     : SQL manual (bila ada) + prisma db push (tanpa --accept-data-loss: destruktif = gagal)
       g. Aktivasi    : junction <Home>\current → rilis baru, pm2 startOrReload
       h. Smoke test  : scripts\deploy\smoke-test.ps1 ke upstream 127.0.0.1:3002
       i. Gagal?      : rollback otomatis (junction ke rilis sebelumnya + restore DB dari backup d)
@@ -182,12 +184,68 @@ try {
     @{ timestamp = $ts; previousRelease = $PrevRelease; newRelease = $Release; commit = $Commit; version = $Version } | ConvertTo-Json | Set-Content (Join-Path $BackupDir 'manifest.json') -Encoding UTF8
     Write-Host "    $BackupDir ($([math]::Round((Get-Item $DumpFile).Length / 1KB)) KB)"
 
+    # -------------------------------------------------------------- d2. MIGRASI SQL MANUAL: GLADI
+    # Berkas prisma/sql/*.sql (perubahan skema yang tidak bisa ditangani `prisma db push`)
+    # WAJIB digladikan pada salinan backup langkah d sebelum menyentuh produksi:
+    # jumlah baris semua tabel harus identik dan `prisma db push` sesudahnya harus lolos.
+    # Catatan berkas yang sudah diterapkan: <Home>\shared\sql-migrations.json.
+    Step 'd2. Migrasi SQL manual (prisma/sql) — gladi pada salinan'
+    $SqlLog = Join-Path $Shared 'sql-migrations.json'
+    $RowScript = Join-Path $Build 'deploy\dbowcounts.sh'
+    $appliedSql = @{}
+    if (Test-Path $SqlLog) { (Get-Content $SqlLog -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $appliedSql[$_.Name] = $_.Value } }
+    $PendingSql = @(Get-ChildItem (Join-Path $Build 'prisma\sql') -Filter '*.sql' -ErrorAction SilentlyContinue | Sort-Object Name | Where-Object { -not $appliedSql.ContainsKey($_.Name) })
+    $SqlMode = 'none'
+    if ($PendingSql.Count -eq 0) { Write-Host '    Tidak ada migrasi SQL tertunda.' }
+    else {
+        Write-Host "    Tertunda: $(($PendingSql | ForEach-Object Name) -join ', ')"
+        Push-Location $Build
+        $p = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        npx prisma migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel prisma/schema.prisma --exit-code *> $null
+        $diffCode = $LASTEXITCODE; $ErrorActionPreference = $p
+        Pop-Location
+        if ($diffCode -eq 0) {
+            $SqlMode = 'baseline'
+            Write-Host '    Skema DB sudah sesuai schema.prisma — berkas dicatat sebagai baseline (tidak dijalankan).'
+        } elseif ($diffCode -ne 2) { throw "prisma migrate diff gagal (exit $diffCode)." }
+        else {
+            $SqlMode = 'applied'
+            $dbEnv = ReadEnvFile (Join-Path $Shared 'db.env')
+            $gladi = 'spmi_gladi'
+            $prodUrl = $env:DATABASE_URL
+            New-DbCopy $DumpFile $gladi
+            try {
+                $rowsBefore = Get-DbRowCounts $gladi $RowScript
+                foreach ($f in $PendingSql) { Write-Host "    > gladi $($f.Name)"; Invoke-DbRestore $f.FullName $gladi }
+                $env:DATABASE_URL = "mysql://root:$($dbEnv.MYSQL_ROOT_PASSWORD)@127.0.0.1:33063/$gladi"
+                Push-Location $Build
+                try { Exec 'gladi: prisma db push' { npx prisma db push --skip-generate } } finally { Pop-Location }
+                $rowsAfter = Get-DbRowCounts $gladi $RowScript
+                $lost = @($rowsBefore | Where-Object { $rowsAfter -notcontains $_ })
+                if ($lost.Count -gt 0) { throw "Gladi GAGAL — jumlah baris berubah: $($lost -join '; ')" }
+                Write-Host "    Gladi lulus: $($rowsBefore.Count) tabel, jumlah baris identik."
+            } finally {
+                $env:DATABASE_URL = $prodUrl
+                Remove-DbCopy $gladi
+            }
+        }
+    }
+
     # -------------------------------------------------------------- e. MAINTENANCE
     Step 'e. Mode pemeliharaan (IIS 503)'
     MaintenanceOn; $InMaintenance = $true
 
     # -------------------------------------------------------------- f. MIGRASI
     Step 'f. Migrasi skema'
+    if ($SqlMode -eq 'applied') {
+        $prodDb = (ReadEnvFile (Join-Path $Shared 'db.env')).MYSQL_DATABASE
+        $rowsBefore = Get-DbRowCounts $prodDb $RowScript
+        foreach ($f in $PendingSql) { Write-Host "    > SQL $($f.Name)"; Invoke-DbRestore $f.FullName }
+        $rowsAfter = Get-DbRowCounts $prodDb $RowScript
+        $lost = @($rowsBefore | Where-Object { $rowsAfter -notcontains $_ })
+        if ($lost.Count -gt 0) { throw "Jumlah baris produksi berubah setelah SQL: $($lost -join '; ')" }
+        Write-Host "    SQL manual diterapkan; jumlah baris $($rowsBefore.Count) tabel identik."
+    }
     Push-Location $Build
     Exec 'prisma db push' { npx prisma db push --skip-generate }
     Pop-Location
@@ -203,6 +261,15 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Smoke test gagal.' }
 
     # -------------------------------------------------------------- j. SELESAI
+    # Catat migrasi SQL hanya setelah rilis terbukti sehat (rollback = tidak dicatat).
+    if ($SqlMode -ne 'none') {
+        foreach ($f in $PendingSql) {
+            $appliedSql[$f.Name] = [ordered]@{ sha256 = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower(); mode = $SqlMode; appliedAt = (Get-Date).ToString('o'); version = $Version }
+        }
+        [IO.File]::WriteAllText($SqlLog, ([pscustomobject]$appliedSql | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
+        Write-Host "    Migrasi SQL dicatat ($SqlMode): $(($PendingSql | ForEach-Object Name) -join ', ')"
+    }
+
     Step 'j. Cabut pemeliharaan'
     MaintenanceOff; $InMaintenance = $false
     & (Join-Path $PSScriptRoot 'smoke-test.ps1') -BaseUrl $BaseUrl -HostHeader '' -Retries 3

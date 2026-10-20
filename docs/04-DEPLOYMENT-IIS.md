@@ -152,9 +152,85 @@ flowchart TD
 Catatan:
 
 - Kegagalan di tahap a–d **tidak** menyentuh produksi. Kegagalan sejak tahap e memicu rollback otomatis.
+- Tahap f hanya `prisma db push`. Rilis yang membawa skrip `prisma/sql/*.sql` (mis. v1.2.2) **wajib** diterapkan
+  lebih dulu sesuai §5.1 — tanpa itu tahap f v1.2.2 gagal (`DROP FOREIGN KEY` ganda) dan memicu rollback.
 - Backup pra-deploy berisi **database + `.env`**. Berkas unggahan tidak disalin per deploy karena berada di
   `shared\` (tidak diubah oleh deploy) dan dicadangkan oleh backup harian (§9).
 - Log lengkap: `E:\www\spmi-prod\logs\deploy-<ts>.log`. Versi aktif: `current\release.json` dan `GET /api/health`.
+
+### 5.1 Perubahan Skema Basis Data (Migrasi Manual)
+
+Tahap f hanya menjalankan `prisma db push` (tanpa `--accept-data-loss`); skrip deploy **tidak** mengenal berkas
+`prisma/sql/*.sql`. Bila sebuah rilis membawa skrip SQL manual (pertama kali: v1.2.2,
+`prisma/sql/2026-10-20-cakupan-standar.sql`, karena `prisma db push` 6.19 menghasilkan `DROP FOREIGN KEY` ganda dan
+gagal di tengah jalan), skrip tersebut **wajib diterapkan ke produksi sebelum** `deploy-production.ps1`, mengikuti
+prosedur di bawah. Setelah SQL diterapkan, `db push` pada tahap f menjadi no-op. Prosedur ini wajib menurut
+[RENCANA-PEMELIHARAAN §4.1](iso/RENCANA-PEMELIHARAAN.md#41-prosedur-wajib-perubahan-skema-basis-data).
+
+Cek awal (di repo pada tag rilis): skrip hanya berisi DDL yang direncanakan, **tanpa** `DROP TABLE`, `DROP COLUMN`,
+`DELETE`, `UPDATE`, `TRUNCATE` kecuali disetujui eksplisit dan disertai rencana migrasi data.
+
+```powershell
+cd E:\www\lpm-new; git checkout v1.2.2           # tag rilis yang membawa skrip SQL
+. .\scripts\deploy\lib-db.ps1                     # Invoke-DbDump / Invoke-DbRestore (kredensial di dalam kontainer)
+$Sql  = 'prisma\sql\2026-10-20-cakupan-standar.sql'
+$ts   = Get-Date -Format 'yyyyMMdd-HHmmss'
+$Bak  = "E:\www\spmi-prod\backups\pre-migrasi-$ts"; New-Item -ItemType Directory -Force $Bak | Out-Null
+
+# Hitung baris 12 tabel (COUNT(*) eksak, bukan estimasi information_schema)
+function Get-SpmiRowCounts([string]$Db) {
+    $t = 'users','unit_memberships','units','audit_cycles','audit_standards','audit_questions',
+         'audit_responses','unit_progress','documents','app_settings','login_logs','activity_logs'
+    $q = (($t | ForEach-Object { "SELECT '$_', COUNT(*) FROM $_" }) -join ' UNION ALL ') + ';'
+    $q | docker exec -i spmi-db sh -c "MYSQL_PWD=`$MYSQL_ROOT_PASSWORD mysql -uroot -N -B $Db"   # kueri via stdin
+}
+
+# 1. Backup produksi (format sama dengan backup deploy → dapat dipulihkan dengan rollback.ps1 -RestoreDb)
+Invoke-DbDump (Join-Path $Bak 'db.sql')
+
+# 2. Gladi pada salinan produksi (DB sementara di kontainer yang sama)
+$Mysql = 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot'      # dievaluasi sh di dalam kontainer
+'CREATE DATABASE lpm_spmi_gladi CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;' | docker exec -i spmi-db sh -c $Mysql
+Invoke-DbRestore (Join-Path $Bak 'db.sql') 'lpm_spmi_gladi'
+Get-SpmiRowCounts 'lpm_spmi_gladi' | Set-Content "$Bak\rows-gladi-sebelum.txt"
+Invoke-DbRestore $Sql 'lpm_spmi_gladi'            # menjalankan skrip SQL pada salinan
+Get-SpmiRowCounts 'lpm_spmi_gladi' | Set-Content "$Bak\rows-gladi-sesudah.txt"
+Compare-Object (Get-Content "$Bak\rows-gladi-sebelum.txt") (Get-Content "$Bak\rows-gladi-sesudah.txt")  # HARUS kosong
+
+# 3. Skema hasil gladi = schema.prisma (exit code 0 = tanpa perbedaan, 2 = ada perbedaan → BERHENTI)
+#    URL root dibangun dari shared\db.env; jangan ditampilkan/dicatat.
+$root = (Select-String E:\www\spmi-prod\shared\db.env -Pattern '^MYSQL_ROOT_PASSWORD=').Line.Split('=',2)[1]
+npx prisma migrate diff --from-url "mysql://root:$([uri]::EscapeDataString($root))@127.0.0.1:33063/lpm_spmi_gladi" `
+    --to-schema-datamodel prisma/schema.prisma --exit-code
+Remove-Variable root
+'DROP DATABASE lpm_spmi_gladi;' | docker exec -i spmi-db sh -c $Mysql
+
+# 4. Terapkan ke produksi (jendela pemeliharaan yang sudah diumumkan) lalu verifikasi ulang
+Get-SpmiRowCounts '$MYSQL_DATABASE' | Set-Content "$Bak\rows-prod-sebelum.txt"
+Invoke-DbRestore $Sql                              # tanpa nama DB = DB produksi (MYSQL_DATABASE)
+Get-SpmiRowCounts '$MYSQL_DATABASE' | Set-Content "$Bak\rows-prod-sesudah.txt"
+Compare-Object (Get-Content "$Bak\rows-prod-sebelum.txt") (Get-Content "$Bak\rows-prod-sesudah.txt")    # HARUS kosong
+#    ulangi langkah 3 dengan DB lpm_spmi → exit code 0
+
+# 5. Deploy rilis seperti biasa (db push tahap f kini no-op)
+.\scripts\deploy\deploy-production.ps1 -Ref v1.2.2
+```
+
+Catatan:
+
+- **Urutan:** backup → gladi pada salinan (jumlah baris identik + `migrate diff` kosong) → terapkan ke produksi →
+  verifikasi yang sama → deploy. Bila langkah 2 atau 3 gagal, **berhenti**; produksi belum tersentuh.
+- **Kompatibilitas mundur:** antara langkah 4 dan 5 rilis lama masih berjalan di atas skema baru. Ini aman hanya bila
+  perubahan aditif/melonggarkan (v1.2.2: kolom baru ber-default, unique dilepas, FK diganti nama). Bila tidak, aktifkan
+  dulu halaman pemeliharaan (salin `deploy\iis\maintenance.html` ke `E:\www\spmi-prod\iis\` dan `deploy\iis\web.maintenance.config` menjadi `E:\www\spmi-prod\iis\web.config`, seperti `MaintenanceOn` di skrip deploy)
+  sebelum langkah 4.
+- **Rollback:** rollback otomatis deploy memulihkan backup tahap d yang **sudah** berskema baru (cukup untuk
+  mengembalikan kode). Untuk membatalkan skema, pulihkan backup pra-migrasi:
+  `.\scripts\deploy\rollback.ps1 -RestoreDb pre-migrasi-<ts>` (data setelah backup tersebut hilang).
+- **Bukti:** simpan keempat berkas `rows-*.txt`, keluaran `migrate diff`, dan log deploy di `$Bak`; catat di CHANGELOG
+  dan catatan rilis. Gladi v1.2.2 (20 Okt 2026, salinan produksi): jumlah baris 12 tabel identik, `migrate diff` kosong.
+- Otomasi langkah ini di `deploy-production.ps1` (atau peralihan ke `prisma migrate deploy`) adalah tindak lanjut
+  (RISK-REGISTER R-31).
 
 ## 6. Smoke Test & Rollback Manual
 
@@ -259,7 +335,8 @@ Rotasi log PM2: `pm2 install pm2-logrotate` lalu `pm2 set pm2-logrotate:max_size
 | **502.4** "No server is available"                                   | Proxy ARR belum diaktifkan                                                                                           | §1.1 `proxy /enabled:True`                                                                                                                             |
 | 500.50 URL Rewrite                                                   | Server variable belum diizinkan                                                                                      | `allowedServerVariables` `HTTP_X_FORWARDED_PROTO` (dibuat oleh setup)                                                                                  |
 | **500 / "Terjadi kesalahan"**, log `PrismaClientInitializationError` | DB mati, `DATABASE_URL` salah, atau engine Prisma tidak ikut rilis                                                   | `docker ps`, `docker logs spmi-db`; cek `shared\.env`; pastikan `releases\<ts>\node_modules\.prisma` ada                                               |
-| 500 log `P2021/P2022` (tabel/kolom tidak ada)                        | `prisma db push` belum berhasil                                                                                      | Jalankan ulang deploy; periksa log tahap f                                                                                                             |
+| 500 log `P2021/P2022` (tabel/kolom tidak ada)                        | `prisma db push` belum berhasil, atau skrip SQL manual rilis belum diterapkan                                        | Periksa log tahap f; terapkan `prisma/sql/*.sql` rilis sesuai §5.1, lalu jalankan ulang deploy                                                         |
+| Tahap f gagal: `Can't DROP '…_fkey'; check that column/key exists`   | Cacat `prisma db push` 6.19 (DROP FOREIGN KEY ganda) — skrip SQL manual rilis belum diterapkan                       | Rollback otomatis berjalan; terapkan skrip SQL sesuai §5.1 lalu ulangi deploy                                                                          |
 | Server gagal start: `AUTH_SECRET wajib diatur`                       | `AUTH_SECRET` kosong / < 32 karakter                                                                                 | Perbaiki `shared\.env`, `pm2 reload spmi --update-env`                                                                                                 |
 | **SSO: `redirect_uri mismatch` / invalid client**                    | Redirect URI di SSO UP ≠ nilai Pengaturan/`.env` (http vs https, garis miring akhir)                                 | Samakan persis: `https://spmi.universitaspahlawan.ac.id/api/sso/callback`                                                                              |
 | SSO kembali ke `/login?sso_error=konfigurasi`                        | SSO nonaktif atau Client ID/Secret kosong                                                                            | Pengaturan → Integrasi SSO                                                                                                                             |

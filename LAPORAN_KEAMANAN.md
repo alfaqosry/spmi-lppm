@@ -172,3 +172,53 @@ Topologi produksi: Cloudflare → IIS ARR → Next.js standalone (PM2, 127.0.0.1
 3. Penautan akun SSO berdasarkan email mengasumsikan email dari SSO UP terverifikasi institusi.
 4. Cloudflare: nonaktifkan Rocket Loader & Email Obfuscation (menyisipkan skrip inline tanpa nonce yang akan diblokir CSP).
 5. Halaman `/kebijakan-privasi` dan banner persetujuan disediakan tim UI memakai `recordConsent()`.
+
+---
+
+# Audit Lanjutan — 20 Oktober 2026 (fitur "cakupan standar")
+
+Lingkup: `git diff v1.2.1 HEAD -- src prisma tsconfig.json` (commit e7095b2, 12ade39) — kolom `scope_type`/`scope_category`/`scope_unit_id` pada `audit_standards`, penghapusan unique `(cycle_id, name)`, `tsconfig.json` mengecualikan `tests` & `playwright.config.ts` — beserta kode yang berinteraksi (`actions/questions.ts`, `scope.ts`, halaman `/audit`, `audit-workspace.tsx`, `actions/responses.ts`, `progress.ts`, `report/data.ts`, analitik, dasbor).
+
+## A. Temuan
+
+| ID  | Tingkat    | Temuan                                                                                                                                                                                                                                                                   | Status                                                     |
+| --- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| C-1 | **Tinggi** | `updateStandard` selalu menimpa cakupan dari FormData; form ubah-nama di UI hanya mengirim `id`+`name`, sehingga `parseScope` jatuh ke default `"all"` → setiap ubah nama standar khusus unit/kategori diam-diam menjadikannya standar umum (integritas instrumen audit) | Diperbaiki — cakupan hanya diubah bila `scopeType` dikirim |
+| C-2 | **Sedang** | Tidak ada aturan konsistensi cakupan standar vs butir: butir unit B dapat ditempel ke standar unit A (atau butir umum ke standar unit) — nama standar unit A bocor ke unit B (tampilan auditee, PDF per unit), pengelompokan admin tidak konsisten                       | Diperbaiki — `isScopeWithin()` ditegakkan di server        |
+| C-3 | **Sedang** | Halaman `/audit` (auditee) mengirim SELURUH butir siklus (termasuk butir khusus unit/kategori lain) dan seluruh daftar unit ke payload RSC; penyaringan hanya di klien                                                                                                   | Diperbaiki — filter sisi server                            |
+| C-4 | **Sedang** | `updateStandard` tidak mengecek duplikat nama pada cakupan baru (create mengecek), tidak memverifikasi standar ada (galat Prisma generik), dan dapat mengubah cakupan walau butirnya jadi di luar cakupan                                                                | Diperbaiki                                                 |
+| C-5 | **Rendah** | Unique index `(cycle_id, name)` dihapus → cek duplikat + perhitungan `order` rentan race (dua permintaan bersamaan menghasilkan standar kembar)                                                                                                                          | Diperbaiki — kunci baris `FOR UPDATE` dalam transaksi      |
+| C-6 | **Rendah** | `scopeCategory` tidak divalidasi terhadap kategori yang dikenal (string bebas → butir/standar "yatim" tak terlihat siapa pun; beda huruf besar/kecil tidak cocok dengan perbandingan `===`)                                                                              | Diperbaiki — whitelist + ejaan kanonis                     |
+| C-7 | **Rendah** | `tsconfig.json` mengecualikan `tests` & `playwright.config.ts` → kode uji tidak lagi diperiksa tipe                                                                                                                                                                      | Diperbaiki — `tsconfig.test.json`                          |
+| C-8 | Info       | RBAC tidak berubah dan benar: semua action standar/butir memakai `requireLpm()` (termasuk penegakan mode pemeliharaan); log aktivitas tercatat                                                                                                                           | OK — log kini menyertakan cakupan                          |
+
+## B. Aturan bisnis yang ditegakkan
+
+Cakupan butir harus **sama dengan atau lebih sempit** daripada cakupan standar induknya (`src/lib/scope.ts` → `isScopeWithin`):
+
+- standar `all` → butir `all` / `category` / `unit` apa pun (kompatibel dengan data lama: semua standar hasil migrasi bercakupan `all`);
+- standar `category` C → butir `category` C atau `unit` yang berkategori C;
+- standar `unit` U → butir `unit` U saja;
+- jenis cakupan tidak dikenal / referensi kosong (unit terhapus → `SET NULL`) → ditolak (fail-closed).
+
+Dengan invarian ini, visibilitas cukup ditentukan oleh cakupan **butir** (`isQuestionForUnit`) yang sudah dipakai konsisten oleh `saveResponse`, `recalcUnitProgress`, laporan PDF per unit, analitik & dasbor — standar unit A tidak pernah muncul pada unit B karena standar hanya tampil melalui butirnya, dan total progres hanya menghitung butir yang berlaku.
+
+## C. Rincian perbaikan
+
+- `src/lib/actions/questions.ts`
+  - `parseScope()` (tidak diekspor — di berkas `"use server"` setiap ekspor async menjadi endpoint): whitelist `isScopeType`; kategori wajib ada di `CATEGORIES` atau kategori unit yang ada, disimpan dengan ejaan kanonis; unit wajib ada; pesan galat menyebut "standar"/"pertanyaan" sesuai konteks.
+  - `createStandard`: transaksi + `SELECT … FROM audit_cycles … FOR UPDATE` (siklus wajib ada) → cek duplikat nama per cakupan & `order` berurutan tanpa race.
+  - `updateStandard`: cakupan dipertahankan bila `scopeType` tidak dikirim; standar wajib ada; kunci siklus + standar; duplikat nama dicek pada cakupan tujuan (tanpa dirinya); perubahan cakupan **ditolak** bila ada butir yang berada di luar cakupan baru (tidak ada kaskade diam-diam).
+  - `createQuestion`, `createQuestionsBulk`, `updateQuestion`: standar dikunci (`FOR UPDATE`), wajib satu siklus, dan cakupan butir wajib di dalam cakupan standar; `updateQuestion` mempertahankan cakupan lama bila `scopeType` tidak dikirim dan memvalidasi standar lama maupun baru.
+  - Log aktivitas `standard.create`/`standard.update` mencatat cakupan (`scope=unit:5`, dsb.).
+- `src/lib/scope.ts`: `SCOPE_TYPES`, `isScopeType`, `sameScope`, `isScopeWithin`.
+- `src/app/(dashboard)/audit/page.tsx`: auditee hanya menerima butir yang berlaku untuk unit penempatannya dan hanya unit miliknya (minimisasi data).
+- `tsconfig.test.json` (extends root; `src`, `tests/**`, `playwright.config.ts`, `vitest.config.mts`); `npm run typecheck` = `tsc --noEmit && tsc --noEmit -p tsconfig.test.json`. Root `tsconfig.json` tetap mengecualikan uji agar `next build` tidak memeriksa kode uji. Saat diperiksa, kode uji tidak memiliki galat tipe (kemungkinan pengecualian dibuat sebagai jalan pintas untuk `next build`); sekarang galat tipe di uji kembali menggagalkan gerbang CI/deploy.
+- Uji baru: `tests/unit/questions-actions.test.ts` (RBAC, pemeliharaan, whitelist, kategori/unit tak dikenal, IDOR siklus, konsistensi cakupan, duplikat per cakupan, pertahanan cakupan saat ubah nama, penguncian); `tests/unit/scope.test.ts` diperluas untuk `isScopeWithin`/`sameScope`/`isScopeType`.
+
+## D. Risiko residual
+
+1. **Perubahan kategori unit** (`actions/units.ts`) dapat melanggar invarian untuk butir `unit` X di bawah standar `category` C bila X dipindah ke kategori lain: butir tetap terlihat oleh X (sesuai cakupan butir) beserta nama standar kategori C. Dampak rendah (nama standar); disarankan pemeriksaan pada `data-quality.ts` dan/atau validasi saat ubah kategori unit.
+2. Tanpa unique index di DB, keunikan nama per cakupan hanya dijaga aplikasi (kunci `FOR UPDATE`); penyisipan langsung ke DB/skrip seed dapat membuat duplikat. Unique index atas `(cycle_id, name, scope_type, scope_category, scope_unit_id)` tidak andal karena kolom nullable (NULL ≠ NULL di MySQL).
+3. Dropdown "Standar" pada form ubah butir menampilkan semua standar siklus; pilihan yang tidak kompatibel ditolak server dengan pesan jelas (UX, bukan keamanan).
+4. LPM tetap dapat mengubah standar/butir pada siklus nonaktif (perilaku sama seperti sebelumnya; untuk arsip/verifikasi).

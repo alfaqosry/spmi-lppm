@@ -5,6 +5,7 @@ import {
   fail,
   isSafeHttpUrl,
   jsonError,
+  runAction,
   toActionError,
 } from "@/lib/errors";
 
@@ -137,5 +138,41 @@ describe("isSafeHttpUrl", () => {
     expect(isSafeHttpUrl("/uploads/x.pdf")).toBe(false);
     expect(isSafeHttpUrl("example.com")).toBe(false);
     expect(isSafeHttpUrl("http//broken")).toBe(false);
+  });
+});
+
+describe("runAction", () => {
+  it("mengembalikan { ok: true } bila fungsi tidak mengembalikan apa pun", async () => {
+    await expect(runAction(async () => {})).resolves.toEqual({ ok: true });
+  });
+
+  it("meneruskan hasil eksplisit dari fungsi", async () => {
+    await expect(runAction(async () => ({ error: "Tolak" }))).resolves.toEqual({
+      error: "Tolak",
+    });
+  });
+
+  it("AppError → { error: pesan asli } (tidak dilempar)", async () => {
+    await expect(
+      runAction(async () => {
+        throw new AppError("Siklus aktif tidak dapat dihapus.");
+      })
+    ).resolves.toEqual({ error: "Siklus aktif tidak dapat dihapus." });
+  });
+
+  it("error tak terduga → fallback generik tanpa detail internal", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await runAction(async () => {
+      throw new Error("ER_NO_SUCH_TABLE: users_secret");
+    }, "Gagal menghapus.");
+    expect(res).toEqual({ error: "Gagal menghapus." });
+  });
+
+  it("redirect() tetap dilempar ulang", async () => {
+    await expect(
+      runAction(async () => {
+        redirect("/login");
+      })
+    ).rejects.toThrow();
   });
 });

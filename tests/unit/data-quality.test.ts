@@ -140,7 +140,15 @@ function cleanData(): Rows {
         ...ts,
       },
     ],
-    auditStandard: [{ id: 100, cycleId: 1, name: "Standar Pendidikan", ...ts }],
+    auditStandard: [
+      std(100, { name: "Standar Pendidikan" }),
+      std(101, {
+        name: "Standar Pendidikan", // nama sama, cakupan berbeda → sah
+        scopeType: "category",
+        scopeCategory: "Program Studi",
+      }),
+      std(102, { name: "Standar Layanan", scopeType: "unit", scopeUnitId: 11 }),
+    ],
     auditQuestion: [
       q(200, { scopeType: "all" }),
       q(201, { scopeType: "category", scopeCategory: "Program Studi" }),
@@ -217,6 +225,20 @@ function cleanData(): Rows {
         createdAt: ago(2),
       },
     ],
+  };
+}
+
+function std(id: number, over: Record<string, unknown>) {
+  return {
+    id,
+    cycleId: 1,
+    name: `Standar ${id}`,
+    scopeType: "all",
+    scopeCategory: null,
+    scopeUnitId: null,
+    createdAt: T0,
+    updatedAt: T0,
+    ...over,
   };
 }
 
@@ -309,10 +331,13 @@ describe("runDataQuality — data bersih", () => {
     expect(h.calls.every((c) => c.endsWith(".findMany"))).toBe(true);
   });
 
-  it("aturan berjumlah 20–40, id unik, bertipe karakteristik ISO 25012", () => {
+  it("aturan berjumlah 20–50, id unik & berurutan, bertipe karakteristik ISO 25012", () => {
     expect(DQ_RULES.length).toBeGreaterThanOrEqual(20);
-    expect(DQ_RULES.length).toBeLessThanOrEqual(40);
+    expect(DQ_RULES.length).toBeLessThanOrEqual(50);
     expect(new Set(DQ_RULES.map((r) => r.id)).size).toBe(DQ_RULES.length);
+    expect(DQ_RULES.map((r) => r.id)).toEqual(
+      DQ_RULES.map((_, i) => `DQ-${String(i + 1).padStart(2, "0")}`)
+    );
     const chars = new Set(DQ_RULES.map((r) => r.characteristic));
     expect(chars.size).toBeGreaterThanOrEqual(13);
   });
@@ -403,10 +428,10 @@ describe("aturan siklus, instrumen, jawaban", () => {
   it("DQ-16/17/18: butir lintas siklus, cakupan tidak valid, jawaban di luar cakupan", async () => {
     h.data.auditStandard.push({
       ...h.data.auditStandard[0],
-      id: 101,
+      id: 109,
       cycleId: 2,
     });
-    h.data.auditQuestion[0].standardId = 101;
+    h.data.auditQuestion[0].standardId = 109;
     h.data.auditQuestion[1].scopeCategory = "Fakultas"; // tidak dipakai unit mana pun
     h.data.auditResponse.push(resp(502, 202, { answer: "tidak", reason: "x" }));
     const r = await run();
@@ -594,6 +619,102 @@ describe("aturan lintas tabel, log, pengaturan", () => {
     const r = await run();
     expect(byId(r, "DQ-37").sampleIds).toEqual([2]);
     expect(byId(r, "DQ-38").sampleIds).toEqual([3, 4, 5, 6]);
+  });
+});
+
+describe("aturan cakupan standar (v1.2.2)", () => {
+  it("DQ-39: tipe di luar whitelist, target tidak lengkap/berlebih, unit yatim (SET NULL)", async () => {
+    h.data.auditStandard.push(
+      std(103, { scopeType: "fakultas" }),
+      std(104, { scopeType: "category", scopeCategory: null }),
+      std(105, { scopeType: "category", scopeCategory: "Fakultas" }),
+      std(106, { scopeType: "unit", scopeUnitId: null }), // unit dihapus
+      std(107, { scopeType: "unit", scopeUnitId: 99 }),
+      std(108, { scopeType: "all", scopeUnitId: 10 }),
+      std(109, {
+        scopeType: "category",
+        scopeCategory: "Biro",
+        scopeUnitId: 11,
+      })
+    );
+    const r = await run();
+    expect(byId(r, "DQ-39").sampleIds).toEqual([
+      103, 104, 105, 106, 107, 108, 109,
+    ]);
+    expect(byId(r, "DQ-39").total).toBe(10);
+  });
+
+  it("DQ-40: butir lebih luas atau berbeda dari cakupan standarnya", async () => {
+    h.data.auditQuestion.push(
+      // sah: butir unit berkategori sama di bawah standar kategori
+      q(203, { standardId: 101, scopeType: "unit", scopeUnitId: 10 }),
+      q(204, {
+        standardId: 101,
+        scopeType: "category",
+        scopeCategory: "Program Studi",
+      }),
+      q(205, { standardId: 102, scopeType: "unit", scopeUnitId: 11 }),
+      // tidak sah
+      q(206, { standardId: 101, scopeType: "all" }),
+      q(207, { standardId: 101, scopeType: "unit", scopeUnitId: 11 }),
+      q(208, { standardId: 102, scopeType: "category", scopeCategory: "Biro" }),
+      q(209, { standardId: 102, scopeType: "unit", scopeUnitId: 10 }),
+      q(210, { standardId: 999 }) // standar tidak ada → urusan DQ-16
+    );
+    const r = await run();
+    expect(byId(r, "DQ-40").sampleIds).toEqual([206, 207, 208, 209]);
+    expect(byId(r, "DQ-40").total).toBe(10); // 210 dilewati
+  });
+
+  it("DQ-40: standar unit yatim (scope_unit_id NULL) → butir unit dianggap tidak sesuai", async () => {
+    h.data.auditStandard[2].scopeUnitId = null;
+    h.data.auditQuestion.push(
+      q(203, { standardId: 102, scopeType: "unit", scopeUnitId: null })
+    );
+    const r = await run();
+    expect(byId(r, "DQ-39").sampleIds).toEqual([102]);
+    expect(byId(r, "DQ-40").sampleIds).toEqual([203]);
+  });
+
+  it("DQ-40: kategori unit berubah setelah butir dibuat → butir unit keluar dari standar kategori", async () => {
+    h.data.auditQuestion.push(
+      q(203, { standardId: 101, scopeType: "unit", scopeUnitId: 10 })
+    );
+    expect(byId(await run(), "DQ-40").status).toBe("pass");
+    h.data.unit[0].category = "Biro"; // unit 10 pindah kategori (kini Biro)
+    const r = await run();
+    expect(byId(r, "DQ-40").sampleIds).toEqual([203]);
+  });
+
+  it("DQ-40: tipe cakupan butir tidak dikenal ditolak walau standar 'all' (fail-closed)", async () => {
+    h.data.auditQuestion.push(q(203, { scopeType: "fakultas" }));
+    const r = await run();
+    expect(byId(r, "DQ-40").sampleIds).toEqual([203]);
+    expect(byId(r, "DQ-17").sampleIds).toContain(203);
+  });
+
+  it("DQ-41: nama standar ganda pada siklus + cakupan yang sama (abaikan huruf/spasi)", async () => {
+    h.data.auditStandard.push(
+      std(103, { name: " standar pendidikan" }), // ganda dgn 100 (all)
+      std(104, { name: "Standar Pendidikan", cycleId: 2 }), // siklus lain → sah
+      std(105, { name: "Standar Layanan", scopeType: "unit", scopeUnitId: 10 }), // unit lain → sah
+      std(106, {
+        name: "STANDAR PENDIDIKAN",
+        scopeType: "category",
+        scopeCategory: "Program Studi",
+      }) // ganda dgn 101
+    );
+    h.data.auditCycle.push({
+      ...h.data.auditCycle[0],
+      id: 2,
+      name: "Siklus 2025",
+      isActive: false,
+      startDate: date("2025-09-01"),
+      endDate: date("2025-12-31"),
+    });
+    const r = await run();
+    expect(byId(r, "DQ-41").sampleIds).toEqual([100, 101, 103, 106]);
+    expect(failedIds(r)).toEqual(["DQ-12", "DQ-41"]); // DQ-12: spasi tepi nama 103
   });
 });
 

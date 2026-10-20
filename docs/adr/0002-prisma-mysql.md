@@ -34,5 +34,12 @@ Produksi menjalankan MySQL dalam container `spmi-db` yang hanya mendengarkan `12
   skema bergantung pada restore backup. **Tindak lanjut:** beralih ke `prisma migrate deploy` sebelum perubahan skema besar berikutnya.
 - Hapus berantai (mis. menghapus siklus menghapus seluruh jawaban) membutuhkan konfirmasi UI dan backup rutin.
 - Engine Prisma native harus ikut ke rilis standalone (deploy menyalin `node_modules\.prisma`).
-- Beberapa kolom status memakai `VARCHAR` (`unit_progress.status`, `unit_memberships.role`, `audit_questions.scope_type`)
-  sehingga validasi nilai bergantung pada kode aplikasi, bukan DB.
+- Beberapa kolom status memakai `VARCHAR` (`unit_progress.status`, `unit_memberships.role`, `audit_questions.scope_type`,
+  `audit_standards.scope_type`) sehingga validasi nilai bergantung pada kode aplikasi, bukan DB.
+
+**Pembaruan 20 Oktober 2026 (v1.2.2):** `prisma db push` 6.19 menghasilkan `DROP FOREIGN KEY` ganda untuk perubahan
+cakupan standar dan gagal di tengah jalan; perubahan diterapkan dengan skrip manual
+`prisma/sql/2026-10-20-cakupan-standar.sql`. Keputusan ini tetap berlaku, dengan prosedur wajib migrasi manual
+([RENCANA-PEMELIHARAAN §4.1](../iso/RENCANA-PEMELIHARAAN.md#41-prosedur-wajib-perubahan-skema-basis-data)) sampai
+peralihan ke `prisma migrate deploy` (RISK-REGISTER R-16, R-31). Unique `(cycle_id, name)` pada `audit_standards`
+dihapus — keunikan nama per cakupan dijaga aplikasi.

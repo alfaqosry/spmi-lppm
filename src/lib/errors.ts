@@ -57,6 +57,33 @@ export function toActionError(
   return prismaMessage(e) ?? fallback;
 }
 
+/** Hasil seragam server action yang dipanggil dari dialog/ConfirmAction. */
+export type ActionResult = { ok?: boolean; error?: string };
+
+/**
+ * Jalankan isi server action dan ubah error yang DIHARAPKAN menjadi nilai
+ * kembalian `{ error }`, bukan exception.
+ *
+ * Alasan: di produksi Next.js menyamarkan pesan error yang dilempar dari
+ * Server Function (klien hanya menerima pesan generik + digest), sehingga
+ * pesan AppError berbahasa Indonesia ("Siklus aktif tidak dapat dihapus…")
+ * tidak pernah sampai ke pengguna. Sesuai panduan Next.js, error yang
+ * diharapkan dimodelkan sebagai nilai kembalian.
+ * - AppError -> `{ error: pesanAsli }`
+ * - error lain -> `{ error: fallback }` (detail hanya dicatat di log server)
+ * - redirect/notFound -> dilempar ulang
+ */
+export async function runAction(
+  fn: () => Promise<ActionResult | void>,
+  fallback?: string
+): Promise<ActionResult> {
+  try {
+    return (await fn()) ?? { ok: true };
+  } catch (e) {
+    return { error: toActionError(e, fallback) };
+  }
+}
+
 /**
  * Validasi skema URL: hanya izinkan http/https (atau kosong).
  * Mencegah `javascript:`, `data:`, `vbscript:`, dll.

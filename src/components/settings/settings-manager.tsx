@@ -155,7 +155,7 @@ function IdentityTab({ settings }: { settings: PublicSettings }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
             label="Nama Sistem"
-            hint="Tampil di judul halaman & tab browser."
+            hint="Tampil di halaman login, sidebar, metadata aplikasi & pratinjau tautan (Open Graph)."
           >
             <input
               name="site.name"

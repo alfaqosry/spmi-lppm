@@ -1,6 +1,6 @@
 {
   "name": "lpm-spmi",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
@@ -13,11 +13,12 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:flows": "playwright test -c playwright.flows.config.ts",
     "test:a11y": "playwright test --grep @a11y",
     "test:e2e:install": "playwright install --with-deps",
     "audit": "npm audit --omit=dev --audit-level=high",

@@ -95,17 +95,17 @@ atas aktivitas keamanan + aktivitas verifikasi). ASVS = bab OWASP ASVS 4.0 yang 
 
 ## 4. Verifikasi & Audit Keamanan Aplikasi
 
-| Aktivitas                            | Frekuensi                                | Alat / bukti                                                            |
-| ------------------------------------ | ---------------------------------------- | ----------------------------------------------------------------------- |
-| Uji unit (termasuk regresi keamanan) | Setiap commit (hook) & PR (CI)           | `npm run test:coverage` — Vitest (`tests/unit/`)                        |
-| SAST                                 | Push/PR + mingguan (Senin)               | CodeQL (`.github/workflows/codeql.yml`)                                 |
-| SCA                                  | PR + mingguan                            | `npm audit` (CI), Dependabot                                            |
-| Lint keamanan/kualitas               | Setiap commit & PR                       | ESLint (Next core-web-vitals, TypeScript, jsx-a11y), `tsc --noEmit`     |
-| E2E & aksesibilitas                  | Manual + terjadwal harian                | Playwright + axe (`.github/workflows/e2e.yml`)                          |
-| Verifikasi header pasca-deploy       | Setiap deploy                            | `scripts/deploy/smoke-test.ps1`                                         |
-| Audit kode manual                    | Sebelum rilis MAJOR / perubahan sensitif | `LAPORAN_KEAMANAN.md` (16 & 17 Okt 2026: 11 + 18 temuan, semua ditutup) |
-| Uji penetrasi independen             | ⏳ sebelum pemakaian luas, lalu tahunan  | Belum dilakukan (R-06)                                                  |
-| DAST                                 | ⏳ usulan                                | OWASP ZAP baseline terhadap staging (setelah staging tersedia, R-22)    |
+| Aktivitas                            | Frekuensi                                | Alat / bukti                                                                                               |
+| ------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Uji unit (termasuk regresi keamanan) | Setiap commit (hook) & PR (CI)           | `npm run test:coverage` — Vitest (`tests/unit/`)                                                           |
+| SAST                                 | Push/PR + mingguan (Senin)               | CodeQL (`.github/workflows/codeql.yml`)                                                                    |
+| SCA                                  | PR + mingguan                            | `npm audit` (CI), Dependabot                                                                               |
+| Lint keamanan/kualitas               | Setiap commit & PR                       | ESLint (Next core-web-vitals, TypeScript, jsx-a11y), `npm run typecheck` (aplikasi + `tsconfig.test.json`) |
+| E2E & aksesibilitas                  | Manual + terjadwal harian                | Playwright + axe (`.github/workflows/e2e.yml`)                                                             |
+| Verifikasi header pasca-deploy       | Setiap deploy                            | `scripts/deploy/smoke-test.ps1`                                                                            |
+| Audit kode manual                    | Sebelum rilis MAJOR / perubahan sensitif | `LAPORAN_KEAMANAN.md` (16 & 17 Okt 2026: 11 + 18 temuan, semua ditutup)                                    |
+| Uji penetrasi independen             | ⏳ sebelum pemakaian luas, lalu tahunan  | Belum dilakukan (R-06)                                                                                     |
+| DAST                                 | ⏳ usulan                                | OWASP ZAP baseline terhadap staging (setelah staging tersedia, R-22)                                       |
 
 ## 5. Ketidaksesuaian & Kontrol yang Diterima
 

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireLpm } from "@/lib/guards";
 import { cleanupUnreferencedUploads, saveUpload } from "@/lib/upload";
-import { toActionError, isSafeHttpUrl } from "@/lib/errors";
+import { toActionError, isSafeHttpUrl, runAction } from "@/lib/errors";
 import { LIMITS, fileField, oneOf, requireId, str } from "@/lib/validate";
 import { enforceRateLimit, LIMITS_RL } from "@/lib/ratelimit";
 import { recordActivity } from "@/lib/logs";
@@ -87,19 +87,23 @@ export async function createDocument(
   }
 }
 
-export async function deleteDocument(id: number) {
-  const user = await requireLpm();
-  const docId = requireId(id, "Dokumen");
-  const doc = await prisma.document.delete({ where: { id: docId } });
-  // Hapus berkas fisik bila tidak dipakai dokumen/jawaban lain.
-  await cleanupUnreferencedUploads([doc.filePath]);
-  await recordActivity({
-    userId: user.id,
-    userName: user.name,
-    action: "document.delete",
-    entity: "document",
-    entityId: docId,
-    ip: await getClientIp(),
-  });
-  revalidatePath(`/${doc.type}`);
+export async function deleteDocument(id: number): Promise<ActionState> {
+  // Galat bisnis (mis. mode pemeliharaan) dikembalikan sebagai nilai agar pesan aslinya
+  // tampil di produksi; galat tak terduga diganti pesan umum (tanpa detail internal).
+  return runAction(async () => {
+    const user = await requireLpm();
+    const docId = requireId(id, "Dokumen");
+    const doc = await prisma.document.delete({ where: { id: docId } });
+    // Hapus berkas fisik bila tidak dipakai dokumen/jawaban lain.
+    await cleanupUnreferencedUploads([doc.filePath]);
+    await recordActivity({
+      userId: user.id,
+      userName: user.name,
+      action: "document.delete",
+      entity: "document",
+      entityId: docId,
+      ip: await getClientIp(),
+    });
+    revalidatePath(`/${doc.type}`);
+  }, "Gagal menghapus dokumen.");
 }

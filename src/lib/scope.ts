@@ -65,8 +65,12 @@ export function isQuestionForUnit(
       return question.scopeCategory === unit.category;
     case "unit":
       return question.scopeUnitId === unit.id;
+    case "all":
+      return true;
     default:
-      return true; // "all"
+      // Fail-closed: jenis cakupan tak dikenal (mis. hasil SQL langsung) tidak
+      // ditampilkan ke unit mana pun; terdeteksi aturan kualitas data DQ-17/DQ-40.
+      return false;
   }
 }
 
@@ -176,4 +180,70 @@ export function groupByStandard<
         a.standardName.localeCompare(b.standardName) ||
         a.standardId - b.standardId
     );
+}
+
+/** Daftar jenis cakupan yang sah (whitelist). */
+export const SCOPE_TYPES: readonly ScopeType[] = ["all", "category", "unit"];
+
+/** Apakah `value` adalah jenis cakupan yang sah? */
+export function isScopeType(value: unknown): value is ScopeType {
+  return (
+    typeof value === "string" &&
+    (SCOPE_TYPES as readonly string[]).includes(value)
+  );
+}
+
+/** Apakah dua cakupan identik (jenis + kategori + unit)? */
+export function sameScope(a: QuestionScope, b: QuestionScope): boolean {
+  return (
+    a.scopeType === b.scopeType &&
+    (a.scopeCategory ?? null) === (b.scopeCategory ?? null) &&
+    (a.scopeUnitId ?? null) === (b.scopeUnitId ?? null)
+  );
+}
+
+/**
+ * Aturan bisnis cakupan standar vs butir: cakupan butir pertanyaan harus
+ * SAMA dengan atau LEBIH SEMPIT daripada cakupan standar induknya, sehingga
+ * standar unit A tidak pernah berisi butir yang berlaku untuk unit B.
+ *
+ *  - standar "all"           : butir boleh all / category / unit apa pun
+ *  - standar "category" (C)  : butir category C, atau unit yang berkategori C
+ *  - standar "unit" (U)      : butir hanya unit U
+ *
+ * `innerUnitCategory` = kategori unit cakupan butir (wajib bila butir
+ * bercakupan "unit" dan standar bercakupan "category"). Jenis cakupan yang
+ * tidak dikenal selalu ditolak (fail-closed).
+ */
+export function isScopeWithin(
+  inner: QuestionScope,
+  outer: QuestionScope,
+  innerUnitCategory?: string | null
+): boolean {
+  if (!isScopeType(inner.scopeType) || !isScopeType(outer.scopeType)) {
+    return false;
+  }
+  switch (outer.scopeType) {
+    case "all":
+      return true;
+    case "category":
+      if (outer.scopeCategory == null) return false;
+      if (inner.scopeType === "category") {
+        return inner.scopeCategory === outer.scopeCategory;
+      }
+      if (inner.scopeType === "unit") {
+        return (
+          inner.scopeUnitId != null &&
+          innerUnitCategory != null &&
+          innerUnitCategory === outer.scopeCategory
+        );
+      }
+      return false;
+    case "unit":
+      return (
+        outer.scopeUnitId != null &&
+        inner.scopeType === "unit" &&
+        inner.scopeUnitId === outer.scopeUnitId
+      );
+  }
 }

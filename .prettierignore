@@ -24,3 +24,6 @@ docs/**/*.pdf
 # Lockfile & berkas yang di-generate
 package-lock.json
 prisma/migrations/
+
+# sesi login E2E (rahasia, tidak di-commit)
+tests/e2e/flows/.auth/

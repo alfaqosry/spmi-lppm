@@ -13,23 +13,23 @@ UAT & uji usabilitas manual tiap rilis MINOR/MAJOR.
 
 Skala: Kemungkinan (K) & Dampak (D) 1–3; Skor = K × D (≥ 6 tinggi, 3–4 sedang, ≤ 2 rendah).
 
-| ID  | Risiko                                                                             | K   | D   | Skor | Mitigasi uji                                                                                          |
-| --- | ---------------------------------------------------------------------------------- | --- | --- | ---- | ----------------------------------------------------------------------------------------------------- |
-| R01 | Eskalasi peran / akses lintas unit (IDOR) membocorkan data audit                   | 2   | 3   | 6    | Unit `guards.test.ts` (matriks peran, `requireUnitMember`, `canReadUnit`); UAT A-08, A-15, R-10, N-05 |
-| R02 | Unggahan berbahaya (bukan PDF, PDF aktif, path traversal)                          | 2   | 3   | 6    | Unit `upload.test.ts` (magic bytes, `/JavaScript`, whitelist folder, MIME); UAT P-04                  |
-| R03 | Sesi dapat dipalsukan / tidak dapat dicabut                                        | 1   | 3   | 3    | Unit `auth.test.ts` (JWT, `session_version`, fail-closed); E2E cookie                                 |
-| R04 | Batas waktu siklus salah (zona waktu) → auditee terkunci / masih bisa mengisi      | 2   | 3   | 6    | Unit `cycles.test.ts` (nilai batas 23:59:59 / 00:00 WIB); UAT S-05                                    |
-| R05 | Cakupan pertanyaan salah → unit menjawab butir yang tidak berlaku / progres keliru | 2   | 3   | 6    | Unit `scope.test.ts`, `progress.test.ts`; UAT A-03, A-04, A-13                                        |
-| R06 | Laporan PDF salah data / penandatangan                                             | 2   | 3   | 6    | UAT N-02–N-04 (⚠ belum ada uji otomatis `src/lib/report/**`)                                          |
-| R07 | Kehilangan data karena penghapusan berantai                                        | 2   | 3   | 6    | UAT S-, U-03, A-14 + evaluasi heuristik HE-03/04/05                                                   |
-| R08 | Kebocoran data pribadi di log / galat                                              | 2   | 2   | 4    | Unit `redact.test.ts`, `logs.test.ts`, `errors.test.ts`                                               |
-| R09 | Brute force login / penyalahgunaan endpoint                                        | 2   | 2   | 4    | Unit `ratelimit.test.ts`, `net.test.ts` (IP palsu); UAT L-05, N-07                                    |
-| R10 | SSO gagal / salah memetakan akun & peran                                           | 2   | 2   | 4    | Unit `sso.test.ts`; UAT L-07–L-10 (⚠ callback tidak diuji otomatis)                                   |
-| R11 | Regresi tampilan / aksesibilitas di peramban tertentu (Safari, ponsel)             | 2   | 2   | 4    | E2E 5 profil, axe, reflow 320 px / 200%                                                               |
-| R12 | Deploy gagal → layanan mati                                                        | 1   | 3   | 3    | Gerbang test + smoke test + rollback otomatis (`scripts/deploy/*`)                                    |
-| R13 | Kinerja mobile buruk menurunkan penyelesaian pengisian                             | 3   | 1   | 3    | Lighthouse per rilis (target ≥ 90)                                                                    |
-| R14 | Kegunaan rendah (auditee tidak tahu tenggat/revisi)                                | 3   | 2   | 6    | Evaluasi heuristik + uji usabilitas ([9241](../9241-USABILITAS/README.md))                            |
-| R15 | Pengaturan rahasia (Client Secret SSO) bocor ke klien                              | 1   | 3   | 3    | Unit `settings.test.ts`; UAT G-03                                                                     |
+| ID  | Risiko                                                                             | K   | D   | Skor | Mitigasi uji                                                                                                                               |
+| --- | ---------------------------------------------------------------------------------- | --- | --- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| R01 | Eskalasi peran / akses lintas unit (IDOR) membocorkan data audit                   | 2   | 3   | 6    | Unit `guards.test.ts` (matriks peran, `requireUnitMember`, `canReadUnit`); UAT A-08, A-15, R-10, N-05                                      |
+| R02 | Unggahan berbahaya (bukan PDF, PDF aktif, path traversal)                          | 2   | 3   | 6    | Unit `upload.test.ts` (magic bytes, `/JavaScript`, whitelist folder, MIME); UAT P-04                                                       |
+| R03 | Sesi dapat dipalsukan / tidak dapat dicabut                                        | 1   | 3   | 3    | Unit `auth.test.ts` (JWT, `session_version`, fail-closed); E2E cookie                                                                      |
+| R04 | Batas waktu siklus salah (zona waktu) → auditee terkunci / masih bisa mengisi      | 2   | 3   | 6    | Unit `cycles.test.ts` (nilai batas 23:59:59 / 00:00 WIB); UAT S-05                                                                         |
+| R05 | Cakupan pertanyaan salah → unit menjawab butir yang tidak berlaku / progres keliru | 2   | 3   | 6    | Unit `scope.test.ts`, `progress.test.ts`, `questions-actions.test.ts` (cakupan butir ⊆ standar, v1.2.2), DQ-17/39/40; UAT A-03, A-04, A-13 |
+| R06 | Laporan PDF salah data / penandatangan                                             | 2   | 3   | 6    | UAT N-02–N-04 (⚠ belum ada uji otomatis `src/lib/report/**`)                                                                               |
+| R07 | Kehilangan data karena penghapusan berantai                                        | 2   | 3   | 6    | UAT S-, U-03, A-14 + evaluasi heuristik HE-03/04/05                                                                                        |
+| R08 | Kebocoran data pribadi di log / galat                                              | 2   | 2   | 4    | Unit `redact.test.ts`, `logs.test.ts`, `errors.test.ts`                                                                                    |
+| R09 | Brute force login / penyalahgunaan endpoint                                        | 2   | 2   | 4    | Unit `ratelimit.test.ts`, `net.test.ts` (IP palsu); UAT L-05, N-07                                                                         |
+| R10 | SSO gagal / salah memetakan akun & peran                                           | 2   | 2   | 4    | Unit `sso.test.ts`; UAT L-07–L-10 (⚠ callback tidak diuji otomatis)                                                                        |
+| R11 | Regresi tampilan / aksesibilitas di peramban tertentu (Safari, ponsel)             | 2   | 2   | 4    | E2E 5 profil, axe, reflow 320 px / 200%                                                                                                    |
+| R12 | Deploy gagal → layanan mati                                                        | 1   | 3   | 3    | Gerbang test + smoke test + rollback otomatis (`scripts/deploy/*`)                                                                         |
+| R13 | Kinerja mobile buruk menurunkan penyelesaian pengisian                             | 3   | 1   | 3    | Lighthouse per rilis (target ≥ 90)                                                                                                         |
+| R14 | Kegunaan rendah (auditee tidak tahu tenggat/revisi)                                | 3   | 2   | 6    | Evaluasi heuristik + uji usabilitas ([9241](../9241-USABILITAS/README.md))                                                                 |
+| R15 | Pengaturan rahasia (Client Secret SSO) bocor ke klien                              | 1   | 3   | 3    | Unit `settings.test.ts`; UAT G-03                                                                                                          |
 
 ## 3. Level Uji
 

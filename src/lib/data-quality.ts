@@ -3,7 +3,7 @@ import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { SECRET_KEYS, SETTING_DEFAULTS } from "@/lib/settings";
 import { CONSENT_VERSION, needsConsent } from "@/lib/privacy";
-import { isQuestionForUnit } from "@/lib/scope";
+import { isQuestionForUnit, isScopeWithin } from "@/lib/scope";
 import { redactText } from "@/lib/redact";
 import { toIsoDate, toIsoJakarta } from "@/lib/format";
 import {
@@ -220,6 +220,9 @@ const loaders = {
         id: true,
         cycleId: true,
         name: true,
+        scopeType: true,
+        scopeCategory: true,
+        scopeUnitId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -821,7 +824,7 @@ export const DQ_RULES: DqRule[] = [
     severity: "high",
     description:
       "Hierarki siklus konsisten: butir pertanyaan satu siklus dengan standarnya, jawaban satu siklus dengan butirnya.",
-    ref: "assertStandardInCycle(), saveResponse()",
+    ref: "assertStandardAccepts() src/lib/actions/questions.ts, saveResponse()",
     async check(ctx) {
       const [standards, questions, responses] = await Promise.all([
         ctx.standards(),
@@ -844,7 +847,7 @@ export const DQ_RULES: DqRule[] = [
     severity: "medium",
     description:
       "Cakupan butir valid: all (tanpa target), category (kategori terisi & dipakai ≥1 unit), unit (unit target ada).",
-    ref: "readScope() src/lib/actions/questions.ts; src/lib/scope.ts",
+    ref: "AB-26 parseScope() src/lib/actions/questions.ts; src/lib/scope.ts",
     async check(ctx) {
       const [questions, units] = await Promise.all([
         ctx.questions(),
@@ -1253,7 +1256,8 @@ export const DQ_RULES: DqRule[] = [
       for (const u of users) t.add(clean(u.name), `user:${u.id}`);
       for (const u of units)
         t.add(clean(u.name, u.category, u.description), `unit:${u.id}`);
-      for (const s of standards) t.add(clean(s.name), `standard:${s.id}`);
+      for (const s of standards)
+        t.add(clean(s.name, s.scopeCategory), `standard:${s.id}`);
       for (const q of questions)
         t.add(clean(q.questionText, q.scopeCategory), `question:${q.id}`);
       for (const r of responses)
@@ -1408,6 +1412,90 @@ export const DQ_RULES: DqRule[] = [
         t.add(ok, r.id);
       }
       return t.result();
+    },
+  },
+
+  /* ------------------------ Cakupan standar (v1.2.2) ----------------------- */
+  {
+    id: "DQ-39",
+    characteristic: "Akurasi",
+    severity: "medium",
+    description:
+      "Cakupan standar valid: scope_type ∈ {all, category, unit}; all tanpa target; category berisi kategori yang dipakai ≥1 unit (tanpa unit); unit merujuk unit yang ada (tanpa kategori) — standar unit dengan scope_unit_id NULL (yatim akibat ON DELETE SET NULL) adalah cacat.",
+    ref: "AB-26 parseScope() createStandard()/updateStandard() src/lib/actions/questions.ts",
+    async check(ctx) {
+      const [standards, units] = await Promise.all([
+        ctx.standards(),
+        ctx.units(),
+      ]);
+      const categories = new Set(units.map((u) => u.category));
+      const unitIds = new Set(units.map((u) => u.id));
+      const t = new Tally();
+      for (const s of standards) {
+        let ok = false;
+        if (s.scopeType === "all")
+          ok = s.scopeCategory == null && s.scopeUnitId == null;
+        else if (s.scopeType === "category")
+          ok =
+            !blank(s.scopeCategory) &&
+            categories.has(s.scopeCategory!) &&
+            s.scopeUnitId == null;
+        else if (s.scopeType === "unit")
+          ok =
+            s.scopeUnitId != null &&
+            unitIds.has(s.scopeUnitId) &&
+            s.scopeCategory == null;
+        t.add(ok, s.id);
+      }
+      return t.result();
+    },
+  },
+  {
+    id: "DQ-40",
+    characteristic: "Konsistensi",
+    severity: "medium",
+    description:
+      "Cakupan butir sama dengan atau lebih sempit dari cakupan standar induknya (isScopeWithin): standar all → butir bercakupan sah apa pun; standar category X → butir category X atau butir unit yang kategori unitnya SAAT INI X; standar unit U → hanya butir unit U.",
+    ref: "AB-27 isScopeWithin() src/lib/scope.ts; createQuestion()/updateQuestion()/updateStandard()",
+    async check(ctx) {
+      const [standards, questions, units] = await Promise.all([
+        ctx.standards(),
+        ctx.questions(),
+        ctx.units(),
+      ]);
+      const stds = new Map(standards.map((s) => [s.id, s]));
+      const unitCategory = new Map(units.map((u) => [u.id, u.category]));
+      const t = new Tally();
+      for (const q of questions) {
+        const s = stds.get(q.standardId);
+        if (!s) continue; // standar tidak ada → dilaporkan DQ-16
+        // Kategori unit SAAT INI: kategori unit yang berubah setelah butir
+        // dibuat ikut terdeteksi (risiko residual R-34).
+        const ok = isScopeWithin(
+          q,
+          s,
+          q.scopeUnitId != null
+            ? (unitCategory.get(q.scopeUnitId) ?? null)
+            : null
+        );
+        t.add(ok, q.id);
+      }
+      return t.result();
+    },
+  },
+  {
+    id: "DQ-41",
+    characteristic: "Konsistensi",
+    severity: "medium",
+    description:
+      "Nama standar unik per siklus + cakupan (tanpa membedakan huruf besar/kecil & spasi tepi) — pengganti unique index (cycle_id, name) yang dihapus pada v1.2.2.",
+    ref: "AB-21 createStandard()/updateStandard() (kunci FOR UPDATE) src/lib/actions/questions.ts",
+    async check(ctx) {
+      return duplicatesTally(
+        await ctx.standards(),
+        (s) =>
+          `${s.cycleId}|${s.scopeType}|${s.scopeCategory ?? ""}|${s.scopeUnitId ?? ""}|${s.name.trim().toLowerCase()}`
+      );
     },
   },
 ];

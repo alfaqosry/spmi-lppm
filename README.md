@@ -200,7 +200,7 @@ File bukti/dokumen disimpan **privat** di `UPLOAD_DIR` (default `storage/uploads
 | `npm run db:studio`    | Buka Prisma Studio                                                                     |
 | `npm run lint`         | ESLint (Next core-web-vitals + jsx-a11y)                                               |
 | `npm run format`       | Prettier (`format:check` untuk CI)                                                     |
-| `npm run typecheck`    | TypeScript tanpa emit                                                                  |
+| `npm run typecheck`    | TypeScript aplikasi + kode uji                                                         |
 | `npm test`             | Uji unit Vitest                                                                        |
 | `npm run test:e2e`     | Uji E2E Playwright lintas browser (`test:a11y` = axe)                                  |
 | `npm run audit`        | Audit dependensi produksi                                                              |

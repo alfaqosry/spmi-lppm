@@ -109,10 +109,15 @@ Statistik unit, siklus, pertanyaan, progres per unit, serta grafik (bar/pie/rada
 ### 4.3 Menyusun Standar dan butir pertanyaan
 
 1. **Audit & Verifikasi** → pilih **kategori unit** (atau **Umum** untuk semua unit) → pilih tab unit.
-2. **Tambah Standar** (mis. "Standar Tata Pamong"). Nama standar harus unik dalam satu siklus.
+2. **Tambah Standar** (mis. "Standar Tata Pamong"). Standar mendapat **cakupan sesuai tab yang aktif**: _Umum_ (semua
+   unit), _Semua <kategori>_, atau satu unit. Nama standar harus unik **dalam cakupan yang sama** pada satu siklus —
+   nama yang sama boleh dipakai di cakupan lain (mis. "Standar Pendidikan" di Umum dan di unit tertentu).
 3. Klik nama standar atau **Kelola Butir** → tambahkan beberapa butir ke daftar sementara → **Simpan** (sekaligus).
-4. Tentukan **cakupan** butir: _Semua Unit_, _Kategori_ tertentu, atau _Unit_ tertentu.
-5. Ubah/hapus butir yang tersimpan di modal yang sama.
+   Butir baru mengikuti cakupan tab yang aktif.
+4. Cakupan butir harus **sama atau lebih sempit** dari cakupan standarnya: standar kategori hanya berisi butir kategori
+   itu atau butir unit dalam kategori itu; standar unit hanya berisi butir unit tersebut. Perubahan yang melanggar
+   ditolak dengan pesan penjelasan.
+5. Ubah/hapus butir yang tersimpan di modal yang sama. Mengubah nama standar tidak mengubah cakupannya.
 
 > **Perhatian:** menghapus standar menghapus seluruh butir **beserta jawaban auditee** untuk butir tersebut.
 
