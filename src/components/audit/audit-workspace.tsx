@@ -362,12 +362,24 @@ function CategoryDetail({
     );
   }, [questions, isUmum, activeTab, categoryKey]);
 
+  const shownStandards = useMemo(() => {
+    if (isUmum) return standards.filter((s) => s.scopeType === "all");
+    if (activeTab === "__all__")
+      return standards.filter(
+        (s) => s.scopeType === "category" && s.scopeCategory === categoryKey
+      );
+    const unitId = Number(activeTab);
+    return standards.filter(
+      (s) => s.scopeType === "unit" && s.scopeUnitId === unitId
+    );
+  }, [standards, isUmum, activeTab, categoryKey]);
+
   // Kelompokkan butir pada tab ini berdasarkan standar induknya.
   const groups = useMemo(() => {
     const present = groupByStandard(shownQuestions);
     // Sertakan standar yang belum punya butir di tab ini agar tetap bisa diisi.
     const presentIds = new Set(present.map((g) => g.standardId));
-    const empty: typeof present = standards
+    const empty: typeof present = shownStandards
       .filter((s) => !presentIds.has(s.id))
       .map((s) => ({
         standardId: s.id,
@@ -379,7 +391,7 @@ function CategoryDetail({
       (a, b) =>
         a.order - b.order || a.standardName.localeCompare(b.standardName)
     );
-  }, [shownQuestions, standards]);
+  }, [shownQuestions, shownStandards]);
 
   // Cakupan yang dipakai saat menambah pertanyaan di tab ini.
   const scope = isUmum
@@ -497,7 +509,7 @@ function CategoryDetail({
         <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
           <Plus className="h-3.5 w-3.5 text-indigo-300" /> Tambah Standar Baru
         </p>
-        <InlineStandardForm cycleId={cycleId} />
+        <InlineStandardForm cycleId={cycleId} scope={scope} />
       </div>
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -939,10 +951,12 @@ function StandardQuestionsDialog({
 /** Form inline untuk membuat/mengubah standar. */
 function InlineStandardForm({
   cycleId,
+  scope,
   standard,
   onDone,
 }: {
   cycleId: number;
+  scope?: { scopeType: string; scopeCategory: string; scopeUnitId: string };
   standard?: { id: number; name: string };
   onDone?: () => void;
 }) {
@@ -970,7 +984,16 @@ function InlineStandardForm({
       {standard ? (
         <input type="hidden" name="id" value={standard.id} />
       ) : (
-        <input type="hidden" name="cycleId" value={cycleId} />
+        <>
+          <input type="hidden" name="cycleId" value={cycleId} />
+          {scope && (
+            <>
+              <input type="hidden" name="scopeType" value={scope.scopeType} />
+              <input type="hidden" name="scopeCategory" value={scope.scopeCategory} />
+              <input type="hidden" name="scopeUnitId" value={scope.scopeUnitId} />
+            </>
+          )}
+        </>
       )}
 
       <div className="min-w-0 flex-1">

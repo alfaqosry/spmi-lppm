@@ -74,6 +74,9 @@ export default async function AuditPage() {
     name: s.name,
     order: s.order,
     questionCount: s._count.questions,
+    scopeType: s.scopeType,
+    scopeCategory: s.scopeCategory,
+    scopeUnitId: s.scopeUnitId,
   }));
 
   const questionRows: QuestionRow[] = questions.map((q) => ({

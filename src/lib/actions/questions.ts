@@ -64,24 +64,42 @@ export async function createStandard(
       required: true,
       label: "Nama standar",
     });
+    const scope = parseScope(formData);
+    if (!scope.data) return { error: scope.error ?? "Cakupan standar tidak valid." };
 
     const existing = await prisma.auditStandard.findFirst({
-      where: { cycleId, name },
+      where: {
+        cycleId,
+        name,
+        scopeType: scope.data.scopeType,
+        scopeCategory: scope.data.scopeCategory,
+        scopeUnitId: scope.data.scopeUnitId,
+      },
     });
     if (existing) {
-      return {
-        error: "Standar dengan nama tersebut sudah ada pada siklus ini.",
-      };
+      return { error: "Standar dengan nama tersebut sudah ada pada cakupan ini." };
     }
 
     const last = await prisma.auditStandard.findFirst({
-      where: { cycleId },
+      where: {
+        cycleId,
+        scopeType: scope.data.scopeType,
+        scopeCategory: scope.data.scopeCategory,
+        scopeUnitId: scope.data.scopeUnitId,
+      },
       orderBy: { order: "desc" },
       select: { order: true },
     });
 
     const created = await prisma.auditStandard.create({
-      data: { cycleId, name, order: (last?.order ?? 0) + 1 },
+      data: {
+        cycleId,
+        name,
+        order: (last?.order ?? 0) + 1,
+        scopeType: scope.data.scopeType,
+        scopeCategory: scope.data.scopeCategory,
+        scopeUnitId: scope.data.scopeUnitId,
+      },
     });
     await audit(user, "standard.create", created.id);
     revalidateAll();
@@ -103,8 +121,18 @@ export async function updateStandard(
       required: true,
       label: "Nama standar",
     });
+    const scope = parseScope(formData);
+    if (!scope.data) return { error: scope.error ?? "Cakupan standar tidak valid." };
 
-    await prisma.auditStandard.update({ where: { id }, data: { name } });
+    await prisma.auditStandard.update({
+      where: { id },
+      data: {
+        name,
+        scopeType: scope.data.scopeType,
+        scopeCategory: scope.data.scopeCategory,
+        scopeUnitId: scope.data.scopeUnitId,
+      },
+    });
     await audit(user, "standard.update", id);
     revalidateAll();
     return { ok: true };

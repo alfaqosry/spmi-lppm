@@ -61,11 +61,12 @@ model Unit {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  users      User[]
-  responses  AuditResponse[]
-  progress   UnitProgress[]
-  scopedQuestions AuditQuestion[] @relation("QuestionScopeUnit")
-  memberships UnitMembership[]
+  users           User[]
+  responses       AuditResponse[]
+  progress        UnitProgress[]
+  scopedQuestions AuditQuestion[]   @relation("QuestionScopeUnit")
+  scopedStandards AuditStandard[]   @relation("StandardScopeUnit")
+  memberships     UnitMembership[]
 
   @@map("units")
 }
@@ -151,19 +152,24 @@ model Document {
 }
 
 model AuditStandard {
-  id        Int      @id @default(autoincrement())
-  cycleId   Int      @map("cycle_id")
+  id            Int      @id @default(autoincrement())
+  cycleId       Int      @map("cycle_id")
   // Nama standar (induk/pengelompok butir pertanyaan), mis. "Standar Tata Pamong".
-  name      String   @db.VarChar(160)
-  order     Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  name          String   @db.VarChar(160)
+  order         Int      @default(0)
+  // Cakupan standar: "all" (semua unit) | "category" (per kategori) | "unit" (unit tertentu)
+  scopeType     String   @default("all") @map("scope_type") @db.VarChar(20)
+  scopeCategory String?  @map("scope_category") @db.VarChar(80)
+  scopeUnitId   Int?     @map("scope_unit_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  cycle     AuditCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  questions AuditQuestion[]
+  cycle         AuditCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade, map: "fk_audit_standards_cycle")
+  scopeUnit     Unit?           @relation("StandardScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull, map: "fk_audit_standards_scope_unit")
+  questions     AuditQuestion[]
 
-  @@unique([cycleId, name])
   @@index([cycleId])
+  @@index([scopeUnitId])
   @@map("audit_standards")
 }
 
@@ -175,15 +181,15 @@ model AuditQuestion {
   questionText String   @map("question_text") @db.Text
   order        Int      @default(0)
   // Cakupan pertanyaan: "all" (semua unit) | "category" (per kategori) | "unit" (unit tertentu)
-  scopeType     String  @default("all") @map("scope_type") @db.VarChar(20)
+  scopeType    String   @default("all") @map("scope_type") @db.VarChar(20)
   scopeCategory String? @map("scope_category") @db.VarChar(80)
-  scopeUnitId   Int?    @map("scope_unit_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  scopeUnitId  Int?     @map("scope_unit_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  cycle     AuditCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  standard  AuditStandard  @relation(fields: [standardId], references: [id], onDelete: Cascade)
-  scopeUnit Unit?          @relation("QuestionScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull)
+  cycle     AuditCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade, map: "fk_audit_questions_cycle")
+  standard  AuditStandard  @relation(fields: [standardId], references: [id], onDelete: Cascade, map: "fk_audit_questions_standard")
+  scopeUnit Unit?          @relation("QuestionScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull, map: "fk_audit_questions_scope_unit")
   responses AuditResponse[]
 
   @@index([cycleId])

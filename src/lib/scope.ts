@@ -32,7 +32,7 @@ export type Standard = {
   name: string;
   order: number;
   questionCount: number;
-};
+} & QuestionScope;
 
 export type UnitLike = {
   id: number;
