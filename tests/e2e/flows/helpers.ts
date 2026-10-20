@@ -128,7 +128,14 @@ export function readState(): FlowState {
 }
 
 export function writeState(patch: Partial<FlowState>) {
-  const cur = fs.existsSync(STATE_FILE) ? readState() : ({} as FlowState);
+  // Baca langsung tanpa existsSync lebih dulu: tidak ada jeda cek→pakai
+  // (CodeQL js/file-system-race).
+  let cur = {} as FlowState;
+  try {
+    cur = readState();
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+  }
   fs.mkdirSync(AUTH_DIR, { recursive: true });
   fs.writeFileSync(STATE_FILE, JSON.stringify({ ...cur, ...patch }, null, 2));
 }
@@ -425,7 +432,11 @@ export function pdfText(buf: Buffer): string {
   for (const m of all.matchAll(/\(((?:\\.|[^\\)])*)\)\s*Tj/g)) {
     strings.push(unescape(m[1]));
   }
-  for (const m of all.matchAll(/\[((?:\((?:\\.|[^\\)])*\)|[^\]])*)\]\s*TJ/g)) {
+  // Alternatif kedua mengecualikan "(" dan ")" agar tidak tumpang-tindih dengan
+  // alternatif string — mencegah backtracking eksponensial (CodeQL js/redos).
+  for (const m of all.matchAll(
+    /\[((?:\((?:\\.|[^\\)])*\)|[^\]()])*)\]\s*TJ/g
+  )) {
     const seg = [...m[1].matchAll(/\(((?:\\.|[^\\)])*)\)/g)].map((x) =>
       unescape(x[1])
     );
