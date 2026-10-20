@@ -30,6 +30,8 @@ npm run db:push                     # sinkronkan skema ke database
 SEED_SUPERADMIN_PASSWORD='rahasia-kuat-1' \
 SEED_ADMIN_PASSWORD='rahasia-kuat-2' \
 npm run db:seed                     # buat akun superadmin + admin LPM
+# opsional, HANYA lokal: SEED_DEMO=true npm run db:seed:demo  (menghapus seluruh data lalu mengisi data demo;
+#                         ditolak bila NODE_ENV=production)
 npm run hooks:install               # arahkan Git ke hook di scripts/hooks
 npm run dev                         # http://localhost:3002
 ```
@@ -154,21 +156,22 @@ Cakupan yang lazim: `auth`, `sso`, `audit`, `siklus`, `unit`, `akun`, `dokumen`,
 
 ## 7. Skrip npm
 
-| Skrip                                           | Fungsi                                                                                             |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `npm run dev`                                   | Server pengembangan (Turbopack) di port 3002                                                       |
-| `npm run build` / `npm run start`               | Build produksi (`output: "standalone"`) / jalankan build di port 3002                              |
-| `npm run lint` / `lint:fix`                     | ESLint (`eslint .`, konfigurasi `eslint.config.mjs`) / perbaiki otomatis                           |
-| `npm run format` / `npm run format:check`       | Prettier tulis / periksa (`.prettierrc.json`, `.prettierignore`)                                   |
-| `npm run typecheck`                             | `tsc --noEmit`                                                                                     |
-| `npm run test` / `test:watch` / `test:coverage` | Uji unit Vitest (`vitest.config.mts`, berkas `tests/unit/**/*.test.ts`) / mode pantau / cakupan v8 |
-| `npm run test:e2e`                              | Uji E2E lintas browser (Playwright)                                                                |
-| `npm run test:a11y`                             | Uji aksesibilitas — test Playwright bertag `@a11y` (axe)                                           |
-| `npm run test:e2e:install`                      | Pasang browser Playwright (`playwright install --with-deps`)                                       |
-| `npm run audit`                                 | `npm audit --omit=dev --audit-level=high`                                                          |
-| `npm run ci`                                    | Gerbang CI: `lint` → `format:check` → `typecheck` → `test`                                         |
-| `npm run hooks:install`                         | `git config core.hooksPath scripts/hooks`                                                          |
-| `npm run db:push` / `db:seed` / `db:studio`     | Prisma: sinkron skema / seed akun awal / Prisma Studio                                             |
+| Skrip                                           | Fungsi                                                                                                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                   | Server pengembangan (Turbopack) di port 3002                                                                            |
+| `npm run build` / `npm run start`               | Build produksi (`output: "standalone"`) / jalankan build di port 3002                                                   |
+| `npm run lint` / `lint:fix`                     | ESLint (`eslint .`, konfigurasi `eslint.config.mjs`) / perbaiki otomatis                                                |
+| `npm run format` / `npm run format:check`       | Prettier tulis / periksa (`.prettierrc.json`, `.prettierignore`)                                                        |
+| `npm run typecheck`                             | `tsc --noEmit && tsc --noEmit -p tsconfig.test.json` (aplikasi + kode uji; root `tsconfig.json` mengecualikan `tests/`) |
+| `npm run test` / `test:watch` / `test:coverage` | Uji unit Vitest (`vitest.config.mts`, berkas `tests/unit/**/*.test.ts`) / mode pantau / cakupan v8                      |
+| `npm run test:e2e`                              | Uji E2E lintas browser (Playwright)                                                                                     |
+| `npm run test:a11y`                             | Uji aksesibilitas — test Playwright bertag `@a11y` (axe)                                                                |
+| `npm run test:e2e:install`                      | Pasang browser Playwright (`playwright install --with-deps`)                                                            |
+| `npm run audit`                                 | `npm audit --omit=dev --audit-level=high`                                                                               |
+| `npm run ci`                                    | Gerbang CI: `lint` → `format:check` → `typecheck` → `test`                                                              |
+| `npm run hooks:install`                         | `git config core.hooksPath scripts/hooks`                                                                               |
+| `npm run db:push` / `db:seed` / `db:studio`     | Prisma: sinkron skema / seed akun awal / Prisma Studio                                                                  |
+| `npm run db:seed:demo`                          | Seed demo **lokal** (`prisma/seed-demo.ts`): wajib `SEED_DEMO=true`, ditolak bila `NODE_ENV=production`                 |
 
 > `next lint` telah dihapus pada Next.js 16, sehingga `lint` memanggil ESLint langsung.
 > Gerbang test pada `scripts/deploy/deploy-production.ps1` menjalankan `lint`, `format:check`, `typecheck`, `test`.
@@ -187,7 +190,13 @@ npm run test:e2e        # bila mengubah alur UI
 3. Proyek **belum** memakai `prisma migrate`; produksi memakai `prisma db push` di skrip deploy.
    Hindari perubahan destruktif (hapus/ganti nama kolom). Bila tak terhindarkan, tulis skrip migrasi data
    dan catat di catatan rilis; deploy akan berhenti bila `db push` memerlukan `--accept-data-loss`.
-4. Perbarui ERD di [01-PERANCANGAN.md §6](01-PERANCANGAN.md#6-model-data-erd) dan [legal/RoPA.md](legal/RoPA.md) bila menyangkut data pribadi.
+   Bila `db push` gagal atau menghasilkan DDL yang salah (v1.2.2: Prisma 6.19 menghasilkan `DROP FOREIGN KEY` ganda),
+   tulis skrip SQL ber-versi `prisma/sql/YYYY-MM-DD-<topik>.sql` dan ikuti **prosedur wajib**
+   [RENCANA-PEMELIHARAAN §4.1](iso/RENCANA-PEMELIHARAAN.md#41-prosedur-wajib-perubahan-skema-basis-data):
+   backup, gladi pada salinan produksi (jumlah baris 12 tabel identik), `prisma migrate diff` kosong, lalu terapkan
+   ke produksi **sebelum** `deploy-production.ps1` ([04 §5.1](04-DEPLOYMENT-IIS.md#51-perubahan-skema-basis-data-migrasi-manual)).
+4. Perbarui ERD di [01-PERANCANGAN.md §6](01-PERANCANGAN.md#6-model-data-erd), [iso/KAMUS-DATA](iso/KAMUS-DATA.md), aturan
+   kualitas data (`src/lib/data-quality.ts`, [iso/25012](iso/25012-KUALITAS-DATA.md)), dan [legal/RoPA.md](legal/RoPA.md) bila menyangkut data pribadi.
 
 ## 9. Kiat Debugging
 

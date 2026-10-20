@@ -93,7 +93,7 @@ Versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) `MAJOR.MINOR.
 | `npm run lint:fix`      | ESLint dengan perbaikan otomatis                                   |
 | `npm run format`        | Prettier — format seluruh repo                                     |
 | `npm run format:check`  | Prettier — cek saja (dipakai CI)                                   |
-| `npm run typecheck`     | `tsc --noEmit`                                                     |
+| `npm run typecheck`     | `tsc --noEmit` (aplikasi) + `tsc -p tsconfig.test.json` (kode uji) |
 | `npm test`              | Uji unit Vitest (`tests/unit`)                                     |
 | `npm run test:coverage` | Uji unit + laporan cakupan (`coverage/`)                           |
 | `npm run test:e2e`      | Playwright E2E (chromium, firefox, webkit, Pixel 7, iPhone 14)     |

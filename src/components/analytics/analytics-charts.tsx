@@ -58,7 +58,11 @@ export function AnalyticsCharts({
         }))}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={perAspect} outerRadius="70%">
+          <RadarChart
+            accessibilityLayer={false}
+            data={perAspect}
+            outerRadius="70%"
+          >
             <PolarGrid stroke={GRID} />
             <PolarAngleAxis dataKey="name" tick={TICK} />
             <Radar
@@ -85,6 +89,7 @@ export function AnalyticsCharts({
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
+            accessibilityLayer={false}
             data={categoryData}
             margin={{ top: 6, right: 8, left: -18, bottom: 0 }}
           >
@@ -122,8 +127,9 @@ export function AnalyticsCharts({
         rows={answerData.map((a) => ({ label: a.name, value: a.value }))}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          <PieChart accessibilityLayer={false}>
             <Pie
+              rootTabIndex={-1}
               data={answerData}
               dataKey="value"
               nameKey="name"
@@ -151,6 +157,7 @@ export function AnalyticsCharts({
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
+            accessibilityLayer={false}
             layout="vertical"
             data={ranked}
             margin={{ top: 4, right: 16, left: 8, bottom: 0 }}

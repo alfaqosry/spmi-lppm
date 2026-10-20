@@ -46,7 +46,13 @@ export function DeleteCycleButton({
     setError(null);
     start(async () => {
       try {
-        await deleteCycle(cycle.id);
+        const res = await deleteCycle(cycle.id);
+        // Galat bisnis (mis. siklus masih aktif) dikembalikan sebagai nilai,
+        // bukan dilempar — pesan asli di-redaksi Next.js di produksi.
+        if (res?.error) {
+          setError(res.error);
+          return;
+        }
         setOpen(false);
         setTyped("");
         onDone?.(

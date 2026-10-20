@@ -7,6 +7,10 @@ dengan ukuran (_measures_) mengacu ISO/IEC 25023:2016.
 | Versi dokumen | Tanggal         | Versi aplikasi | Klasifikasi      |
 | ------------- | --------------- | -------------- | ---------------- |
 | 1.0           | 17 Oktober 2026 | v1.1.3         | Dokumen Internal |
+| 1.1           | 20 Oktober 2026 | v1.2.2         | Dokumen Internal |
+
+Perubahan 1.1 (addendum v1.2.2): KF-20 cakupan standar ditambahkan ke §3.1 (20 kebutuhan), angka uji unit & aturan
+kualitas data diperbarui (§3.2). Ukuran lain tetap hasil pengukuran 17 Okt 2026.
 
 Keterangan: ✅ memenuhi target · ⚠️ sebagian / di bawah target · ❌ tidak memenuhi · ⏳ belum diukur (butuh
 tindakan/alat/data di luar kode) · **N/U** belum diukur. Semua angka di dokumen ini **diukur nyata** pada tanggal di atas
@@ -29,7 +33,7 @@ atau dikutip dari hasil terukur di [09-DAFTAR-STANDAR](../09-DAFTAR-STANDAR.md);
 
 | No  | Karakteristik (ISO 25010:2023)       | Ukuran kunci (hasil)                                                                              | Status |
 | --- | ------------------------------------ | ------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Kesesuaian fungsional                | Kebutuhan terimplementasi 19/19 (100%); kebutuhan teruji otomatis 13/19 (68%)                     | ⚠️     |
+| 1   | Kesesuaian fungsional                | Kebutuhan terimplementasi 20/20 (100%); kebutuhan teruji otomatis 14/20 (70%) — v1.2.2            | ⚠️     |
 | 2   | Efisiensi kinerja                    | p95 origin 10–26 ms; p95 via Cloudflare 470–662 ms; Lighthouse desktop 96–97, mobile 66–77        | ⚠️     |
 | 3   | Kompatibilitas                       | 5 profil browser lulus E2E; berbagi server dengan aplikasi lain tanpa konflik port                | ✅     |
 | 4   | Kapabilitas interaksi                | Lighthouse A11y 100; axe 0 pelanggaran; 320 px tanpa scroll horizontal; UAT/SUS belum             | ⚠️     |
@@ -46,46 +50,47 @@ Cloudflare, (3) monitor uptime eksternal untuk mengukur ketersediaan, (4) pecah 
 
 ### 3.1 Kelengkapan fungsional — `FCp-1-G` _functional coverage_
 
-Formula: `X = 1 − A/B`, A = fungsi yang tidak ada/hilang, B = fungsi yang dispesifikasikan (KF-01…KF-19,
+Formula: `X = 1 − A/B`, A = fungsi yang tidak ada/hilang, B = fungsi yang dispesifikasikan (KF-01…KF-20,
 [01-PERANCANGAN §3](../01-PERANCANGAN.md)). Target: X = 1,0.
 
-| Kode  | Kebutuhan (ringkas)                        | Implementasi                                   | Uji otomatis (bukti)                                       |
-| ----- | ------------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------- |
-| KF-01 | Login email + sandi, pembatas percobaan    | `actions/auth.ts`, `ratelimit.ts`              | ✅ `auth`, `password`, `ratelimit`; E2E `auth.spec` (prod) |
-| KF-02 | Login SSO UP                               | `api/sso/[...sso]`, `sso.ts`                   | ✅ `sso.test.ts`                                           |
-| KF-03 | Logout & revokasi sesi                     | `logoutAction`, `session_version`              | ✅ `auth.test.ts`                                          |
-| KF-04 | Ubah kata sandi mandiri                    | `actions/profile.ts`                           | ✅ `password.test.ts` (kebijakan)                          |
-| KF-05 | CRUD siklus, satu siklus aktif             | `actions/cycles.ts`                            | ✅ `cycles.test.ts` (logika buka/tutup) — aksi CRUD ❌     |
-| KF-06 | CRUD unit, kategori                        | `actions/units.ts`, `scope.ts`                 | ⚠️ `scope.test.ts` (kategori) — aksi CRUD ❌               |
-| KF-07 | Akun, penempatan multi-unit, 1 Kepala Unit | `assignMember`, `syncUserAccess`               | ❌ (dijaga data oleh DQ-03…DQ-05)                          |
-| KF-08 | Ketua LPM tunggal                          | `setLpmHead`                                   | ❌ (dijaga data oleh DQ-06)                                |
-| KF-09 | Repositori dokumen PDF/tautan              | `actions/documents.ts`                         | ✅ `upload.test.ts`                                        |
-| KF-10 | Standar & butir, cakupan all/category/unit | `actions/questions.ts`, `scope.ts`             | ✅ `scope.test.ts`                                         |
-| KF-11 | Jawaban Ya/Tidak + bukti/alasan            | `saveResponse`                                 | ✅ `cycles`, `scope`, `upload`, `guards`                   |
-| KF-12 | Verifikasi LPM                             | `verifyResponse`                               | ❌ (otorisasi saja di `guards.test.ts`)                    |
-| KF-13 | RTL auditee                                | `saveRtl`                                      | ❌                                                         |
-| KF-14 | Progres unit otomatis                      | `progress.ts`                                  | ✅ `progress.test.ts`                                      |
-| KF-15 | Dashboard & analitik                       | `(dashboard)/dashboard`, `analitik`            | ❌                                                         |
-| KF-16 | Ekspor PDF + tanda tangan Ketua LPM        | `api/export`, `lib/report/*`                   | ❌ (`lib/report` dikecualikan dari coverage)               |
-| KF-17 | Pengaturan sistem                          | `actions/settings.ts`, `settings.ts`           | ✅ `settings.test.ts`                                      |
-| KF-18 | Log login & aktivitas                      | `logs.ts`                                      | ✅ `logs.test.ts`, `redact.test.ts`                        |
-| KF-19 | Privasi: consent, ekspor data, purge       | `privacy.ts`, `api/me/export`, `privacy-purge` | ✅ `privacy.test.ts`                                       |
+| Kode  | Kebutuhan (ringkas)                        | Implementasi                                                         | Uji otomatis (bukti)                                                               |
+| ----- | ------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| KF-01 | Login email + sandi, pembatas percobaan    | `actions/auth.ts`, `ratelimit.ts`                                    | ✅ `auth`, `password`, `ratelimit`; E2E `auth.spec` (prod)                         |
+| KF-02 | Login SSO UP                               | `api/sso/[...sso]`, `sso.ts`                                         | ✅ `sso.test.ts`                                                                   |
+| KF-03 | Logout & revokasi sesi                     | `logoutAction`, `session_version`                                    | ✅ `auth.test.ts`                                                                  |
+| KF-04 | Ubah kata sandi mandiri                    | `actions/profile.ts`                                                 | ✅ `password.test.ts` (kebijakan)                                                  |
+| KF-05 | CRUD siklus, satu siklus aktif             | `actions/cycles.ts`                                                  | ✅ `cycles.test.ts` (logika buka/tutup) — aksi CRUD ❌                             |
+| KF-06 | CRUD unit, kategori                        | `actions/units.ts`, `scope.ts`                                       | ⚠️ `scope.test.ts` (kategori) — aksi CRUD ❌                                       |
+| KF-07 | Akun, penempatan multi-unit, 1 Kepala Unit | `assignMember`, `syncUserAccess`                                     | ❌ (dijaga data oleh DQ-03…DQ-05)                                                  |
+| KF-08 | Ketua LPM tunggal                          | `setLpmHead`                                                         | ❌ (dijaga data oleh DQ-06)                                                        |
+| KF-09 | Repositori dokumen PDF/tautan              | `actions/documents.ts`                                               | ✅ `upload.test.ts`                                                                |
+| KF-10 | Standar & butir, cakupan all/category/unit | `actions/questions.ts`, `scope.ts`                                   | ✅ `scope.test.ts`, `questions-actions.test.ts` (Server Actions)                   |
+| KF-11 | Jawaban Ya/Tidak + bukti/alasan            | `saveResponse`                                                       | ✅ `cycles`, `scope`, `upload`, `guards`                                           |
+| KF-12 | Verifikasi LPM                             | `verifyResponse`                                                     | ❌ (otorisasi saja di `guards.test.ts`)                                            |
+| KF-13 | RTL auditee                                | `saveRtl`                                                            | ❌                                                                                 |
+| KF-14 | Progres unit otomatis                      | `progress.ts`                                                        | ✅ `progress.test.ts`                                                              |
+| KF-15 | Dashboard & analitik                       | `(dashboard)/dashboard`, `analitik`                                  | ❌                                                                                 |
+| KF-16 | Ekspor PDF + tanda tangan Ketua LPM        | `api/export`, `lib/report/*`                                         | ❌ (`lib/report` dikecualikan dari coverage)                                       |
+| KF-17 | Pengaturan sistem                          | `actions/settings.ts`, `settings.ts`                                 | ✅ `settings.test.ts`                                                              |
+| KF-18 | Log login & aktivitas                      | `logs.ts`                                                            | ✅ `logs.test.ts`, `redact.test.ts`                                                |
+| KF-19 | Privasi: consent, ekspor data, purge       | `privacy.ts`, `api/me/export`, `privacy-purge`                       | ✅ `privacy.test.ts`                                                               |
+| KF-20 | Cakupan standar (v1.2.2)                   | `createStandard`/`updateStandard`, `isScopeWithin`, `audit/page.tsx` | ✅ `questions-actions.test.ts`, `scope.test.ts`, `data-quality.test.ts` (DQ-39…41) |
 
 | Ukuran                                 | Formula                              | Target | Hasil            | Status |
 | -------------------------------------- | ------------------------------------ | ------ | ---------------- | ------ |
-| `FCp-1-G` cakupan fungsional           | 1 − (KF tidak terimplementasi / 19)  | 1,0    | **1,0** (19/19)  | ✅     |
-| `D-FCp` cakupan uji otomatis kebutuhan | KF dengan uji otomatis langsung / 19 | ≥ 0,9  | **0,68** (13/19) | ⚠️     |
+| `FCp-1-G` cakupan fungsional           | 1 − (KF tidak terimplementasi / 20)  | 1,0    | **1,0** (20/20)  | ✅     |
+| `D-FCp` cakupan uji otomatis kebutuhan | KF dengan uji otomatis langsung / 20 | ≥ 0,9  | **0,70** (14/20) | ⚠️     |
 
-Catatan: KF-19 di 01-PERANCANGAN masih tertulis "_Sedang ditambahkan_" padahal sudah terimplementasi dan teruji
-(dokumen usang — lihat §12).
+Catatan: catatan v1.0 bahwa KF-19 di 01-PERANCANGAN tertulis "_Sedang ditambahkan_" sudah tidak berlaku — 01 §3 kini
+menulis "Diterapkan (v1.1.0)".
 
 ### 3.2 Kebenaran fungsional — `FCr-1-G` _functional correctness_
 
-| Ukuran                                    | Formula                                 | Target | Hasil                                                                   | Status |
-| ----------------------------------------- | --------------------------------------- | ------ | ----------------------------------------------------------------------- | ------ |
-| `FCr-1-G` rasio uji lulus (unit)          | uji lulus / uji dijalankan              | 1,0    | **317/317** (18 berkas; 287 + 30 uji kualitas data baru)                | ✅     |
-| `FCr-1-G` rasio uji lulus (E2E)           | uji lulus / uji dijalankan              | 1,0    | **108/108** dijalankan, 27 dilewati (butuh akun uji) — 5 profil browser | ✅     |
-| `D-FCr` kebenaran aturan bisnis pada data | aturan DQ lolos (berbobot), lihat 25012 | ≥ 95%  | **98,9%** (37/38 aturan; produksi 17 Okt 2026)                          | ✅     |
+| Ukuran                                    | Formula                                 | Target | Hasil                                                                                                   | Status |
+| ----------------------------------------- | --------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------- | ------ |
+| `FCr-1-G` rasio uji lulus (unit)          | uji lulus / uji dijalankan              | 1,0    | **402/402** (23 berkas, 20 Okt 2026, pohon kerja v1.2.2 + perbaikan audit lanjutan; v1.0: 317/317)      | ✅     |
+| `FCr-1-G` rasio uji lulus (E2E)           | uji lulus / uji dijalankan              | 1,0    | **108/108** dijalankan, 27 dilewati (butuh akun uji) — 5 profil browser                                 | ✅     |
+| `D-FCr` kebenaran aturan bisnis pada data | aturan DQ lolos (berbobot), lihat 25012 | ≥ 95%  | **98,9%** (37/38 aturan; produksi 17 Okt 2026). 41 aturan sejak v1.2.2 — belum diukur ulang di produksi | ✅     |
 
 Bukti: `npx vitest run` (17 Okt 2026); E2E dari [09 §12](../09-DAFTAR-STANDAR.md); `npx tsx scripts/data-quality.ts`.
 
@@ -260,22 +265,22 @@ dan pelanggaran data pribadi**. Ukuran turunan:
 
 ## 12. Temuan & Cacat yang Teridentifikasi
 
-| No  | Temuan                                                                                                                       | Karakteristik     | Saran                                                                                                        |
-| --- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1   | `src/lib/actions/**` & `src/lib/report/**` dikecualikan dari coverage dan tanpa uji unit (KF-07/08/12/13/15/16)              | Keterpeliharaan   | Uji aksi dengan Prisma mock (pola `privacy.test.ts`), minimal `assignMember`, `setLpmHead`, `verifyResponse` |
-| 2   | `audit-workspace.tsx` 2.115 LOC / ±173 titik keputusan                                                                       | Keterpeliharaan   | Pecah per panel (Instrumen, ResponseForm, Verifikasi) menjadi berkas terpisah                                |
-| 3   | p95 via Cloudflare 470–662 ms (origin ≤ 26 ms); Lighthouse mobile 66–77                                                      | Efisiensi kinerja | Setelan Cloudflare (09 §6), ukur ulang dari luar server / PageSpeed                                          |
-| 4   | Ketersediaan tidak terukur (tanpa monitor uptime eksternal)                                                                  | Keandalan         | Pasang monitor `/api/health` 1–5 menit (04 §10)                                                              |
-| 5   | `X-Powered-By` kosong masih dikirim via Cloudflare; HSTS tanpa `preload` vs dokumen 04                                       | Keamanan          | Hapus header di IIS (`<remove name="X-Powered-By"/>`), selaraskan dokumen HSTS                               |
-| 6   | `clearBranding()` & unggah ulang branding mengosongkan/mengganti nilai Pengaturan tanpa menghapus berkas lama                | Efisiensi (data)  | Panggil `deleteUpload()` untuk nilai lama; terpantau oleh aturan DQ-29                                       |
-| 7   | 01-PERANCANGAN KF-19 masih "_Sedang ditambahkan_"; AB-24 menyebut purge "saat ada login baru" padahal kini juga tugas harian | Dokumentasi       | Perbarui 01 §3 & §9                                                                                          |
-| 8   | Rate limiter in-memory → tidak berlaku lintas instance                                                                       | Fleksibilitas     | Dokumentasikan batas 1 instance atau pindah ke store bersama bila diskalakan                                 |
+| No  | Temuan                                                                                                                                                                                                                     | Karakteristik     | Saran                                                                               |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
+| 1   | `src/lib/actions/**` & `src/lib/report/**` dikecualikan dari coverage; sebagian aksi kini diuji dengan Prisma mock (`questions-actions.test.ts`, `account-cycle-actions.test.ts`, 20 Okt 2026), KF-07/08/12/13/15/16 belum | Keterpeliharaan   | Uji aksi dengan Prisma mock, minimal `assignMember`, `setLpmHead`, `verifyResponse` |
+| 2   | `audit-workspace.tsx` 2.115 LOC / ±173 titik keputusan                                                                                                                                                                     | Keterpeliharaan   | Pecah per panel (Instrumen, ResponseForm, Verifikasi) menjadi berkas terpisah       |
+| 3   | p95 via Cloudflare 470–662 ms (origin ≤ 26 ms); Lighthouse mobile 66–77                                                                                                                                                    | Efisiensi kinerja | Setelan Cloudflare (09 §6), ukur ulang dari luar server / PageSpeed                 |
+| 4   | Ketersediaan tidak terukur (tanpa monitor uptime eksternal)                                                                                                                                                                | Keandalan         | Pasang monitor `/api/health` 1–5 menit (04 §10)                                     |
+| 5   | `X-Powered-By` kosong masih dikirim via Cloudflare; HSTS tanpa `preload` vs dokumen 04                                                                                                                                     | Keamanan          | Hapus header di IIS (`<remove name="X-Powered-By"/>`), selaraskan dokumen HSTS      |
+| 6   | `clearBranding()` & unggah ulang branding mengosongkan/mengganti nilai Pengaturan tanpa menghapus berkas lama                                                                                                              | Efisiensi (data)  | Panggil `deleteUpload()` untuk nilai lama; terpantau oleh aturan DQ-29              |
+| 7   | ~~01-PERANCANGAN KF-19 masih "_Sedang ditambahkan_"; AB-24 menyebut purge "saat ada login baru"~~ — **selesai** (diverifikasi 20 Okt 2026: KF-19 "Diterapkan (v1.1.0)", AB-24 menyebut tugas harian 02:00)                 | Dokumentasi       | —                                                                                   |
+| 8   | Rate limiter in-memory → tidak berlaku lintas instance                                                                                                                                                                     | Fleksibilitas     | Dokumentasikan batas 1 instance atau pindah ke store bersama bila diskalakan        |
 
 ## 13. Cara Mengulang Pengukuran
 
 ```bash
 npx vitest run --coverage                 # MTe-1-G (coverage src/lib), FCr-1-G
-npm run lint && npx tsc --noEmit          # MRe-2-S, MMd-1-G
+npm run lint && npm run typecheck        # MRe-2-S, MMd-1-G (tsc aplikasi + tsconfig.test.json untuk kode uji)
 npm audit --omit=dev                      # SIn-1-G
 # PTb-1-G / PTb-2-G — 30 permintaan berurutan per endpoint
 for i in $(seq 30); do curl -s -o /dev/null -w "%{time_total}\n" https://spmi.universitaspahlawan.ac.id/login; sleep 0.2; done

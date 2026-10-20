@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, unitIdsOf, isHeadOfUnit } from "@/lib/auth";
+import { isQuestionForUnit } from "@/lib/scope";
 import { PageHeader } from "@/components/ui/primitives";
 import {
   AdminAuditWorkspace,
@@ -158,6 +159,15 @@ export default async function AuditPage() {
       isHead: isHeadOfUnit(user, u.id),
     }));
 
+  // Minimisasi data (anti-kebocoran lintas unit): auditee HANYA menerima butir
+  // yang berlaku untuk unit tempatnya ditempatkan. Tanpa filter server ini,
+  // seluruh butir siklus (termasuk butir/standar khusus unit lain) ikut
+  // terkirim di payload RSC walau UI menyaringnya di klien.
+  const myQuestionRows = questionRows.filter((q) =>
+    myUnits.some((u) => isQuestionForUnit(q, u))
+  );
+  const myUnitOptions = unitOptions.filter((u) => myUnitIds.includes(u.id));
+
   const responses = await prisma.auditResponse.findMany({
     where: {
       cycleId: activeCycle.id,
@@ -174,7 +184,7 @@ export default async function AuditPage() {
       unitName: u?.name ?? "",
       unitCategory: u?.category ?? "",
       questionText:
-        questionRows.find((q) => q.id === r.auditQuestionId)?.questionText ??
+        myQuestionRows.find((q) => q.id === r.auditQuestionId)?.questionText ??
         "",
       answer: r.answer,
       evidenceFile: r.evidenceFile,
@@ -213,9 +223,9 @@ export default async function AuditPage() {
         cycleId={activeCycle.id}
         cycleName={activeCycle.name}
         myUnits={myUnits}
-        questions={questionRows}
+        questions={myQuestionRows}
         responses={responseRows}
-        units={unitOptions}
+        units={myUnitOptions}
         canEdit={canAnswer}
       />
     </div>

@@ -7,6 +7,10 @@ langsung dari [`prisma/schema.prisma`](../../prisma/schema.prisma). Dipakai seba
 | Versi dokumen | Tanggal         | Versi aplikasi | Klasifikasi      |
 | ------------- | --------------- | -------------- | ---------------- |
 | 1.0           | 17 Oktober 2026 | v1.1.3         | Dokumen Internal |
+| 1.1           | 20 Oktober 2026 | v1.2.2         | Dokumen Internal |
+
+Perubahan 1.1: cakupan standar (`audit_standards.scope_*`), unique `(cycle_id, name)` dihapus, nama constraint FK
+eksplisit (`fk_*`) — migrasi manual [`prisma/sql/2026-10-20-cakupan-standar.sql`](../../prisma/sql/2026-10-20-cakupan-standar.sql).
 
 ## Konvensi
 
@@ -32,7 +36,7 @@ langsung dari [`prisma/schema.prisma`](../../prisma/schema.prisma). Dipakai seba
 | `ResponseStatus` | `pending` (menunggu verifikasi), `verified` (terverifikasi), `revision` (perlu revisi)  | `audit_responses.status` |
 
 Nilai "enum lunak" (disimpan `VARCHAR`, divalidasi aplikasi): `unit_memberships.role` (`head`|`member`),
-`unit_progress.status` (`belum_mulai`|`mengisi`|`selesai`), `audit_questions.scope_type` (`all`|`category`|`unit`),
+`unit_progress.status` (`belum_mulai`|`mengisi`|`selesai`), `audit_questions.scope_type` & `audit_standards.scope_type` (`all`|`category`|`unit`, whitelist `SCOPE_TYPES`/`isScopeType()` di `src/lib/scope.ts`),
 `login_logs.method` (`password`|`sso`).
 
 ## Ringkasan Tabel
@@ -43,7 +47,7 @@ Nilai "enum lunak" (disimpan `VARCHAR`, divalidasi aplikasi): `unit_memberships.
 | `UnitMembership` | `unit_memberships` | Penempatan akun pada unit (rangkap jabatan) | Mengikuti akun/unit (cascade)                                                                                                                  |
 | `Unit`           | `units`            | Unit audit (prodi, biro, lembaga, …)        | Selama unit ada                                                                                                                                |
 | `AuditCycle`     | `audit_cycles`     | Periode audit mutu internal                 | Siklus + 5 tahun (usulan, akreditasi)                                                                                                          |
-| `AuditStandard`  | `audit_standards`  | Standar induk butir per siklus              | Mengikuti siklus                                                                                                                               |
+| `AuditStandard`  | `audit_standards`  | Standar induk butir per siklus + cakupan    | Mengikuti siklus                                                                                                                               |
 | `AuditQuestion`  | `audit_questions`  | Butir pertanyaan + cakupan                  | Mengikuti siklus                                                                                                                               |
 | `AuditResponse`  | `audit_responses`  | Jawaban unit, bukti, verifikasi LPM, RTL    | Siklus + 5 tahun (usulan)                                                                                                                      |
 | `UnitProgress`   | `unit_progress`    | Status pengisian unit per siklus            | Mengikuti siklus                                                                                                                               |
@@ -109,29 +113,42 @@ Nilai "enum lunak" (disimpan `VARCHAR`, divalidasi aplikasi): `unit_memberships.
 
 ## 5. `audit_standards` — Standar (`AuditStandard`)
 
-| Kolom        | Tipe         | Null | Batasan                                        | Makna                                    | DP  |
-| ------------ | ------------ | ---- | ---------------------------------------------- | ---------------------------------------- | --- |
-| `id`         | INT          | T    | PK                                             | Id standar                               | —   |
-| `cycle_id`   | INT          | T    | FK→audit_cycles (CASCADE), IDX, UQ(cycle,name) | Siklus pemilik                           | —   |
-| `name`       | VARCHAR(160) | T    | UQ(cycle,name)                                 | Nama standar, mis. "Standar Tata Pamong" | —   |
-| `order`      | INT          | T    | DEF 0                                          | Urutan tampil (baru = terakhir + 1)      | —   |
-| `created_at` | DATETIME(3)  | T    | DEF now()                                      | Dibuat                                   | —   |
-| `updated_at` | DATETIME(3)  | T    | AUTO                                           | Diubah                                   | —   |
+| Kolom            | Tipe         | Null | Batasan                                                    | Makna                                                                                                                | DP  |
+| ---------------- | ------------ | ---- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --- |
+| `id`             | INT          | T    | PK                                                         | Id standar                                                                                                           | —   |
+| `cycle_id`       | INT          | T    | FK→audit_cycles (CASCADE) `fk_audit_standards_cycle`, IDX  | Siklus pemilik                                                                                                       | —   |
+| `name`           | VARCHAR(160) | T    | — (unik per siklus + cakupan **di aplikasi**, bukan di DB) | Nama standar, mis. "Standar Tata Pamong"; nama sama boleh bila cakupannya berbeda (AB-21, DQ-41)                     | —   |
+| `order`          | INT          | T    | DEF 0                                                      | Urutan tampil (baru = terakhir + 1 **pada cakupan yang sama**)                                                       | —   |
+| `scope_type`     | VARCHAR(20)  | T    | DEF `all`                                                  | Cakupan: `all` semua unit / `category` / `unit` (AB-26, DQ-39); standar lama hasil migrasi = `all`                   | —   |
+| `scope_category` | VARCHAR(80)  | Y    |                                                            | Kategori unit bila `scope_type = category` (ejaan kanonis `CATEGORIES` atau kategori unit yang ada); selain itu NULL | —   |
+| `scope_unit_id`  | INT          | Y    | FK→units (SET NULL) `fk_audit_standards_scope_unit`, IDX   | Unit target bila `scope_type = unit`; selain itu NULL                                                                | —   |
+| `created_at`     | DATETIME(3)  | T    | DEF now()                                                  | Dibuat                                                                                                               | —   |
+| `updated_at`     | DATETIME(3)  | T    | AUTO                                                       | Diubah                                                                                                               | —   |
+
+Catatan:
+
+- Unique index `audit_standards_cycle_id_name_key (cycle_id, name)` **dihapus pada v1.2.2**. Unique index lima
+  kolom `(cycle_id, name, scope_type, scope_category, scope_unit_id)` tidak andal karena kolom nullable (di MySQL
+  `NULL ≠ NULL`), sehingga keunikan dijaga `createStandard`/`updateStandard` dengan kunci `SELECT … FOR UPDATE` dalam
+  transaksi. Penyisipan langsung via SQL/seed dapat menghasilkan duplikat → dipantau DQ-41 (RISK-REGISTER R-32).
+- Bila unit target dihapus, `scope_unit_id` menjadi NULL sementara `scope_type` tetap `unit` → standar "yatim"
+  (dideteksi DQ-39); butir di bawahnya juga tidak lagi memenuhi aturan cakupan (DQ-40).
+- Cakupan butir wajib sama atau lebih sempit dari cakupan standarnya (`isScopeWithin()`, AB-27, DQ-40).
 
 ## 6. `audit_questions` — Butir pertanyaan (`AuditQuestion`)
 
-| Kolom            | Tipe        | Null | Batasan                           | Makna                                                | DP  |
-| ---------------- | ----------- | ---- | --------------------------------- | ---------------------------------------------------- | --- |
-| `id`             | INT         | T    | PK                                | Id butir                                             | —   |
-| `cycle_id`       | INT         | T    | FK→audit_cycles (CASCADE), IDX    | Siklus (harus sama dengan siklus standarnya — DQ-16) | —   |
-| `standard_id`    | INT         | T    | FK→audit_standards (CASCADE), IDX | Standar induk                                        | —   |
-| `question_text`  | TEXT        | T    |                                   | Teks butir                                           | —   |
-| `order`          | INT         | T    | DEF 0                             | Urutan dalam standar                                 | —   |
-| `scope_type`     | VARCHAR(20) | T    | DEF `all`                         | Cakupan: `all` semua unit / `category` / `unit`      | —   |
-| `scope_category` | VARCHAR(80) | Y    |                                   | Kategori unit bila `scope_type = category`           | —   |
-| `scope_unit_id`  | INT         | Y    | FK→units (SET NULL), IDX          | Unit target bila `scope_type = unit`                 | —   |
-| `created_at`     | DATETIME(3) | T    | DEF now()                         | Dibuat                                               | —   |
-| `updated_at`     | DATETIME(3) | T    | AUTO                              | Diubah                                               | —   |
+| Kolom            | Tipe        | Null | Batasan                                                         | Makna                                                   | DP  |
+| ---------------- | ----------- | ---- | --------------------------------------------------------------- | ------------------------------------------------------- | --- |
+| `id`             | INT         | T    | PK                                                              | Id butir                                                | —   |
+| `cycle_id`       | INT         | T    | FK→audit_cycles (CASCADE) `fk_audit_questions_cycle`, IDX       | Siklus (harus sama dengan siklus standarnya — DQ-16)    | —   |
+| `standard_id`    | INT         | T    | FK→audit_standards (CASCADE) `fk_audit_questions_standard`, IDX | Standar induk (cakupan butir ⊆ cakupan standar — DQ-40) | —   |
+| `question_text`  | TEXT        | T    |                                                                 | Teks butir                                              | —   |
+| `order`          | INT         | T    | DEF 0                                                           | Urutan dalam standar                                    | —   |
+| `scope_type`     | VARCHAR(20) | T    | DEF `all`                                                       | Cakupan: `all` semua unit / `category` / `unit`         | —   |
+| `scope_category` | VARCHAR(80) | Y    |                                                                 | Kategori unit bila `scope_type = category`              | —   |
+| `scope_unit_id`  | INT         | Y    | FK→units (SET NULL) `fk_audit_questions_scope_unit`, IDX        | Unit target bila `scope_type = unit`                    | —   |
+| `created_at`     | DATETIME(3) | T    | DEF now()                                                       | Dibuat                                                  | —   |
+| `updated_at`     | DATETIME(3) | T    | AUTO                                                            | Diubah                                                  | —   |
 
 Catatan: bila unit target dihapus, `scope_unit_id` menjadi NULL sementara `scope_type` tetap `unit` → butir tidak
 berlaku bagi unit mana pun (dideteksi DQ-17).

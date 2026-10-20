@@ -7,6 +7,31 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-10-20
+
+### Security
+
+- Audit lanjutan atas kode cakupan standar (C-1…C-8, `LAPORAN_KEAMANAN.md`): ganti nama standar tidak lagi
+  mereset cakupan; butir wajib ⊆ cakupan standar (server); auditee hanya menerima butir yang berlaku (server-side);
+  nama standar unik per cakupan dengan row lock; kategori divalidasi & kanonis.
+- Visibilitas butir _fail-closed_ untuk cakupan tak dikenal.
+- Ubah kategori / hapus unit ditolak bila melanggar cakupan atau menyisakan instrumen yatim.
+
+### Fixed
+
+- Akun tidak dapat dinonaktifkan dari form ubah akun (TC-ROL-12).
+- Pesan galat bisnis kini tampil di produksi (galat dikembalikan sebagai nilai — `runAction`).
+- PDF analitik mengikuti siklus yang dipilih (HE-07).
+- Aksesibilitas: grafik Recharts tidak fokus di dalam `aria-hidden`; struktur `<dl>` profil.
+
+### Added
+
+- Suite E2E alur bisnis seluruh peran (80 test, `npm run test:e2e:flows`, hanya ke localhost).
+- Typecheck kode uji (`tsconfig.test.json`).
+- Deploy: migrasi SQL manual `prisma/sql/` otomatis — gladi pada salinan backup + perbandingan jumlah baris,
+  catatan di `shared/sql-migrations.json`, deteksi baseline.
+- Aturan kualitas data DQ-39…DQ-41 (cakupan standar). Dokumen ISO diperbarui.
+
 ## [1.2.2] - 2026-10-20
 
 ### Added
@@ -124,7 +149,8 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Puskom-UP/lpm-new/compare/v1.1.3...v1.2.0

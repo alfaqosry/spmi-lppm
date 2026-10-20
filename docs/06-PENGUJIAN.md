@@ -131,23 +131,23 @@ Isi kolom Status: ☐ belum diuji · ☑ lulus · ☒ gagal (tulis nomor isu). P
 
 ### 4.7 Audit & Verifikasi
 
-| No   | Skenario                   | Langkah                                       | Hasil yang diharapkan                                    | Status |
-| ---- | -------------------------- | --------------------------------------------- | -------------------------------------------------------- | :----: |
-| A-01 | Tambah standar             | Nama unik                                     | Tersimpan; nama duplikat dalam siklus ditolak            |   ☐    |
-| A-02 | Butir massal               | Kelola Butir → tambah 3 butir → Simpan        | 3 butir tersimpan berurutan                              |   ☐    |
-| A-03 | Cakupan kategori           | Butir cakupan "Biro"                          | Hanya unit kategori Biro yang melihatnya                 |   ☐    |
-| A-04 | Cakupan unit               | Butir cakupan 1 unit                          | Hanya unit tersebut melihatnya                           |   ☐    |
-| A-05 | Ya tanpa bukti             | Pilih Ya, tanpa berkas/tautan                 | Ditolak "wajib disertai bukti"                           |   ☐    |
-| A-06 | Tidak tanpa alasan         | Pilih Tidak tanpa alasan                      | Ditolak "wajib disertai alasan"                          |   ☐    |
-| A-07 | Ya + PDF                   | Unggah PDF valid                              | Tersimpan, status Menunggu Verifikasi                    |   ☐    |
-| A-08 | Unit orang lain            | Manipulasi `unitId` ke unit lain (DevTools)   | Ditolak "tidak memiliki akses"                           |   ☐    |
-| A-09 | Verifikasi                 | LPM pilih Terverifikasi                       | Status Terverifikasi, nama verifikator tampil            |   ☐    |
-| A-10 | Revisi tanpa catatan       | Pilih Perlu Revisi tanpa catatan              | Ditolak                                                  |   ☐    |
-| A-11 | Revisi + RTL               | LPM revisi dengan catatan; auditee isi RTL    | Catatan tampil di auditee; RTL tampil di LPM             |   ☐    |
-| A-12 | Ubah jawaban terverifikasi | Auditee ubah jawaban                          | Status kembali Menunggu Verifikasi, catatan LPM terhapus |   ☐    |
-| A-13 | Progres selesai            | Jawab semua butir relevan                     | Status unit Selesai                                      |   ☐    |
-| A-14 | Hapus standar              | Hapus standar berisi jawaban                  | Konfirmasi; butir & jawabannya terhapus                  |   ☐    |
-| A-15 | Akses bukti                | Auditee unit lain membuka URL bukti unit lain | Ditolak (401/403)                                        |   ☐    |
+| No   | Skenario                   | Langkah                                       | Hasil yang diharapkan                                                                            | Status |
+| ---- | -------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ | :----: |
+| A-01 | Tambah standar             | Nama unik per cakupan                         | Tersimpan; nama duplikat **dalam cakupan yang sama** ditolak; nama sama di cakupan lain diterima |   ☐    |
+| A-02 | Butir massal               | Kelola Butir → tambah 3 butir → Simpan        | 3 butir tersimpan berurutan                                                                      |   ☐    |
+| A-03 | Cakupan kategori           | Butir cakupan "Biro"                          | Hanya unit kategori Biro yang melihatnya                                                         |   ☐    |
+| A-04 | Cakupan unit               | Butir cakupan 1 unit                          | Hanya unit tersebut melihatnya                                                                   |   ☐    |
+| A-05 | Ya tanpa bukti             | Pilih Ya, tanpa berkas/tautan                 | Ditolak "wajib disertai bukti"                                                                   |   ☐    |
+| A-06 | Tidak tanpa alasan         | Pilih Tidak tanpa alasan                      | Ditolak "wajib disertai alasan"                                                                  |   ☐    |
+| A-07 | Ya + PDF                   | Unggah PDF valid                              | Tersimpan, status Menunggu Verifikasi                                                            |   ☐    |
+| A-08 | Unit orang lain            | Manipulasi `unitId` ke unit lain (DevTools)   | Ditolak "tidak memiliki akses"                                                                   |   ☐    |
+| A-09 | Verifikasi                 | LPM pilih Terverifikasi                       | Status Terverifikasi, nama verifikator tampil                                                    |   ☐    |
+| A-10 | Revisi tanpa catatan       | Pilih Perlu Revisi tanpa catatan              | Ditolak                                                                                          |   ☐    |
+| A-11 | Revisi + RTL               | LPM revisi dengan catatan; auditee isi RTL    | Catatan tampil di auditee; RTL tampil di LPM                                                     |   ☐    |
+| A-12 | Ubah jawaban terverifikasi | Auditee ubah jawaban                          | Status kembali Menunggu Verifikasi, catatan LPM terhapus                                         |   ☐    |
+| A-13 | Progres selesai            | Jawab semua butir relevan                     | Status unit Selesai                                                                              |   ☐    |
+| A-14 | Hapus standar              | Hapus standar berisi jawaban                  | Konfirmasi; butir & jawabannya terhapus                                                          |   ☐    |
+| A-15 | Akses bukti                | Auditee unit lain membuka URL bukti unit lain | Ditolak (401/403)                                                                                |   ☐    |
 
 ### 4.8 Analitik & Laporan PDF
 

@@ -97,16 +97,19 @@ Terima kasih.`
             {info.map((row) => {
               const Icon = row.icon;
               return (
-                <div key={row.label} className="flex items-start gap-3">
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-                  <div className="min-w-0">
-                    <dt className="text-xs uppercase tracking-wide text-slate-500">
-                      {row.label}
-                    </dt>
-                    <dd className="truncate text-sm text-slate-200">
-                      {row.value}
-                    </dd>
-                  </div>
+                // <div> hanya membungkus pasangan <dt>/<dd> (anak langsung
+                // <dl>), ikon dipindah ke dalam <dt> — axe definition-list/dlitem.
+                <div key={row.label} className="min-w-0">
+                  <dt className="flex items-center gap-3 text-xs uppercase tracking-wide text-slate-500">
+                    <Icon
+                      className="h-4 w-4 shrink-0 text-slate-500"
+                      aria-hidden="true"
+                    />
+                    {row.label}
+                  </dt>
+                  <dd className="truncate pl-7 text-sm text-slate-200">
+                    {row.value}
+                  </dd>
                 </div>
               );
             })}

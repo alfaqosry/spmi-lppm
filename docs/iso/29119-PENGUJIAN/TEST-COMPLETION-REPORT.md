@@ -1,4 +1,4 @@
-# Laporan Penyelesaian Pengujian (Test Completion Report) — SPMI v1.1.3
+# Laporan Penyelesaian Pengujian (Test Completion Report) — SPMI v1.1.3 (+ addendum v1.2.1–v1.2.2, §8)
 
 Acuan: ISO/IEC/IEEE 29119-3 §7.5. Rencana: [TEST-PLAN](TEST-PLAN.md) (TP-SPMI-1.1).
 
@@ -132,3 +132,53 @@ dengan uji regresi unit (`upload`, `guards`, `net`, `auth`, `redact`).
 
 Catatan baseline: angka di laporan ini adalah hasil v1.1.3. Pekerjaan setelahnya (mis. berkas uji tambahan di branch kerja)
 dilaporkan pada laporan penyelesaian rilis berikutnya.
+
+## 8. Addendum — v1.2.1 & v1.2.2 (20 Oktober 2026)
+
+| Item       | Keterangan                                                                                                                                                  |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identitas  | TCR-SPMI-1.2.2-ADD                                                                                                                                          |
+| Rilis      | **v1.2.1** (17 Okt 2026: seed demo dipisah ke `prisma/seed-demo.ts`) · **v1.2.2** (20 Okt 2026: cakupan standar, migrasi SQL manual)                        |
+| Basis uji  | KF-20, AB-21 (dikoreksi), AB-26…AB-29 di [01-PERANCANGAN](../../01-PERANCANGAN.md); temuan C-1…C-8 `LAPORAN_KEAMANAN.md` "Audit Lanjutan — 20 Oktober 2026" |
+| Objek uji  | Pohon kerja `main` (v1.2.2) + perbaikan keamanan audit lanjutan & perbaikan dari suite E2E alur — **belum dirilis/di-tag** pada saat laporan ini            |
+| Lingkungan | ENV-1 (unit), salinan DB produksi (gladi migrasi), mesin pengembang (pengaman seed demo dengan `DATABASE_URL` palsu)                                        |
+
+### 8.1 Hasil
+
+| Level / jenis             | Perintah / bukti                                                                                     | Hasil                                                                                                                        | Status |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Unit                      | `npx vitest run`                                                                                     | **402 lulus / 402**, 23 berkas (v1.1.3: 287/17). Baru: `questions-actions` 23, `data-quality` 36 (+6), `scope` 20 (+6), dll. | ✅     |
+| Statis                    | `npm run lint`, `npm run format:check`, `npm run typecheck`                                          | 0 galat; `typecheck` kini dua lintasan (aplikasi + `tsconfig.test.json`) — menutup C-7 / R-33 setelah dirilis                | ✅     |
+| Kualitas data (ISO 25012) | `tests/unit/data-quality.test.ts`                                                                    | 41 aturan (DQ-39…41 baru) hanya-baca; skenario cacat cakupan terdeteksi (TC-NF-14)                                           | ✅     |
+| Keselamatan migrasi skema | Gladi `prisma/sql/2026-10-20-cakupan-standar.sql` pada salinan produksi (CHANGELOG 1.2.2)            | Jumlah baris 12 tabel identik sebelum/sesudah; `prisma migrate diff` kosong (TC-NF-15)                                       | ✅     |
+| Pengaman seed demo        | `npx tsx prisma/seed-demo.ts` dengan `NODE_ENV=production` / tanpa `SEED_DEMO`                       | Keduanya ditolak exit 1 sebelum menyentuh DB (TC-SEC-13)                                                                     | ✅     |
+| E2E alur bisnis           | `npx playwright test -c playwright.flows.config.ts` (`tests/e2e/flows/**`, DB sekali pakai)          | Suite ditulis 20 Okt 2026 (TC-AUD-01, -18, -29, -33 dan alur koordinator #1–#6); hasil eksekusi belum dicatat                | ⏳     |
+| Penerapan produksi v1.2.2 | Prosedur [04 §5.1](../../04-DEPLOYMENT-IIS.md#51-perubahan-skema-basis-data-migrasi-manual) + deploy | Belum dieksekusi pada saat laporan (TC-NF-16)                                                                                | ⏳     |
+
+Cakupan setelah addendum: **148** kasus uji (64 ✅, 41 ⚠️, 42 ⏳, 1 ❌); **66** kebutuhan, 100% memiliki kasus uji, A 47%,
+A + B 79% ([TRACEABILITY §3](TRACEABILITY.md#3-ringkasan-cakupan)).
+
+### 8.2 Defect ditemukan (v1.2.2)
+
+| ID   | Defect                                                                                                        | Ditemukan oleh              | Severity | Perbaikan / status                                                                                                                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------- | --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-08 | `prisma db push` 6.19 menghasilkan `DROP FOREIGN KEY` ganda untuk perubahan cakupan standar → gagal di tengah | Gladi pada salinan produksi | S1 (ops) | Migrasi SQL manual + prosedur wajib [RENCANA-PEMELIHARAAN §4.1](../RENCANA-PEMELIHARAAN.md#41-prosedur-wajib-perubahan-skema-basis-data) (R-31) — ✅ |
+| D-09 | C-1: ubah nama standar menjadikan standar unit/kategori menjadi Umum                                          | Audit keamanan lanjutan     | S2       | Cakupan dipertahankan bila `scopeType` tidak dikirim — ✅ (TC-AUD-23)                                                                                |
+| D-10 | C-2/C-4: butir dapat berada di luar cakupan standar; `updateStandard` tanpa cek duplikat                      | Audit keamanan lanjutan     | S2       | `isScopeWithin` ditegakkan; cek duplikat & eksistensi — ✅ (TC-AUD-24…27, -34)                                                                       |
+| D-11 | C-3: `/audit` auditee memuat butir & unit lain di payload RSC                                                 | Audit keamanan lanjutan     | S2       | Filter sisi server — ✅ kode; verifikasi E2E ⏳ (TC-AUD-29)                                                                                          |
+| D-12 | C-5/C-6: race duplikat tanpa unique DB; kategori cakupan string bebas                                         | Audit keamanan lanjutan     | S3       | Kunci `FOR UPDATE`; whitelist + ejaan kanonis — ✅ (TC-AUD-22, -28, -32 ⚠️)                                                                          |
+| D-13 | C-7: `tsconfig.json` mengecualikan kode uji dari typecheck                                                    | Audit keamanan lanjutan     | S3       | `tsconfig.test.json` — ✅ (TC-NF-17)                                                                                                                 |
+
+### 8.3 Risiko residual baru
+
+R-31…R-36 di [RISK-REGISTER](../RISK-REGISTER.md): skema tanpa riwayat migrasi + cacat mesin migrasi (R-31), keunikan
+nama standar hanya di aplikasi (R-32, dipantau DQ-41), typecheck uji (R-33, sedang ditutup), perubahan kategori unit
+melanggar aturan cakupan (R-34, dipantau DQ-40), perubahan instrumen siklus nonaktif (R-35, diterima), seed demo ke DB
+produksi (R-36). RR-1 berkurang untuk standar/butir (kini diuji dengan Prisma mock).
+
+### 8.4 Rekomendasi
+
+1. Catat hasil eksekusi suite `tests/e2e/flows/**` (5 profil atau minimal chromium) sebelum men-tag rilis perbaikan.
+2. Terapkan v1.2.2 ke produksi **hanya** dengan prosedur §4.1/04 §5.1 (SQL manual sebelum `deploy-production.ps1`),
+   lalu jalankan `scripts/data-quality.ts` dan perbarui [25012 §4](../25012-KUALITAS-DATA.md) dengan 41 aturan.
+3. Tag rilis berikutnya (perbaikan C-1…C-7) setelah butir 1 lulus.

@@ -7,6 +7,7 @@ Kebun Raya) pada **Sistem Informasi SPMI — LPM Universitas Pahlawan Tuanku Tam
 | Versi dokumen | Tanggal         | Versi aplikasi | Klasifikasi      |
 | ------------- | --------------- | -------------- | ---------------- |
 | 1.0           | 17 Oktober 2026 | v1.1.3         | Dokumen Internal |
+| 1.1           | 20 Oktober 2026 | v1.2.2         | Dokumen Internal |
 
 Keterangan: ✅ terpenuhi · ⚠️ terpenuhi sebagian (lihat catatan) · ⏳ menunggu tindakan di luar kode
 (keputusan/akses/perangkat) · ❌ belum terpenuhi · N/A tidak berlaku untuk SPMI.
@@ -26,7 +27,7 @@ Keterangan: ✅ terpenuhi · ⚠️ terpenuhi sebagian (lihat catatan) · ⏳ me
 | 9   | Standar penulisan kode           | ESLint + Prettier + TypeScript               | ✅ dicek hook & CI                                                     |
 | 10  | Arsitektur perangkat lunak       | Layered (Page → Server Action → lib), ADR    | ✅ terdokumentasi                                                      |
 | 11  | Manajemen repositori             | Git Flow, Conventional Commits, SemVer       | ✅; ⏳ push ke GitHub & proteksi branch                                |
-| 12  | Pengujian                        | Unit, E2E lintas browser, a11y               | ✅ 287 unit + 108 E2E lulus                                            |
+| 12  | Pengujian                        | Unit, E2E lintas browser, a11y               | ✅ 402 unit (v1.2.2 + perbaikan, 20 Okt 2026) + 108 E2E lulus (v1.1.3) |
 | 13  | CI/CD                            | GitHub Actions, deploy bergerbang + rollback | ✅ deploy; ⏳ CI aktif setelah push                                    |
 | 14  | Manajemen lingkungan             | 12-Factor (Config), Dev/Staging/Prod         | ⚠️ Dev + Prod; ⏳ staging belum ada                                    |
 | 15  | Kompatibilitas browser/perangkat | Chrome, Edge, Firefox, Safari, 320 px        | ✅ Playwright 5 profil; ⏳ uji iOS perangkat asli                      |
@@ -177,28 +178,29 @@ N/A — tidak ada aplikasi mobile.
 | [x] Alur branch Git Flow                 | `main` (produksi), `develop` (integrasi); rilis via merge `--no-ff` + tag |
 | [x] Conventional Commits divalidasi hook | `scripts/hooks/commit-msg` (`npm run hooks:install`)                      |
 | [x] Pre-commit cek format/lint           | `scripts/hooks/pre-commit`                                                |
-| [x] Tag SemVer                           | `v1.0.0`, `v1.1.0` … `v1.1.3`; [CHANGELOG](../CHANGELOG.md)               |
+| [x] Tag SemVer                           | `v1.0.0`, `v1.1.0` … `v1.2.2`; [CHANGELOG](../CHANGELOG.md)               |
 | [x] Template PR & issue, CONTRIBUTING    | `.github/`, `CONTRIBUTING.md`                                             |
 | [ ] Push branch & tag ke GitHub          | ⏳ Belum di-push (menunggu persetujuan)                                   |
 | [ ] Proteksi branch di server Git        | ⏳ Konvensi tim (GitHub Free tidak mendukung untuk repo privat)           |
 
 ## 12. Pengujian
 
-| Jenis                                 | Alat                      | Hasil (SPMI)                                                                                      |
-| ------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------- |
-| [x] Unit                              | Vitest                    | **287 test / 17 berkas lulus** (upload, password, ratelimit, net, redact, auth, guards, privacy…) |
-| [x] End-to-End lintas browser         | Playwright                | **108 lulus**, 27 dilewati (butuh akun) — Chromium, Firefox, WebKit, Pixel 7, iPhone 14           |
-| [x] Alur login nyata di produksi      | Playwright `auth.spec.ts` | 4/4 lulus (HTTPS produksi, 17 Okt 2026)                                                           |
-| [x] Aksesibilitas otomatis            | axe-core                  | 0 pelanggaran (login, login+error, 320 px, 404, halaman legal)                                    |
-| [x] Test regresi temuan keamanan      | Vitest                    | upload/IDOR/IP/sesi/redaksi/guard tercakup                                                        |
-| [x] Data uji terisolasi dari produksi | MySQL sekali-pakai        | E2E memakai kontainer DB terpisah; tidak ada data uji di produksi                                 |
-| [x] Checklist UAT                     | Dokumen                   | [06-PENGUJIAN](06-PENGUJIAN.md)                                                                   |
+| Jenis                                 | Alat                      | Hasil (SPMI)                                                                                                                     |
+| ------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [x] Unit                              | Vitest                    | **402 test / 23 berkas lulus** (20 Okt 2026; v1.1.3: 287/17) — termasuk `questions-actions`, `data-quality` (41 aturan), `scope` |
+| [x] End-to-End lintas browser         | Playwright                | **108 lulus**, 27 dilewati (butuh akun) — Chromium, Firefox, WebKit, Pixel 7, iPhone 14                                          |
+| [x] Alur login nyata di produksi      | Playwright `auth.spec.ts` | 4/4 lulus (HTTPS produksi, 17 Okt 2026)                                                                                          |
+| [x] Aksesibilitas otomatis            | axe-core                  | 0 pelanggaran (login, login+error, 320 px, 404, halaman legal)                                                                   |
+| [x] Test regresi temuan keamanan      | Vitest                    | upload/IDOR/IP/sesi/redaksi/guard tercakup                                                                                       |
+| [x] Data uji terisolasi dari produksi | MySQL sekali-pakai        | E2E memakai kontainer DB terpisah; tidak ada data uji di produksi                                                                |
+| [x] Checklist UAT                     | Dokumen                   | [06-PENGUJIAN](06-PENGUJIAN.md)                                                                                                  |
 
 ## 13. CI/CD
 
 - [x] CI saat push/PR: lint, format, typecheck, unit test, `npm audit`, build (`.github/workflows/ci.yml`) — ⏳ aktif setelah push
 - [x] E2E sebagai workflow terpisah (manual + terjadwal; `.github/workflows/e2e.yml`)
 - [x] Deploy produksi melalui skrip: worktree bersih → **gerbang test** → build standalone → **backup** → **maintenance 503** → `prisma db push` → aktivasi rilis atomik (junction) → PM2 → **smoke test** → **rollback otomatis** bila gagal
+- [x] Perubahan skema yang tidak dapat ditangani `db push`: SQL manual ber-versi `prisma/sql/`, digladikan pada salinan produksi (jumlah baris 12 tabel identik, `migrate diff` kosong) dan diterapkan **sebelum** skrip deploy — [RENCANA-PEMELIHARAAN §4.1](iso/RENCANA-PEMELIHARAAN.md#41-prosedur-wajib-perubahan-skema-basis-data), [04 §5.1](04-DEPLOYMENT-IIS.md#51-perubahan-skema-basis-data-migrasi-manual) (⏳ belum diotomasi di skrip deploy)
 - [x] Log deploy & backup bertanggal (`E:\www\spmi-prod\logs\deploy-<ts>.log`)
 
 **Penerapan:** `scripts/deploy/deploy-production.ps1`, `rollback.ps1`, `smoke-test.ps1`, `lib-db.ps1`.
@@ -206,13 +208,13 @@ Rollback otomatis telah teruji pada insiden nyata 17 Okt 2026 dan diperkuat di v
 
 ## 14. Manajemen Lingkungan
 
-| Kriteria                                  | Development              | Staging | Production                                |
-| ----------------------------------------- | ------------------------ | ------- | ----------------------------------------- |
-| [x] Lingkungan terpisah (kode, DB, kunci) | Lokal (`docker-compose`) | —       | IIS site 67, DB `spmi-db` 127.0.0.1:33063 |
-| [x] Konfigurasi via env, bukan kode       | `.env`                   | —       | `shared\.env` (di luar rilis)             |
-| [x] Debug mati di luar development        | `next dev`               | —       | `NODE_ENV=production`                     |
-| [x] Data demo hanya non-produksi          | seed                     | —       | Data asli; hanya 2 akun awal              |
-| [ ] Lingkungan staging                    | —                        | ⏳      | —                                         |
+| Kriteria                                  | Development                                                           | Staging | Production                                                             |
+| ----------------------------------------- | --------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------- |
+| [x] Lingkungan terpisah (kode, DB, kunci) | Lokal (`docker-compose`)                                              | —       | IIS site 67, DB `spmi-db` 127.0.0.1:33063                              |
+| [x] Konfigurasi via env, bukan kode       | `.env`                                                                | —       | `shared\.env` (di luar rilis)                                          |
+| [x] Debug mati di luar development        | `next dev`                                                            | —       | `NODE_ENV=production`                                                  |
+| [x] Data demo hanya non-produksi          | `SEED_DEMO=true npm run db:seed:demo` (`prisma/seed-demo.ts`, v1.2.1) | —       | Ditolak bila `NODE_ENV=production`; `npm run db:seed` = akun awal saja |
+| [ ] Lingkungan staging                    | —                                                                     | ⏳      | —                                                                      |
 
 ## 15. Kompatibilitas Browser & Platform
 

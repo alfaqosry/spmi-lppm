@@ -71,6 +71,7 @@ export function DashboardCharts({
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
+            accessibilityLayer={false}
             data={categoryData}
             margin={{ top: 6, right: 8, left: -18, bottom: 0 }}
           >
@@ -121,8 +122,9 @@ export function DashboardCharts({
         rows={asRows(statusData)}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          <PieChart accessibilityLayer={false}>
             <Pie
+              rootTabIndex={-1}
               data={statusData}
               dataKey="value"
               nameKey="name"
@@ -148,8 +150,9 @@ export function DashboardCharts({
         rows={asRows(answerData)}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          <PieChart accessibilityLayer={false}>
             <Pie
+              rootTabIndex={-1}
               data={answerData}
               dataKey="value"
               nameKey="name"
@@ -174,7 +177,11 @@ export function DashboardCharts({
         rows={asRows(verificationData)}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={verificationData} outerRadius="70%">
+          <RadarChart
+            accessibilityLayer={false}
+            data={verificationData}
+            outerRadius="70%"
+          >
             <PolarGrid stroke={GRID} />
             <PolarAngleAxis dataKey="name" tick={TICK} />
             <Radar
