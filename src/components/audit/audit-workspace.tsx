@@ -989,8 +989,16 @@ function InlineStandardForm({
           {scope && (
             <>
               <input type="hidden" name="scopeType" value={scope.scopeType} />
-              <input type="hidden" name="scopeCategory" value={scope.scopeCategory} />
-              <input type="hidden" name="scopeUnitId" value={scope.scopeUnitId} />
+              <input
+                type="hidden"
+                name="scopeCategory"
+                value={scope.scopeCategory}
+              />
+              <input
+                type="hidden"
+                name="scopeUnitId"
+                value={scope.scopeUnitId}
+              />
             </>
           )}
         </>
