@@ -11,7 +11,16 @@ test.describe("Alur terautentikasi", () => {
   // Hindari memicu pembatas laju login dengan terlalu banyak worker paralel.
   test.describe.configure({ mode: "serial" });
 
+  // Header Set-Cookie sesi dari server (sumber kebenaran atribut cookie; tidak
+  // bergantung pada cara tiap browser menyimpan cookie Secure di http://127.0.0.1).
+  let sessionSetCookie: string | null = null;
+
   test.beforeEach(async ({ page }) => {
+    sessionSetCookie = null;
+    page.on("response", async (res) => {
+      const v = await res.headerValue("set-cookie").catch(() => null);
+      if (v && /lpm_session=[^;]+/.test(v)) sessionSetCookie = v;
+    });
     await page.goto("/login");
     await page
       .getByRole("textbox", { name: /^Email/ })
@@ -28,12 +37,16 @@ test.describe("Alur terautentikasi", () => {
     await expect(page.locator("h1").first()).toBeVisible();
   });
 
-  test("cookie sesi bersifat httpOnly", async ({ context }) => {
-    const cookies = await context.cookies();
-    const session = cookies.find((c) => /lpm_session/.test(c.name));
-    expect(session, "cookie sesi").toBeDefined();
-    expect(session!.httpOnly).toBe(true);
-    expect(session!.sameSite).toBe("Lax");
+  test("cookie sesi bersifat httpOnly", async () => {
+    expect(sessionSetCookie, "Set-Cookie sesi saat login").not.toBeNull();
+    const header = sessionSetCookie!;
+    expect(header).toMatch(/;\s*HttpOnly/i);
+    expect(header).toMatch(/;\s*SameSite=Lax/i);
+    expect(header).toMatch(/;\s*Path=\//i);
+    // Build produksi: prefix __Host- mewajibkan Secure.
+    if (/__Host-lpm_session=/.test(header)) {
+      expect(header).toMatch(/;\s*Secure/i);
+    }
   });
 
   test("halaman /login mengarahkan pengguna yang sudah masuk", async ({
