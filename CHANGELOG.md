@@ -7,6 +7,19 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-10-21
+
+### Fixed
+
+- Aksesibilitas (WCAG 2.1.1, axe `scrollable-region-focusable`): tabel lebar di layar sempit kini
+  dibungkus `ScrollRegion` berlabel yang dapat difokus keyboard (dashboard, analitik, akun, log).
+- CI E2E: suite alur bisnis dipisah dari suite default + job `flows` tersendiri; `APP_URL` http untuk
+  server uji (WebKit/iPhone).
+
+### Added
+
+- Git hooks terpasang otomatis lewat `npm prepare`.
+
 ## [1.2.3] - 2026-10-20
 
 ### Security
@@ -149,7 +162,8 @@ dan proyek ini menganut [Semantic Versioning](https://semver.org/lang/id/).
 
 - Rilis awal Sistem Informasi SPMI.
 
-[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.3...HEAD
+[Unreleased]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.4...HEAD
+[1.2.4]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Puskom-UP/lpm-new/compare/v1.2.0...v1.2.1
