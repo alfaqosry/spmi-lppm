@@ -136,3 +136,105 @@ jobs:
             test-results/
           retention-days: 14
           if-no-files-found: ignore
+
+  flows:
+    # Uji alur bisnis seluruh peran (tests/e2e/flows, 80 uji). Destruktif — hanya ke
+    # server lokal sekali-pakai di runner. Cookie sesi produksi (Secure/__Host-) diterima
+    # browser pada http://localhost karena localhost dianggap konteks aman.
+    name: Playwright alur bisnis (flows)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      E2E_BASE_URL: "http://localhost:3097"
+      APP_URL: "http://localhost:3097"
+      PORT: "3097"
+      HOSTNAME: "0.0.0.0"
+      E2E_SUPERADMIN_EMAIL: "superadmin@e2e.test"
+      E2E_SUPERADMIN_PASSWORD: "SuperE2e-${{ github.run_id }}x9"
+      E2E_ADMIN2_EMAIL: "admin2@e2e.test"
+      E2E_ADMIN2_PASSWORD: "AdminE2e-${{ github.run_id }}x9"
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lpm_spmi_e2e
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate + db push
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+
+      - name: Seed demo + akun uji
+        # Seed demo menghapus semua data lalu mengisi contoh; lalu akun superadmin/admin uji.
+        run: |
+          SEED_DEMO=true npm run db:seed:demo
+          npm run db:seed
+        env:
+          SEED_SUPERADMIN_EMAIL: ${{ env.E2E_SUPERADMIN_EMAIL }}
+          SEED_SUPERADMIN_PASSWORD: ${{ env.E2E_SUPERADMIN_PASSWORD }}
+          SEED_ADMIN_EMAIL: ${{ env.E2E_ADMIN2_EMAIL }}
+          SEED_ADMIN_PASSWORD: ${{ env.E2E_ADMIN2_PASSWORD }}
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start server (standalone)
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          mkdir -p storage/uploads
+          nohup node .next/standalone/server.js > server-flows.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null "$E2E_BASE_URL/api/health"; then
+              echo "Server siap."; exit 0
+            fi
+            sleep 2
+          done
+          echo "Server tidak merespons." >&2
+          cat server-flows.log >&2
+          exit 1
+        env:
+          NODE_ENV: production
+          UPLOAD_DIR: ${{ github.workspace }}/storage/uploads
+
+      - name: Run flows
+        run: npm run test:e2e:flows
+
+      - name: Server log
+        if: failure()
+        run: cat server-flows.log || true
+
+      - name: Upload laporan flows
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-flows
+          path: |
+            playwright-report/flows/
+            test-results/flows/
+          retention-days: 14
+          if-no-files-found: ignore

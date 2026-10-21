@@ -21,6 +21,9 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Suite alur bisnis (destruktif, butuh seed demo & sesi per peran) punya konfigurasi
+  // sendiri: playwright.flows.config.ts — jangan ikut dijalankan suite default.
+  testIgnore: ["**/flows/**"],
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
