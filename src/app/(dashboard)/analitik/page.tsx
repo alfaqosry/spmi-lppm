@@ -15,6 +15,7 @@ import { CycleSelect } from "@/components/analytics/cycle-select";
 import { percent, STATUS_LABEL, STATUS_STYLE } from "@/lib/format";
 import { isQuestionForUnit } from "@/lib/scope";
 import { CheckCircle2, FileWarning, Percent, Users } from "lucide-react";
+import { ScrollRegion } from "@/components/ui/scroll-region";
 
 export const metadata: Metadata = {
   title: "Analitik & Laporan",
@@ -231,7 +232,7 @@ export default async function AnalitikPage({
           </h2>
           <p className="text-xs text-slate-400">{cycle.name}</p>
         </div>
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabel rekapitulasi kepatuhan per unit">
           <table className="w-full min-w-[720px] text-left text-sm">
             <caption className="sr-only">
               Rekapitulasi kepatuhan per unit — {cycle.name}
@@ -321,7 +322,7 @@ export default async function AnalitikPage({
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       </div>
     </div>
   );

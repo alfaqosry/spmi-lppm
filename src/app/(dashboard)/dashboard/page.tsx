@@ -23,6 +23,7 @@ import {
   describeDeadline,
   type DeadlineInfo,
 } from "@/components/dashboard/deadline";
+import { ScrollRegion } from "@/components/ui/scroll-region";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -227,7 +228,7 @@ export default async function DashboardPage() {
             Pelacakan real-time status pengisian audit setiap unit.
           </p>
         </div>
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabel progres pengisian per unit">
           <table className="w-full min-w-[640px] text-left text-sm">
             <caption className="sr-only">
               Progres pengisian audit per unit
@@ -283,7 +284,7 @@ export default async function DashboardPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       </div>
     </div>
   );

@@ -40,6 +40,7 @@ import { ConfirmAction } from "@/components/ui/confirm-dialog";
 import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_HINT } from "@/lib/password";
 import { ROLE_LABEL } from "@/lib/format";
 import type { UnitRow } from "@/components/units/unit-manager";
+import { ScrollRegion } from "@/components/ui/scroll-region";
 
 type Role =
   | "superadmin"
@@ -287,7 +288,7 @@ export function AccountManager({
         {filtered.length} akun ditampilkan.
       </p>
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabel daftar akun pengguna">
           <table className="w-full min-w-[760px] text-left text-sm">
             <caption className="sr-only">Daftar akun pengguna</caption>
             <thead>
@@ -404,7 +405,7 @@ export function AccountManager({
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       </div>
 
       {/* Penempatan per unit */}

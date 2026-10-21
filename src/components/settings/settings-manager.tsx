@@ -33,6 +33,7 @@ import {
   type ActionState,
 } from "@/lib/actions/settings";
 import type { LoginLogRow, ActivityLogRow } from "@/components/settings/types";
+import { ScrollRegion } from "@/components/ui/scroll-region";
 
 type Tab =
   "identity" | "logs" | "sso" | "security" | "maintenance" | "superadmin";
@@ -672,7 +673,10 @@ function LogTable({
   empty: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-600/30">
+    <ScrollRegion
+      label={caption}
+      className="rounded-xl border border-slate-600/30"
+    >
       <table className="w-full min-w-[640px] text-left text-xs">
         <caption className="sr-only">{caption}</caption>
         <thead>
@@ -706,7 +710,7 @@ function LogTable({
           )}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   );
 }
 
