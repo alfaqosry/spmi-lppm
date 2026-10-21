@@ -35,6 +35,8 @@ export default defineConfig({
     : [["list"], ["html", { open: "never" }]],
   use: {
     baseURL,
+    // CI menguji lewat proxy HTTPS bersertifikat sementara (scripts/ci/https-proxy.cjs).
+    ignoreHTTPSErrors: process.env.E2E_IGNORE_HTTPS_ERRORS === "1",
     locale: "id-ID",
     timezoneId: "Asia/Jakarta",
     trace: "on-first-retry",

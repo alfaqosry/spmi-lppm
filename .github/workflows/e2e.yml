@@ -32,10 +32,11 @@ env:
   SEED_ADMIN_PASSWORD: "E2eAdmin-${{ github.run_id }}x9"
   E2E_EMAIL: "admin.e2e@example.test"
   E2E_PASSWORD: "E2eAdmin-${{ github.run_id }}x9"
-  E2E_BASE_URL: "http://127.0.0.1:3002"
-  # Server uji dilayani lewat http: tanpa ini CSP mengirim upgrade-insecure-requests dan
-  # WebKit (iPhone) meng-upgrade POST login ke https://127.0.0.1 sehingga gagal.
-  APP_URL: "http://127.0.0.1:3002"
+  # Uji lewat proxy HTTPS (sertifikat sementara) seperti produksi: WebKit/Safari tidak pernah
+  # menyimpan cookie sesi Secure/__Host- dari server http. Lihat scripts/ci/https-proxy.cjs.
+  E2E_BASE_URL: "https://localhost:3443"
+  APP_URL: "https://localhost:3443"
+  E2E_IGNORE_HTTPS_ERRORS: "1"
   PORT: "3002"
   HOSTNAME: "127.0.0.1"
 
@@ -102,14 +103,17 @@ jobs:
           cp -r public .next/standalone/public
           mkdir -p storage/uploads
           nohup node .next/standalone/server.js > server.log 2>&1 &
+          # Sertifikat sementara untuk proxy HTTPS (hanya runner ini).
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=localhost"             -keyout "$RUNNER_TEMP/key.pem" -out "$RUNNER_TEMP/cert.pem" 2>/dev/null
+          nohup node scripts/ci/https-proxy.cjs "$RUNNER_TEMP/cert.pem" "$RUNNER_TEMP/key.pem" 3443 http://127.0.0.1:3002 > proxy.log 2>&1 &
           for i in $(seq 1 60); do
-            if curl -fsS -o /dev/null "$E2E_BASE_URL/login"; then
-              echo "Server siap."; exit 0
+            if curl -fsSk -o /dev/null "$E2E_BASE_URL/login"; then
+              echo "Server siap (via HTTPS)."; exit 0
             fi
             sleep 2
           done
           echo "Server tidak merespons." >&2
-          cat server.log >&2
+          cat server.log proxy.log >&2
           exit 1
         env:
           NODE_ENV: production
@@ -127,7 +131,7 @@ jobs:
 
       - name: Server log
         if: failure()
-        run: cat server.log || true
+        run: cat server.log proxy.log || true
 
       - name: Upload Playwright report
         if: always()
