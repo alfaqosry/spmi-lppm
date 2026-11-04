@@ -89,6 +89,30 @@ async function main() {
     console.log(`✅ Admin LPM dibuat: ${mask(adEmail)}`);
   }
 
+  // Akun admin LPM tambahan (opsional). Kredensial dibaca dari environment
+  // variable agar tidak ada kata sandi yang tersimpan di dalam repo:
+  //   SEED_EXTRA_ADMIN_EMAIL, SEED_EXTRA_ADMIN_PASSWORD
+  const extraEmail = process.env.SEED_EXTRA_ADMIN_EMAIL;
+  const extraPass = process.env.SEED_EXTRA_ADMIN_PASSWORD;
+  if (extraEmail && extraPass) {
+    const extraErr = validatePassword(extraPass, { email: extraEmail });
+    if (extraErr) {
+      console.error(`❌ SEED_EXTRA_ADMIN_PASSWORD tidak valid: ${extraErr}`);
+    } else {
+      await prisma.user.upsert({
+        where: { email: extraEmail },
+        update: {},
+        create: {
+          name: process.env.SEED_EXTRA_ADMIN_NAME || "Admin LPM Tambahan",
+          email: extraEmail,
+          password: await bcrypt.hash(extraPass, 10),
+          role: "lpm_admin",
+        },
+      });
+      console.log(`✅ Admin LPM tambahan dibuat: ${mask(extraEmail)}`);
+    }
+  }
+
   console.log("⚠️  Silakan login dan ganti kata sandi kedua akun segera.");
 }
 

@@ -26,3 +26,6 @@ blob-report/
 
 # private upload storage (dev)
 /storage/
+
+# agent scratch (bukan kode proyek)
+src/brain/

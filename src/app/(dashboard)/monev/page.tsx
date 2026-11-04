@@ -1,38 +1,49 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Activity, Construction } from "lucide-react";
+import { Activity } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/primitives";
+import { MonevStats } from "@/app/(dashboard)/components/monev-stats";
+import { fetchExternal } from "@/app/api/wsstatistik/utils";
 
 export const metadata: Metadata = {
   title: "Monitoring & Evaluasi",
   description: "Modul monitoring dan evaluasi (monev) SPMI.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function MonevPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  const semester = await fetchExternal("semester");
+  const daftar: any[] = Array.isArray((semester as any)?.data)
+    ? (semester as any).data
+    : [];
+  const aktif =
+    daftar.find((s) => s?.aktif) ?? daftar.find((s) => s?.tersedia) ?? daftar[0];
+  const idSmt = String(aktif?.id_smt ?? "");
+
+  const [tabmhs, tabmhspro, tabmhsunit, tabdosen] = await Promise.all([
+    fetchExternal("tabmhs", { id_smt: idSmt }),
+    fetchExternal("tabmhspro", { id_smt: idSmt }),
+    fetchExternal("tabmhsunit", { id_smt: idSmt }),
+    fetchExternal("tabdosen", { id_smt: idSmt }),
+  ]);
+
   return (
-    <div>
+    <div className="p-6">
       <PageHeader
         icon={Activity}
         title="Monitoring & Evaluasi (Monev)"
-        description="Modul ini disiapkan sebagai placeholder untuk integrasi API di masa mendatang."
+        description="Statistik kuesioner per semester, lengkap dengan grafik dan rincian per dosen."
       />
-      <div className="card flex flex-col items-center justify-center px-6 py-20 text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-500/10 text-amber-300">
-          <Construction className="h-7 w-7" />
-        </div>
-        <h2 className="text-base font-semibold text-white">Segera Hadir</h2>
-        <p className="mt-2 max-w-md text-sm text-slate-400">
-          Menu Monev akan diintegrasikan dengan API eksternal pada tahap
-          pengembangan berikutnya. Untuk saat ini, silakan gunakan menu{" "}
-          <span className="text-indigo-300">Dashboard</span> dan{" "}
-          <span className="text-indigo-300">Audit &amp; Verifikasi</span> untuk
-          memantau progres audit.
-        </p>
-      </div>
+      <MonevStats
+        semester={semester}
+        initialIdSmt={idSmt}
+        initialBundle={{ tabdosen, tabmhs, tabmhspro, tabmhsunit }}
+      />
     </div>
   );
 }
