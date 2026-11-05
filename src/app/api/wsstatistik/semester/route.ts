@@ -1,11 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { fetchExternal } from "../utils";
+import type { SemesterPayload } from "@/lib/monev-types";
 
-export async function GET(request: Request) {
-  const externalUrl = 'http://kuesioner.universitaspahlawan.ac.id/wsstatistik/semester';
-  const response = await fetch(externalUrl);
-  if (!response.ok) {
-    return NextResponse.json({ error: 'Failed to fetch semester data' }, { status: 502 });
+export async function GET() {
+  const data = await fetchExternal<SemesterPayload>("semester");
+  if (!data) {
+    return NextResponse.json(
+      { error: "Failed to fetch semester data" },
+      { status: 502 }
+    );
   }
-  const data = await response.json();
   return NextResponse.json(data);
 }

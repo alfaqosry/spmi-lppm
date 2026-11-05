@@ -16,11 +16,30 @@ const num = (v: unknown) => {
 };
 
 const predikatOf = (n: number) => {
-  if (n >= 4.5) return { label: "Sangat Baik", cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-300" };
-  if (n >= 3.5) return { label: "Baik", cls: "border-indigo-400/30 bg-indigo-500/15 text-indigo-300" };
-  if (n >= 2.5) return { label: "Cukup Baik", cls: "border-amber-400/30 bg-amber-500/15 text-amber-300" };
-  if (n >= 1.5) return { label: "Kurang", cls: "border-rose-400/30 bg-rose-500/15 text-rose-300" };
-  return { label: "Sangat Kurang", cls: "border-rose-400/30 bg-rose-500/15 text-rose-300" };
+  if (n >= 4.5)
+    return {
+      label: "Sangat Baik",
+      cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-300",
+    };
+  if (n >= 3.5)
+    return {
+      label: "Baik",
+      cls: "border-indigo-400/30 bg-indigo-500/15 text-indigo-300",
+    };
+  if (n >= 2.5)
+    return {
+      label: "Cukup Baik",
+      cls: "border-amber-400/30 bg-amber-500/15 text-amber-300",
+    };
+  if (n >= 1.5)
+    return {
+      label: "Kurang",
+      cls: "border-rose-400/30 bg-rose-500/15 text-rose-300",
+    };
+  return {
+    label: "Sangat Kurang",
+    cls: "border-rose-400/30 bg-rose-500/15 text-rose-300",
+  };
 };
 
 export function DosenDetailModal({
@@ -34,21 +53,35 @@ export function DosenDetailModal({
   nilai?: number;
   onClose: () => void;
 }) {
-  const [rows, setRows] = useState<Responden[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /**
+   * Hasil muat disimpan bersama idptk-nya: saat dosen berganti, data lama
+   * otomatis tidak dipakai tanpa perlu reset lewat setState di body effect.
+   */
+  const [hasil, setHasil] = useState<{
+    idptk: string;
+    rows: Responden[];
+    error: string | null;
+  } | null>(null);
+
+  const pakaiHasil = hasil?.idptk === idptk;
+  const rows = pakaiHasil ? hasil.rows : null;
+  const error = pakaiHasil ? hasil.error : null;
 
   useEffect(() => {
     let alive = true;
-    setRows(null);
-    setError(null);
     fetch(`/api/wsstatistik/responden?idptk=${encodeURIComponent(idptk)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("gagal"))))
       .then((d) => {
         if (!alive) return;
-        setRows(Array.isArray(d) ? d : []);
+        setHasil({ idptk, rows: Array.isArray(d) ? d : [], error: null });
       })
       .catch(() => {
-        if (alive) setError("Gagal memuat detail jawaban dosen.");
+        if (alive)
+          setHasil({
+            idptk,
+            rows: [],
+            error: "Gagal memuat detail jawaban dosen.",
+          });
       });
     return () => {
       alive = false;
@@ -89,16 +122,21 @@ export function DosenDetailModal({
   const pred = predikatOf(overall);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="dosen-detail-title"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
+      {/* Latar gelap sebagai tombol: bisa ditutup dengan klik. Dikeluarkan dari
+          urutan Tab karena Esc dan tombol X sudah menjadi jalur keyboard. */}
+      <button
+        type="button"
+        onClick={onClose}
+        tabIndex={-1}
+        aria-label="Tutup detail dosen dengan mengklik latar"
+        className="absolute inset-0 h-full w-full cursor-default bg-slate-950/70 backdrop-blur-sm"
+      />
       <div
-        className="surface-modal flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-indigo-400/20 shadow-2xl sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dosen-detail-title"
+        className="surface-modal relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-indigo-400/20 shadow-2xl sm:rounded-2xl"
       >
         {/* Header */}
         <div className="flex items-start gap-3 border-b border-slate-700/50 p-4 sm:p-5">
@@ -113,7 +151,8 @@ export function DosenDetailModal({
               {nama}
             </h2>
             <p className="mt-0.5 text-xs text-slate-400">
-              NIDN/NIDK: {idptk} · {rows ? `${rows.length} butir penilaian` : "memuat…"}
+              NIDN/NIDK: {idptk} ·{" "}
+              {rows ? `${rows.length} butir penilaian` : "memuat…"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -148,7 +187,10 @@ export function DosenDetailModal({
 
           {!rows && !error && (
             <div className="flex flex-col items-center justify-center gap-2 py-14 text-slate-400">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-400" aria-hidden="true" />
+              <Loader2
+                className="h-6 w-6 animate-spin text-indigo-400"
+                aria-hidden="true"
+              />
               <p className="text-xs">Memuat detail jawaban…</p>
             </div>
           )}
@@ -198,7 +240,9 @@ export function DosenDetailModal({
                           <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-700/60">
                             <div
                               className="h-full rounded-full bg-indigo-400"
-                              style={{ width: `${Math.min(100, (v / 5) * 100)}%` }}
+                              style={{
+                                width: `${Math.min(100, (v / 5) * 100)}%`,
+                              }}
                             />
                           </div>
                         </li>
