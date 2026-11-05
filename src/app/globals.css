@@ -429,3 +429,21 @@ select.input-base option {
   border-radius: 0.75rem;
   animation: shimmer 1.4s ease-in-out infinite;
 }
+
+/* ---------------------------------------------------------------------
+   Tabel aksesibilitas Recharts.
+   Recharts menyisipkan <table class="sr-only"> berisi ringkasan data untuk
+   pembaca layar. Karena <table> tidak bisa menyusut selebar 1px, kelas
+   sr-only bawaan membuat halaman melebar di layar kecil (scroll horizontal).
+   Aturan ini mengurung tabel tersebut agar tidak memengaruhi layout.
+   --------------------------------------------------------------------- */
+table.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  max-width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  table-layout: fixed !important;
+}

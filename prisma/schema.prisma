@@ -44,11 +44,11 @@ model AuditCycle {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  documents      Document[]
-  standards      AuditStandard[]
-  questions      AuditQuestion[]
-  responses      AuditResponse[]
-  progress       UnitProgress[]
+  documents Document[]
+  standards AuditStandard[]
+  questions AuditQuestion[]
+  responses AuditResponse[]
+  progress  UnitProgress[]
 
   @@map("audit_cycles")
 }
@@ -64,38 +64,44 @@ model Unit {
   users           User[]
   responses       AuditResponse[]
   progress        UnitProgress[]
-  scopedQuestions AuditQuestion[]   @relation("QuestionScopeUnit")
-  scopedStandards AuditStandard[]   @relation("StandardScopeUnit")
+  scopedQuestions AuditQuestion[]  @relation("QuestionScopeUnit")
+  scopedStandards AuditStandard[]  @relation("StandardScopeUnit")
   memberships     UnitMembership[]
 
   @@map("units")
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  name       String   @db.VarChar(160)
-  email      String   @unique @db.VarChar(190)
-  username   String?  @unique @db.VarChar(190)
-  password   String?  @db.VarChar(255)
-  ssoId      String?  @map("sso_id") @db.VarChar(190)
-  role       Role
-  unitId     Int?     @map("unit_id")
-  isUnitHead Boolean  @default(false) @map("is_unit_head")
-  /** Menandai akun yang menjabat sebagai Ketua LPM (penandatangan laporan). */
-  isLpmHead  Boolean  @default(false) @map("is_lpm_head")
-  isActive   Boolean  @default(true) @map("is_active")
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(160)
+  email          String    @unique @db.VarChar(190)
+  username       String?   @unique @db.VarChar(190)
+  password       String?   @db.VarChar(255)
+  ssoId          String?   @map("sso_id") @db.VarChar(190)
+  role           Role
+  unitId         Int?      @map("unit_id")
+  isUnitHead     Boolean   @default(false) @map("is_unit_head")
+  /**
+   * Menandai akun yang menjabat sebagai Ketua LPM (penandatangan laporan).
+   */
+  isLpmHead      Boolean   @default(false) @map("is_lpm_head")
+  isActive       Boolean   @default(true) @map("is_active")
   /**
    * Versi sesi: dinaikkan setiap logout, ganti kata sandi, ubah peran/status,
    * atau penonaktifan akun. Token sesi yang membawa versi lama otomatis
    * ditolak (revokasi sesi tanpa tabel sesi terpisah).
    */
   sessionVersion Int       @default(0) @map("session_version")
-  /** Waktu pengguna menyetujui kebijakan privasi (UU 27/2022 PDP). */
+  /**
+   * Waktu pengguna menyetujui kebijakan privasi (UU 27/2022 PDP).
+   */
   consentedAt    DateTime? @map("consented_at")
-  /** Versi kebijakan privasi yang disetujui (lihat CONSENT_VERSION). */
+  /**
+   * Versi kebijakan privasi yang disetujui (lihat CONSENT_VERSION).
+   */
   consentVersion String?   @map("consent_version") @db.VarChar(40)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   unit            Unit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
   uploadedDocs    Document[]       @relation("DocumentUploader")
@@ -132,15 +138,15 @@ model UnitMembership {
 }
 
 model Document {
-  id        Int          @id @default(autoincrement())
-  cycleId   Int          @map("cycle_id")
-  type      DocumentType
-  title     String       @db.VarChar(255)
-  filePath  String?      @map("file_path") @db.VarChar(255)
-  link      String?      @db.VarChar(500)
-  uploadedBy Int?        @map("uploaded_by")
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
+  id         Int          @id @default(autoincrement())
+  cycleId    Int          @map("cycle_id")
+  type       DocumentType
+  title      String       @db.VarChar(255)
+  filePath   String?      @map("file_path") @db.VarChar(255)
+  link       String?      @db.VarChar(500)
+  uploadedBy Int?         @map("uploaded_by")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
 
   cycle    AuditCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   uploader User?      @relation("DocumentUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
@@ -164,9 +170,9 @@ model AuditStandard {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  cycle         AuditCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade, map: "fk_audit_standards_cycle")
-  scopeUnit     Unit?           @relation("StandardScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull, map: "fk_audit_standards_scope_unit")
-  questions     AuditQuestion[]
+  cycle     AuditCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade, map: "fk_audit_standards_cycle")
+  scopeUnit Unit?           @relation("StandardScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull, map: "fk_audit_standards_scope_unit")
+  questions AuditQuestion[]
 
   @@index([cycleId])
   @@index([scopeUnitId])
@@ -174,22 +180,22 @@ model AuditStandard {
 }
 
 model AuditQuestion {
-  id           Int      @id @default(autoincrement())
-  cycleId      Int      @map("cycle_id")
+  id            Int      @id @default(autoincrement())
+  cycleId       Int      @map("cycle_id")
   // Standar induk butir pertanyaan ini.
-  standardId   Int      @map("standard_id")
-  questionText String   @map("question_text") @db.Text
-  order        Int      @default(0)
+  standardId    Int      @map("standard_id")
+  questionText  String   @map("question_text") @db.Text
+  order         Int      @default(0)
   // Cakupan pertanyaan: "all" (semua unit) | "category" (per kategori) | "unit" (unit tertentu)
-  scopeType    String   @default("all") @map("scope_type") @db.VarChar(20)
-  scopeCategory String? @map("scope_category") @db.VarChar(80)
-  scopeUnitId  Int?     @map("scope_unit_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  scopeType     String   @default("all") @map("scope_type") @db.VarChar(20)
+  scopeCategory String?  @map("scope_category") @db.VarChar(80)
+  scopeUnitId   Int?     @map("scope_unit_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  cycle     AuditCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade, map: "fk_audit_questions_cycle")
-  standard  AuditStandard  @relation(fields: [standardId], references: [id], onDelete: Cascade, map: "fk_audit_questions_standard")
-  scopeUnit Unit?          @relation("QuestionScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull, map: "fk_audit_questions_scope_unit")
+  cycle     AuditCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade, map: "fk_audit_questions_cycle")
+  standard  AuditStandard   @relation(fields: [standardId], references: [id], onDelete: Cascade, map: "fk_audit_questions_standard")
+  scopeUnit Unit?           @relation("QuestionScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull, map: "fk_audit_questions_scope_unit")
   responses AuditResponse[]
 
   @@index([cycleId])
@@ -237,9 +243,9 @@ model UnitProgress {
   updatedAt     DateTime @updatedAt @map("updated_at")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  cycle     AuditCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  unit      Unit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  updater   User?      @relation("ProgressUpdater", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
+  cycle   AuditCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  unit    Unit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  updater User?      @relation("ProgressUpdater", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
 
   @@unique([cycleId, unitId])
   @@map("unit_progress")
@@ -254,7 +260,9 @@ model AppSetting {
   id        Int      @id @default(autoincrement())
   key       String   @unique @db.VarChar(120)
   value     String?  @db.Text
-  /** Nilai sensitif (mis. secret) — disamarkan saat ditampilkan, tidak pernah dikirim penuh. */
+  /**
+   * Nilai sensitif (mis. secret) — disamarkan saat ditampilkan, tidak pernah dikirim penuh.
+   */
   isSecret  Boolean  @default(false) @map("is_secret")
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy Int?     @map("updated_by")
@@ -262,7 +270,9 @@ model AppSetting {
   @@map("app_settings")
 }
 
-/** Riwayat percobaan login (sukses/gagal) untuk pemantauan keamanan. */
+/**
+ * Riwayat percobaan login (sukses/gagal) untuk pemantauan keamanan.
+ */
 model LoginLog {
   id        Int      @id @default(autoincrement())
   email     String   @db.VarChar(190)
@@ -279,19 +289,127 @@ model LoginLog {
   @@map("login_logs")
 }
 
-/** Jejak audit aktivitas pengguna (perubahan data penting). */
+/**
+ * Jejak audit aktivitas pengguna (perubahan data penting).
+ */
 model ActivityLog {
-  id         Int      @id @default(autoincrement())
-  userId     Int?     @map("user_id")
-  userName   String?  @map("user_name") @db.VarChar(160)
-  action     String   @db.VarChar(80)
-  entity     String?  @db.VarChar(80)
-  entityId   String?  @map("entity_id") @db.VarChar(80)
-  detail     String?  @db.VarChar(500)
-  ip         String?  @db.VarChar(64)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  userName  String?  @map("user_name") @db.VarChar(160)
+  action    String   @db.VarChar(80)
+  entity    String?  @db.VarChar(80)
+  entityId  String?  @map("entity_id") @db.VarChar(80)
+  detail    String?  @db.VarChar(500)
+  ip        String?  @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([createdAt])
   @@index([userId])
   @@map("activity_logs")
+}
+
+// ============================================================================
+// MONEV (Monitoring & Evaluasi) — snapshot data layanan wsstatistik
+// Data ditarik dari kuesioner.universitaspahlawan.ac.id lalu disimpan lokal
+// agar dashboard tetap bisa dibuka walau layanan eksternal sedang mati.
+// ============================================================================
+
+/**
+ * Daftar semester beserta jumlah jawaban (sumber: wsstatistik/semester).
+ */
+model MonevSemester {
+  idSmt              String    @id @map("id_smt") @db.VarChar(10)
+  nama               String    @db.VarChar(60)
+  aktif              Boolean   @default(false)
+  tersedia           Boolean   @default(false)
+  tersediaPro        Boolean   @default(false) @map("tersedia_pro")
+  tersediaUnit       Boolean   @default(false) @map("tersedia_unit")
+  tersediaDosen      Boolean   @default(false) @map("tersedia_dosen")
+  jumlahJawabanPro   Int       @default(0) @map("jumlah_jawaban_pro")
+  jumlahJawabanUnit  Int       @default(0) @map("jumlah_jawaban_unit")
+  jumlahJawabanDosen Int       @default(0) @map("jumlah_jawaban_dosen")
+  dateStart          DateTime? @map("date_start")
+  dateEnd            DateTime? @map("date_end")
+  syncedAt           DateTime  @default(now()) @map("synced_at")
+
+  @@index([aktif])
+  @@map("monev_semester")
+}
+
+/**
+ * Riwayat proses sinkronisasi (audit + status untuk tombol).
+ */
+model MonevSyncRun {
+  id             Int       @id @default(autoincrement())
+  status         String    @db.VarChar(20) // running | sukses | gagal
+  mode           String    @db.VarChar(20) // semester | semua
+  idSmt          String?   @map("id_smt") @db.VarChar(10)
+  jumlahSemester Int       @default(0) @map("jumlah_semester")
+  jumlahBaris    Int       @default(0) @map("jumlah_baris")
+  pesan          String?   @db.VarChar(500)
+  olehUserId     Int?      @map("oleh_user_id")
+  olehNama       String?   @map("oleh_nama") @db.VarChar(160)
+  mulai          DateTime  @default(now()) @map("mulai")
+  selesai        DateTime? @map("selesai")
+
+  @@index([mulai])
+  @@map("monev_sync_runs")
+}
+
+/**
+ * Peringkat nilai per entitas (prodi dosen, prodi mhs, unit, dosen).
+ */
+model MonevRingkasan {
+  id          Int     @id @default(autoincrement())
+  idSmt       String  @map("id_smt") @db.VarChar(10)
+  sumber      String  @db.VarChar(30) // dosen_prodi | mhs_prodi | mhs_unit | dosen
+  entitasId   String  @map("entitas_id") @db.VarChar(40)
+  entitasNama String  @map("entitas_nama") @db.VarChar(200)
+  nilai       Float
+  predikat    String? @db.VarChar(40)
+  urutan      Int     @default(0)
+
+  @@unique([idSmt, sumber, entitasId])
+  @@index([idSmt, sumber, urutan])
+  @@map("monev_ringkasan")
+}
+
+/**
+ * Nilai per kategori/aspek untuk tiap entitas.
+ */
+model MonevKategori {
+  id           Int     @id @default(autoincrement())
+  idSmt        String  @map("id_smt") @db.VarChar(10)
+  sumber       String  @db.VarChar(30)
+  entitasId    String  @map("entitas_id") @db.VarChar(40)
+  entitasNama  String  @map("entitas_nama") @db.VarChar(200)
+  indukId      String? @map("induk_id") @db.VarChar(40)
+  indukNama    String? @map("induk_nama") @db.VarChar(200)
+  kategoriId   Int?    @map("kategori_id")
+  kategoriNama String  @map("kategori_nama") @db.VarChar(300)
+  nilai        Float
+  predikat     String? @db.VarChar(40)
+
+  @@index([idSmt, sumber, entitasId])
+  @@map("monev_kategori")
+}
+
+/**
+ * Distribusi pilihan jawaban per pertanyaan (dasar semua grafik).
+ */
+model MonevJawaban {
+  id           Int     @id @default(autoincrement())
+  idSmt        String  @map("id_smt") @db.VarChar(10)
+  sumber       String  @db.VarChar(30) // dosen | mhs | mhs_prodi | mhs_unit
+  kelompokId   Int?    @map("kelompok_id")
+  kelompokNama String? @map("kelompok_nama") @db.VarChar(300)
+  pertanyaanId Int     @map("pertanyaan_id")
+  pertanyaan   String  @db.VarChar(500)
+  opsi         String? @db.VarChar(40)
+  jawabanId    Int?    @map("jawaban_id")
+  pilihan      String  @db.VarChar(60)
+  jumlah       Int     @default(0)
+
+  @@index([idSmt, sumber, pertanyaanId])
+  @@map("monev_jawaban")
 }

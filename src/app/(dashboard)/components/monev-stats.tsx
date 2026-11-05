@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type {
+  BarisGrafik,
+  BarisNilai,
+  OpsiJawaban,
+  SemesterApi,
+  SemesterPayload,
+  TabelPayload,
+} from "@/lib/monev-types";
 import {
   Bar,
   BarChart,
@@ -40,10 +48,12 @@ const num = (v: unknown) =>
 
 const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(Math.round(n));
 
-const list = (v: unknown): any[] => (Array.isArray(v) ? v : []);
+const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 
 const trunc = (s: string, n = 30) =>
-  typeof s === "string" && s.length > n ? `${s.slice(0, n - 1)}…` : String(s ?? "");
+  typeof s === "string" && s.length > n
+    ? `${s.slice(0, n - 1)}…`
+    : String(s ?? "");
 
 const SCORE: Record<string, number> = {
   "Sangat Baik": 5,
@@ -123,7 +133,9 @@ function KpiCard({
 }
 
 function Predikat({ value }: { value?: string }) {
-  const cls = predikatBadge[value ?? ""] ?? "border-slate-600/40 bg-slate-700/30 text-slate-300";
+  const cls =
+    predikatBadge[value ?? ""] ??
+    "border-slate-600/40 bg-slate-700/30 text-slate-300";
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}
@@ -160,15 +172,17 @@ function RankingTable({
   emptyText = "Belum ada data.",
   onRowClick,
 }: {
-  rows: any[];
+  rows: Record<string, unknown>[];
   labelKey: string;
   subKey?: string;
   emptyText?: string;
-  onRowClick?: (row: any) => void;
+  onRowClick?: (row: Record<string, unknown>) => void;
 }) {
   if (rows.length === 0) {
     return (
-      <div className="card p-6 text-center text-xs text-slate-400">{emptyText}</div>
+      <div className="card p-6 text-center text-xs text-slate-400">
+        {emptyText}
+      </div>
     );
   }
   return (
@@ -179,10 +193,16 @@ function RankingTable({
             <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400">
               <th className="w-10 px-3 py-2.5 font-medium">#</th>
               <th className="px-3 py-2.5 font-medium">Nama</th>
-              {subKey && <th className="px-3 py-2.5 font-medium">Keterangan</th>}
+              {subKey && (
+                <th className="px-3 py-2.5 font-medium">Keterangan</th>
+              )}
               <th className="w-40 px-3 py-2.5 font-medium">Nilai</th>
               <th className="w-32 px-3 py-2.5 font-medium">Predikat</th>
-              {onRowClick && <th className="w-8 px-2 py-2.5"><span className="sr-only">Detail</span></th>}
+              {onRowClick && (
+                <th className="w-8 px-2 py-2.5">
+                  <span className="sr-only">Detail</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -212,11 +232,11 @@ function RankingTable({
                 >
                   <td className="px-3 py-2 text-xs text-slate-500">{i + 1}</td>
                   <td className="px-3 py-2 font-medium text-slate-200">
-                    {r[labelKey]}
+                    {String(r[labelKey] ?? "")}
                   </td>
                   {subKey && (
                     <td className="px-3 py-2 text-xs text-slate-400">
-                      {trunc(r[subKey], 44)}
+                      {trunc(String(r[subKey] ?? ""), 44)}
                     </td>
                   )}
                   <td className="px-3 py-2">
@@ -224,7 +244,9 @@ function RankingTable({
                       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-700/60">
                         <div
                           className="h-full rounded-full bg-indigo-400"
-                          style={{ width: `${Math.min(100, (nilai / 5) * 100)}%` }}
+                          style={{
+                            width: `${Math.min(100, (nilai / 5) * 100)}%`,
+                          }}
                         />
                       </div>
                       <span className="tabular-nums text-slate-300">
@@ -233,7 +255,11 @@ function RankingTable({
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <Predikat value={r.predikat} />
+                    <Predikat
+                      value={
+                        r.predikat == null ? undefined : String(r.predikat)
+                      }
+                    />
                   </td>
                   {onRowClick && (
                     <td className="px-2 py-2 text-slate-500">
@@ -255,90 +281,134 @@ function RankingTable({
 /* ------------------------------------------------------------------ */
 
 export type MonevBundle = {
-  tabdosen: any;
-  tabmhs: any;
-  tabmhspro: any;
-  tabmhsunit: any;
+  tabdosen: TabelPayload | null;
+  tabmhs: TabelPayload | null;
+  tabmhspro: TabelPayload | null;
+  tabmhsunit: TabelPayload | null;
 };
 
 export function MonevStats({
   semester,
   initialIdSmt,
   initialBundle,
+  syncPanel,
+  sumberAwal,
 }: {
-  semester: any;
+  semester: SemesterPayload | null;
   initialIdSmt: string;
   initialBundle: MonevBundle;
+  syncPanel?: React.ReactNode;
+  sumberAwal?: "lokal" | "eksternal";
 }) {
   const [showAllDosen, setShowAllDosen] = useState(false);
-  const [detail, setDetail] = useState<{ idptk: string; nama: string; nilai: number } | null>(
-    null,
-  );
+  const [detail, setDetail] = useState<{
+    idptk: string;
+    nama: string;
+    nilai: number;
+  } | null>(null);
 
-  const semesters = list(semester?.data);
+  const semesters = list<SemesterApi>(semester?.data);
 
   const [idSmt, setIdSmt] = useState(initialIdSmt);
-  const [bundle, setBundle] = useState<MonevBundle>(initialBundle);
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  /**
+   * Hasil muat untuk semester yang dipilih pengguna. Disimpan bersama idSmt-nya
+   * supaya data semester sebelumnya tidak sempat tampil saat berganti semester,
+   * dan agar data awal dari server bisa dipakai langsung tanpa setState di effect.
+   */
+  const [hasil, setHasil] = useState<{
+    idSmt: string;
+    bundle: MonevBundle;
+    sumber: "lokal" | "eksternal" | null;
+    error: string | null;
+  } | null>(null);
+
+  const pakaiHasil = hasil?.idSmt === idSmt;
+  const bundle: MonevBundle = pakaiHasil ? hasil.bundle : initialBundle;
+  const sumber = pakaiHasil ? hasil.sumber : (sumberAwal ?? null);
+  const fetchError = pakaiHasil ? hasil.error : null;
+  // Semester awal sudah dimuat server; semester lain baru dianggap selesai
+  // memuat ketika hasilnya tersedia.
+  const loading = idSmt !== initialIdSmt && !pakaiHasil;
 
   useEffect(() => {
-    if (idSmt === initialIdSmt) {
-      setBundle(initialBundle);
-      setFetchError(null);
-      return;
-    }
+    if (idSmt === initialIdSmt) return;
 
     let alive = true;
-    setLoading(true);
-    setFetchError(null);
 
-    const q = `?id_smt=${encodeURIComponent(idSmt)}`;
-    const grab = (path: string) =>
-      fetch(`${path}${q}`, { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
-
-    Promise.all([
-      grab("/api/wsstatistik/tabdosen"),
-      grab("/api/wsstatistik/tabmhs"),
-      grab("/api/wsstatistik/tabmhspro"),
-      grab("/api/wsstatistik/tabmhsunit"),
-    ]).then(([tabdosen, tabmhs, tabmhspro, tabmhsunit]) => {
-      if (!alive) return;
-      setBundle({ tabdosen, tabmhs, tabmhspro, tabmhsunit });
-      if (!tabdosen && !tabmhs && !tabmhspro && !tabmhsunit) {
-        setFetchError("Data semester ini belum tersedia pada layanan kuesioner.");
-      }
-      setLoading(false);
-    });
+    // Satu permintaan: server memilih database lokal lebih dulu, lalu
+    // jatuh ke layanan kuesioner bila semester itu belum disinkronkan.
+    fetch(`/api/monev/bundle?id_smt=${encodeURIComponent(idSmt)}`, {
+      cache: "no-store",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((res) => {
+        if (!alive) return;
+        if (!res) {
+          setHasil({
+            idSmt,
+            bundle: {
+              tabdosen: null,
+              tabmhs: null,
+              tabmhspro: null,
+              tabmhsunit: null,
+            },
+            sumber: null,
+            error: "Gagal memuat data semester ini.",
+          });
+          return;
+        }
+        const { tabdosen, tabmhs, tabmhspro, tabmhsunit } = res;
+        const kosong = !tabdosen && !tabmhs && !tabmhspro && !tabmhsunit;
+        setHasil({
+          idSmt,
+          bundle: { tabdosen, tabmhs, tabmhspro, tabmhsunit },
+          sumber: res.sumber ?? null,
+          error: kosong
+            ? "Data semester ini belum tersedia pada layanan kuesioner."
+            : null,
+        });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setHasil({
+          idSmt,
+          bundle: {
+            tabdosen: null,
+            tabmhs: null,
+            tabmhspro: null,
+            tabmhsunit: null,
+          },
+          sumber: null,
+          error: "Gagal menghubungi server.",
+        });
+      });
 
     return () => {
       alive = false;
     };
-  }, [idSmt, initialIdSmt, initialBundle]);
+  }, [idSmt, initialIdSmt]);
 
   const { tabdosen, tabmhs, tabmhspro, tabmhsunit } = bundle;
 
   const data = useMemo(() => {
-    const semesterList = list(semester?.data);
+    const semesterList = list<SemesterApi>(semester?.data);
     const aktif =
       semesterList.find((s) => String(s?.id_smt) === idSmt) ??
       semesterList.find((s) => s?.aktif) ??
       semesterList[0] ??
       undefined;
 
-    const dosenProdi = [...list(tabdosen?.prodi)].sort(
-      (a, b) => num(b.nilai) - num(a.nilai),
+    const dosenProdi = [...list<BarisNilai>(tabdosen?.prodi)].sort(
+      (a, b) => num(b.nilai) - num(a.nilai)
     );
-    const mhsProdi = [...list(tabmhspro?.prodi)].sort(
-      (a, b) => num(b.nilai) - num(a.nilai),
+    const mhsProdi = [...list<BarisNilai>(tabmhspro?.prodi)].sort(
+      (a, b) => num(b.nilai) - num(a.nilai)
     );
-    const mhsUnit = [...list(tabmhsunit?.unit)].sort(
-      (a, b) => num(b.nilai) - num(a.nilai),
+    const mhsUnit = [...list<BarisNilai>(tabmhsunit?.unit)].sort(
+      (a, b) => num(b.nilai) - num(a.nilai)
     );
-    const dosen = [...list(tabmhs?.dosen)].sort(
-      (a, b) => num(b.nilai) - num(a.nilai),
+    const dosen = [...list<BarisNilai>(tabmhs?.dosen)].sort(
+      (a, b) => num(b.nilai) - num(a.nilai)
     );
 
     // Tren jawaban per semester (semester tanpa jawaban sama sekali dilewati)
@@ -360,9 +430,10 @@ export function MonevStats({
 
     // Distribusi pilihan jawaban mahasiswa (agregat seluruh pertanyaan)
     const distMap = new Map<string, number>();
-    list(tabmhs?.grafik).forEach((q: any) => {
-      list(q?.jawaban).forEach((a: any) => {
-        distMap.set(a.pilihan, (distMap.get(a.pilihan) ?? 0) + num(a.jlh));
+    list<BarisGrafik>(tabmhs?.grafik).forEach((q) => {
+      list<OpsiJawaban>(q?.jawaban).forEach((a) => {
+        const pilihan = a.pilihan ?? "-";
+        distMap.set(pilihan, (distMap.get(pilihan) ?? 0) + num(a.jlh));
       });
     });
     const distribusi = [...distMap.entries()]
@@ -370,12 +441,12 @@ export function MonevStats({
       .sort((a, b) => (SCORE[b.name] ?? 0) - (SCORE[a.name] ?? 0));
 
     // Skor rata-rata per pertanyaan (mahasiswa) -> cari yang terendah
-    const skorPertanyaan = list(tabmhs?.grafik)
-      .map((q: any) => {
+    const skorPertanyaan = list<BarisGrafik>(tabmhs?.grafik)
+      .map((q) => {
         let total = 0;
         let bobot = 0;
-        list(q?.jawaban).forEach((a: any) => {
-          const s = SCORE[a.pilihan] ?? 0;
+        list<OpsiJawaban>(q?.jawaban).forEach((a) => {
+          const s = SCORE[a.pilihan ?? ""] ?? 0;
           total += s * num(a.jlh);
           bobot += num(a.jlh);
         });
@@ -415,15 +486,15 @@ export function MonevStats({
   const { aktif } = data;
 
   const topMhsProdi = data.mhsProdi.slice(0, 10).map((p) => ({
-    name: trunc(p.nm_lemb, 26),
+    name: trunc(String(p.nm_lemb ?? ""), 26),
     nilai: num(p.nilai),
   }));
   const topDosenProdi = data.dosenProdi.slice(0, 10).map((p) => ({
-    name: trunc(p.nm_lemb, 26),
+    name: trunc(String(p.nm_lemb ?? ""), 26),
     nilai: num(p.nilai),
   }));
   const unitChart = data.mhsUnit.map((u) => ({
-    name: trunc(u.nm_lemb, 22),
+    name: trunc(String(u.nm_lemb ?? ""), 22),
     nilai: num(u.nilai),
   }));
 
@@ -437,18 +508,20 @@ export function MonevStats({
     data.distribusi.length > 0;
 
   const opsiSemester = semesters
-    .map((s: any) => ({
-      id: String(s?.id_smt ?? ""),
-      nama: String(s?.nama ?? s?.id_smt ?? ""),
-      aktif: Boolean(s?.aktif),
-      tersedia: Boolean(
-        s?.tersedia ||
+    .map((s) => {
+      return {
+        id: String(s?.id_smt ?? ""),
+        nama: String(s?.nama ?? s?.id_smt ?? ""),
+        aktif: Boolean(s?.aktif),
+        tersedia: Boolean(
+          s?.tersedia ||
           num(s?.jumlah_jawaban_unit) +
             num(s?.jumlah_jawaban_pro) +
             num(s?.jumlah_jawaban_dosen) >
-            0,
-      ),
-    }))
+            0
+        ),
+      };
+    })
     .filter((s) => s.id);
 
   const semesterTerpilih = opsiSemester.find((s) => s.id === idSmt);
@@ -480,7 +553,10 @@ export function MonevStats({
             </select>
             {loading && (
               <span className="inline-flex items-center gap-1.5 text-xs text-indigo-300">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                <Loader2
+                  className="h-3.5 w-3.5 animate-spin"
+                  aria-hidden="true"
+                />
                 Memuat…
               </span>
             )}
@@ -500,6 +576,22 @@ export function MonevStats({
           <span className="rounded-full border border-slate-600/40 bg-slate-700/20 px-2.5 py-1">
             {opsiSemester.length} semester tersedia
           </span>
+          {sumber && (
+            <span
+              title={
+                sumber === "lokal"
+                  ? "Dibaca dari snapshot database (hasil sinkronisasi)"
+                  : "Diambil langsung dari layanan kuesioner"
+              }
+              className={
+                sumber === "lokal"
+                  ? "rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-300"
+                  : "rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-sky-300"
+              }
+            >
+              {sumber === "lokal" ? "database lokal" : "layanan kuesioner"}
+            </span>
+          )}
           {aktif?.date_start && (
             <span className="rounded-full border border-slate-600/40 bg-slate-700/20 px-2.5 py-1">
               {String(aktif.date_start).slice(0, 10)} –{" "}
@@ -508,6 +600,8 @@ export function MonevStats({
           )}
         </div>
       </div>
+
+      {syncPanel}
 
       {fetchError && (
         <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-300">
@@ -521,339 +615,427 @@ export function MonevStats({
             Belum ada data jawaban pada semester ini
           </p>
           <p className="text-xs text-slate-400">
-            {aktif?.nama ?? idSmt} tidak memiliki jawaban kuesioner. Pilih semester
-            lain pada filter di atas.
+            {aktif?.nama ?? idSmt} tidak memiliki jawaban kuesioner. Pilih
+            semester lain pada filter di atas.
           </p>
         </div>
       )}
 
       {adaData && (
         <>
-      {/* ---------------- KPI ---------------- */}
-      <div
-        aria-busy={loading}
-        className={`grid grid-cols-1 gap-3 transition-opacity sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 ${
-          loading ? "pointer-events-none opacity-50" : "opacity-100"
-        }`}
-      >
-        <KpiCard
-          icon={CalendarRange}
-          label="Semester Terpilih"
-          value={aktif?.nama ?? "-"}
-          hint={
-            aktif
-              ? `${String(aktif.date_start ?? "").slice(0, 10)} – ${String(
-                  aktif.date_end ?? "",
-                ).slice(0, 10)}`
-              : undefined
-          }
-          accent="violet"
-        />
-        <KpiCard
-          icon={MessageSquare}
-          label="Jawaban Mahasiswa"
-          value={fmt(num(aktif?.jumlah_jawaban_unit))}
-          hint="Unit layanan"
-          accent="indigo"
-        />
-        <KpiCard
-          icon={Users}
-          label="Jawaban Dosen"
-          value={fmt(num(aktif?.jumlah_jawaban_dosen))}
-          hint="Kuesioner dosen"
-          accent="emerald"
-        />
-        <KpiCard
-          icon={GraduationCap}
-          label="Dosen Dinilai"
-          value={fmt(data.jumlahDosenDinilai)}
-          hint={`${data.jumlahProdiDosen} prodi`}
-          accent="sky"
-        />
-        <KpiCard
-          icon={Building2}
-          label="Unit Layanan"
-          value={fmt(data.jumlahUnit)}
-          hint={`${data.jumlahProdiMhs} prodi terpantau`}
-          accent="amber"
-        />
-        <KpiCard
-          icon={ClipboardList}
-          label="Total Pertanyaan"
-          value={fmt(data.totalPertanyaan)}
-          hint="4 instrumen kuesioner"
-          accent="indigo"
-        />
-      </div>
-
-      {/* ---------------- Grafik ---------------- */}
-      <div
-        aria-busy={loading}
-        className={`grid gap-4 transition-opacity lg:grid-cols-2 ${
-          loading ? "pointer-events-none opacity-50" : "opacity-100"
-        }`}
-      >
-        <ChartPanel
-          title="Tren Jawaban per Semester"
-          subtitle="Jumlah jawaban mahasiswa, prodi, dan dosen"
-          valueLabel="Jumlah jawaban"
-          height="h-72"
-          rows={data.trend.map((t) => ({
-            label: t.name,
-            value: `${fmt(t.Mahasiswa)} (mhs) / ${fmt(t.Dosen)} (dosen)`,
-          }))}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data.trend} margin={{ top: 8, right: 12, left: -6, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-              <XAxis dataKey="name" tick={TICK} axisLine={false} tickLine={false} />
-              <YAxis
-                tick={TICK}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v: number) => fmt(v)}
-              />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => fmt(Number(v))} />
-              <Legend wrapperStyle={LEGEND} />
-              <Line
-                type="monotone"
-                dataKey="Mahasiswa"
-                stroke="#6366f1"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="Dosen"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <ChartPanel
-          title="Distribusi Jawaban Mahasiswa"
-          subtitle="Agregat seluruh pertanyaan kuesioner"
-          valueLabel="Jumlah jawaban"
-          height="h-72"
-          rows={data.distribusi.map((d) => ({ label: d.name, value: fmt(d.value) }))}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data.distribusi}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={58}
-                outerRadius={94}
-                paddingAngle={3}
-                stroke="none"
-              >
-                {data.distribusi.map((d, i) => (
-                  <Cell key={d.name} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => fmt(Number(v))} />
-              <Legend wrapperStyle={LEGEND} />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <ChartPanel
-          title="Nilai per Prodi — Mahasiswa"
-          subtitle="10 prodi dengan nilai tertinggi"
-          valueLabel="Nilai"
-          height="h-72"
-          rows={topMhsProdi.map((p) => ({ label: p.name, value: p.nilai.toFixed(2) }))}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={topMhsProdi}
-              margin={{ top: 6, right: 8, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={TICK}
-                axisLine={false}
-                tickLine={false}
-                interval={0}
-                angle={-25}
-                textAnchor="end"
-                height={70}
-              />
-              <YAxis domain={[0, 5]} tick={TICK} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                cursor={{ fill: "rgba(129,140,248,0.08)" }}
-              />
-              <Bar dataKey="nilai" name="Nilai" fill="#6366f1" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <ChartPanel
-          title="Nilai per Unit Layanan"
-          subtitle="Rata-rata kepuasan mahasiswa terhadap unit"
-          valueLabel="Nilai"
-          height="h-72"
-          rows={unitChart.map((u) => ({ label: u.name, value: u.nilai.toFixed(2) }))}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={unitChart} margin={{ top: 6, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={TICK}
-                axisLine={false}
-                tickLine={false}
-                interval={0}
-                angle={-20}
-                textAnchor="end"
-                height={64}
-              />
-              <YAxis domain={[0, 5]} tick={TICK} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                cursor={{ fill: "rgba(16,185,129,0.08)" }}
-              />
-              <Bar dataKey="nilai" name="Nilai" fill="#10b981" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <ChartPanel
-          title="Nilai per Prodi — Dosen"
-          subtitle="10 prodi dengan nilai tertinggi (kuesioner dosen)"
-          valueLabel="Nilai"
-          height="h-72"
-          rows={topDosenProdi.map((p) => ({ label: p.name, value: p.nilai.toFixed(2) }))}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={topDosenProdi}
-              margin={{ top: 6, right: 8, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={TICK}
-                axisLine={false}
-                tickLine={false}
-                interval={0}
-                angle={-25}
-                textAnchor="end"
-                height={70}
-              />
-              <YAxis domain={[0, 5]} tick={TICK} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                cursor={{ fill: "rgba(245,158,11,0.08)" }}
-              />
-              <Bar dataKey="nilai" name="Nilai" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <ChartPanel
-          title="Pertanyaan dengan Skor Terendah"
-          subtitle="Prioritas perbaikan (skala 1–5)"
-          valueLabel="Skor"
-          height="h-72"
-          rows={data.skorPertanyaan.map((q) => ({
-            label: q.name,
-            value: q.skor.toFixed(2),
-          }))}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              layout="vertical"
-              data={data.skorPertanyaan}
-              margin={{ top: 4, right: 20, left: 8, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
-              <XAxis
-                type="number"
-                domain={[0, 5]}
-                tick={TICK}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={TICK}
-                axisLine={false}
-                tickLine={false}
-                width={150}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                cursor={{ fill: "rgba(244,63,94,0.08)" }}
-              />
-              <Bar dataKey="skor" name="Skor" fill="#f43f5e" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-      </div>
-
-      {/* ---------------- Tabel ---------------- */}
-      <SectionTitle
-        icon={Trophy}
-        title="Peringkat Prodi — Kuesioner Mahasiswa"
-        description={`${data.mhsProdi.length} prodi terurut berdasarkan nilai`}
-      />
-      <RankingTable rows={data.mhsProdi} labelKey="nm_lemb" />
-
-      <SectionTitle
-        icon={BarChart3}
-        title="Peringkat Prodi — Kuesioner Dosen"
-        description={`${data.dosenProdi.length} prodi terurut berdasarkan nilai`}
-      />
-      <RankingTable rows={data.dosenProdi} labelKey="nm_lemb" />
-
-      <SectionTitle
-        icon={Building2}
-        title="Peringkat Unit Layanan"
-        description="Kepuasan mahasiswa terhadap unit layanan"
-      />
-      <RankingTable rows={data.mhsUnit} labelKey="nm_lemb" />
-
-      <SectionTitle
-        icon={GraduationCap}
-        title="Dosen dengan Nilai Tertinggi"
-        description={`${data.dosen.length} dosen dinilai pada semester aktif`}
-      />
-      <RankingTable
-        rows={dosenRows}
-        labelKey="nm_ptk"
-        emptyText="Belum ada data dosen."
-        onRowClick={(r) =>
-          setDetail({
-            idptk: String(r.id_ptk ?? ""),
-            nama: String(r.nm_ptk ?? "-"),
-            nilai: num(r.nilai),
-          })
-        }
-      />
-      <p className="mt-2 text-center text-[11px] text-slate-500">
-        Klik salah satu baris dosen untuk melihat rincian jawaban per pertanyaan.
-      </p>
-      {data.dosen.length > 10 && (
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => setShowAllDosen((v) => !v)}
-            className="rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-300 transition-colors hover:bg-indigo-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          {/* ---------------- KPI ---------------- */}
+          <div
+            aria-busy={loading}
+            className={`grid grid-cols-1 gap-3 transition-opacity sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 ${
+              loading ? "pointer-events-none opacity-50" : "opacity-100"
+            }`}
           >
-            {showAllDosen
-              ? "Tampilkan 10 teratas"
-              : `Tampilkan semua (${data.dosen.length})`}
-          </button>
-        </div>
-      )}
+            <KpiCard
+              icon={CalendarRange}
+              label="Semester Terpilih"
+              value={aktif?.nama ?? "-"}
+              hint={
+                aktif
+                  ? `${String(aktif.date_start ?? "").slice(0, 10)} – ${String(
+                      aktif.date_end ?? ""
+                    ).slice(0, 10)}`
+                  : undefined
+              }
+              accent="violet"
+            />
+            <KpiCard
+              icon={MessageSquare}
+              label="Jawaban Mahasiswa"
+              value={fmt(num(aktif?.jumlah_jawaban_unit))}
+              hint="Unit layanan"
+              accent="indigo"
+            />
+            <KpiCard
+              icon={Users}
+              label="Jawaban Dosen"
+              value={fmt(num(aktif?.jumlah_jawaban_dosen))}
+              hint="Kuesioner dosen"
+              accent="emerald"
+            />
+            <KpiCard
+              icon={GraduationCap}
+              label="Dosen Dinilai"
+              value={fmt(data.jumlahDosenDinilai)}
+              hint={`${data.jumlahProdiDosen} prodi`}
+              accent="sky"
+            />
+            <KpiCard
+              icon={Building2}
+              label="Unit Layanan"
+              value={fmt(data.jumlahUnit)}
+              hint={`${data.jumlahProdiMhs} prodi terpantau`}
+              accent="amber"
+            />
+            <KpiCard
+              icon={ClipboardList}
+              label="Total Pertanyaan"
+              value={fmt(data.totalPertanyaan)}
+              hint="4 instrumen kuesioner"
+              accent="indigo"
+            />
+          </div>
+
+          {/* ---------------- Grafik ---------------- */}
+          <div
+            aria-busy={loading}
+            className={`grid gap-4 transition-opacity lg:grid-cols-2 ${
+              loading ? "pointer-events-none opacity-50" : "opacity-100"
+            }`}
+          >
+            <ChartPanel
+              title="Tren Jawaban per Semester"
+              subtitle="Jumlah jawaban mahasiswa, prodi, dan dosen"
+              valueLabel="Jumlah jawaban"
+              height="h-72"
+              rows={data.trend.map((t) => ({
+                label: t.name,
+                value: `${fmt(t.Mahasiswa)} (mhs) / ${fmt(t.Dosen)} (dosen)`,
+              }))}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={data.trend}
+                  margin={{ top: 8, right: 12, left: -6, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={GRID}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v: number) => fmt(v)}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(v: unknown) => fmt(Number(v))}
+                  />
+                  <Legend wrapperStyle={LEGEND} />
+                  <Line
+                    type="monotone"
+                    dataKey="Mahasiswa"
+                    stroke="#6366f1"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Dosen"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+
+            <ChartPanel
+              title="Distribusi Jawaban Mahasiswa"
+              subtitle="Agregat seluruh pertanyaan kuesioner"
+              valueLabel="Jumlah jawaban"
+              height="h-72"
+              rows={data.distribusi.map((d) => ({
+                label: d.name,
+                value: fmt(d.value),
+              }))}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data.distribusi}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={58}
+                    outerRadius={94}
+                    paddingAngle={3}
+                    stroke="none"
+                  >
+                    {data.distribusi.map((d, i) => (
+                      <Cell
+                        key={d.name}
+                        fill={PIE_COLORS[i % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(v: unknown) => fmt(Number(v))}
+                  />
+                  <Legend wrapperStyle={LEGEND} />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+
+            <ChartPanel
+              title="Nilai per Prodi — Mahasiswa"
+              subtitle="10 prodi dengan nilai tertinggi"
+              valueLabel="Nilai"
+              height="h-72"
+              rows={topMhsProdi.map((p) => ({
+                label: p.name,
+                value: p.nilai.toFixed(2),
+              }))}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topMhsProdi}
+                  margin={{ top: 6, right: 8, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={GRID}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                    height={70}
+                  />
+                  <YAxis
+                    domain={[0, 5]}
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "rgba(129,140,248,0.08)" }}
+                  />
+                  <Bar
+                    dataKey="nilai"
+                    name="Nilai"
+                    fill="#6366f1"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+
+            <ChartPanel
+              title="Nilai per Unit Layanan"
+              subtitle="Rata-rata kepuasan mahasiswa terhadap unit"
+              valueLabel="Nilai"
+              height="h-72"
+              rows={unitChart.map((u) => ({
+                label: u.name,
+                value: u.nilai.toFixed(2),
+              }))}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={unitChart}
+                  margin={{ top: 6, right: 8, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={GRID}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    angle={-20}
+                    textAnchor="end"
+                    height={64}
+                  />
+                  <YAxis
+                    domain={[0, 5]}
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "rgba(16,185,129,0.08)" }}
+                  />
+                  <Bar
+                    dataKey="nilai"
+                    name="Nilai"
+                    fill="#10b981"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+
+            <ChartPanel
+              title="Nilai per Prodi — Dosen"
+              subtitle="10 prodi dengan nilai tertinggi (kuesioner dosen)"
+              valueLabel="Nilai"
+              height="h-72"
+              rows={topDosenProdi.map((p) => ({
+                label: p.name,
+                value: p.nilai.toFixed(2),
+              }))}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topDosenProdi}
+                  margin={{ top: 6, right: 8, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={GRID}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                    height={70}
+                  />
+                  <YAxis
+                    domain={[0, 5]}
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "rgba(245,158,11,0.08)" }}
+                  />
+                  <Bar
+                    dataKey="nilai"
+                    name="Nilai"
+                    fill="#f59e0b"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+
+            <ChartPanel
+              title="Pertanyaan dengan Skor Terendah"
+              subtitle="Prioritas perbaikan (skala 1–5)"
+              valueLabel="Skor"
+              height="h-72"
+              rows={data.skorPertanyaan.map((q) => ({
+                label: q.name,
+                value: q.skor.toFixed(2),
+              }))}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={data.skorPertanyaan}
+                  margin={{ top: 4, right: 20, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={GRID}
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    domain={[0, 5]}
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    width={150}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "rgba(244,63,94,0.08)" }}
+                  />
+                  <Bar
+                    dataKey="skor"
+                    name="Skor"
+                    fill="#f43f5e"
+                    radius={[0, 6, 6, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+          </div>
+
+          {/* ---------------- Tabel ---------------- */}
+          <SectionTitle
+            icon={Trophy}
+            title="Peringkat Prodi — Kuesioner Mahasiswa"
+            description={`${data.mhsProdi.length} prodi terurut berdasarkan nilai`}
+          />
+          <RankingTable rows={data.mhsProdi} labelKey="nm_lemb" />
+
+          <SectionTitle
+            icon={BarChart3}
+            title="Peringkat Prodi — Kuesioner Dosen"
+            description={`${data.dosenProdi.length} prodi terurut berdasarkan nilai`}
+          />
+          <RankingTable rows={data.dosenProdi} labelKey="nm_lemb" />
+
+          <SectionTitle
+            icon={Building2}
+            title="Peringkat Unit Layanan"
+            description="Kepuasan mahasiswa terhadap unit layanan"
+          />
+          <RankingTable rows={data.mhsUnit} labelKey="nm_lemb" />
+
+          <SectionTitle
+            icon={GraduationCap}
+            title="Dosen dengan Nilai Tertinggi"
+            description={`${data.dosen.length} dosen dinilai pada semester aktif`}
+          />
+          <RankingTable
+            rows={dosenRows}
+            labelKey="nm_ptk"
+            emptyText="Belum ada data dosen."
+            onRowClick={(r) =>
+              setDetail({
+                idptk: String(r.id_ptk ?? ""),
+                nama: String(r.nm_ptk ?? "-"),
+                nilai: num(r.nilai),
+              })
+            }
+          />
+          <p className="mt-2 text-center text-[11px] text-slate-500">
+            Klik salah satu baris dosen untuk melihat rincian jawaban per
+            pertanyaan.
+          </p>
+          {data.dosen.length > 10 && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllDosen((v) => !v)}
+                className="rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-300 transition-colors hover:bg-indigo-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+              >
+                {showAllDosen
+                  ? "Tampilkan 10 teratas"
+                  : `Tampilkan semua (${data.dosen.length})`}
+              </button>
+            </div>
+          )}
         </>
       )}
 
