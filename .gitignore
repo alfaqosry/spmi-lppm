@@ -29,3 +29,7 @@ blob-report/
 
 # agent scratch (bukan kode proyek)
 src/brain/
+
+# Prisma: repo ini pakai prisma/sql/*.sql + prisma db push (lihat
+# scripts/deploy/deploy-production.ps1). Folder migrate/ tidak dipakai.
+prisma/migrations/
