@@ -98,6 +98,7 @@ export type ResponseRow = {
   status: "pending" | "verified" | "revision";
   lpmNotes: string | null;
   rtl: string | null;
+  targetDate: string | null;
   verifierName: string | null;
 };
 

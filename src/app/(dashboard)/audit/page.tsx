@@ -126,6 +126,7 @@ export default async function AuditPage() {
       status: r.status,
       lpmNotes: r.lpmNotes,
       rtl: r.rtl,
+      targetDate: r.targetDate ?? null,
       verifierName: r.verifier?.name ?? null,
     }));
 
@@ -193,6 +194,7 @@ export default async function AuditPage() {
       status: r.status,
       lpmNotes: r.lpmNotes,
       rtl: r.rtl,
+      targetDate: r.targetDate ?? null,
       verifierName: null,
     };
   });

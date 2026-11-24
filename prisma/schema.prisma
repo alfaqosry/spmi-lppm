@@ -51,6 +51,8 @@ model AuditCycle {
   responses AuditResponse[]
   progress  UnitProgress[]
   auditors  UnitAuditor[]
+  findings  AuditorFinding[]
+  auditStatuses AuditorAuditStatus[]
 
   @@map("audit_cycles")
 }
@@ -70,6 +72,8 @@ model Unit {
   scopedStandards AuditStandard[]  @relation("StandardScopeUnit")
   memberships     UnitMembership[]
   auditors        UnitAuditor[]
+  findings        AuditorFinding[]
+  auditStatuses   AuditorAuditStatus[]
 
   @@map("units")
 }
@@ -113,6 +117,8 @@ model User {
   memberships        UnitMembership[]
   auditorAssignments UnitAuditor[]    @relation("AuditorAssignments")
   assignedAuditors   UnitAuditor[]    @relation("AuditorAssigner")
+  auditorFindings    AuditorFinding[] @relation("AuditorFindingEditor")
+  auditorStatuses    AuditorAuditStatus[] @relation("AuditorAuditStatuses")
 
   @@index([unitId])
   @@map("users")
@@ -233,6 +239,7 @@ model AuditQuestion {
   standard  AuditStandard   @relation(fields: [standardId], references: [id], onDelete: Cascade, map: "fk_audit_questions_standard")
   scopeUnit Unit?           @relation("QuestionScopeUnit", fields: [scopeUnitId], references: [id], onDelete: SetNull, map: "fk_audit_questions_scope_unit")
   responses AuditResponse[]
+  findings  AuditorFinding[]
 
   @@index([cycleId])
   @@index([standardId])
@@ -252,6 +259,7 @@ model AuditResponse {
   status          ResponseStatus @default(pending)
   lpmNotes        String?        @map("lpm_notes") @db.Text
   rtl             String?        @db.Text
+  targetDate      String?        @map("target_date") @db.VarChar(100)
   verifiedBy      Int?           @map("verified_by")
   verifiedAt      DateTime?      @map("verified_at")
   createdAt       DateTime       @default(now()) @map("created_at")
@@ -268,6 +276,62 @@ model AuditResponse {
   @@index([status])
   @@index([evidenceFile])
   @@map("audit_responses")
+}
+
+/**
+ * Temuan audit per pertanyaan per unit per siklus.
+ * Data ini BERSAMA — dapat diedit oleh auditor 1, auditor 2,
+ * maupun kepala LPM. lastEditedBy mencatat siapa terakhir menyimpan.
+ */
+model AuditorFinding {
+  id              Int      @id @default(autoincrement())
+  cycleId         Int      @map("cycle_id")
+  unitId          Int      @map("unit_id")
+  auditQuestionId Int      @map("audit_question_id")
+  lastEditedBy    Int?     @map("last_edited_by")
+
+  temuan          String?  @db.Text
+  akarMasalah     String?  @map("akar_masalah") @db.Text
+  rencanaTL       String?  @map("rencana_tl") @db.Text
+  efektivitasTL   String?  @map("efektivitas_tl") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cycle      AuditCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  unit       Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  question   AuditQuestion @relation(fields: [auditQuestionId], references: [id], onDelete: Cascade)
+  lastEditor User?         @relation("AuditorFindingEditor", fields: [lastEditedBy], references: [id], onDelete: SetNull)
+
+  @@unique([cycleId, unitId, auditQuestionId])
+  @@index([cycleId])
+  @@index([unitId])
+  @@map("auditor_findings")
+}
+
+/**
+ * Status finalisasi audit oleh auditor per unit per siklus.
+ * Satu baris per kombinasi (cycleId, unitId, auditorId).
+ */
+model AuditorAuditStatus {
+  id          Int       @id @default(autoincrement())
+  cycleId     Int       @map("cycle_id")
+  unitId      Int       @map("unit_id")
+  auditorId   Int       @map("auditor_id")
+  finalized   Boolean   @default(false)
+  finalizedAt DateTime? @map("finalized_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  cycle   AuditCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  unit    Unit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  auditor User       @relation("AuditorAuditStatuses", fields: [auditorId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, unitId, auditorId])
+  @@index([cycleId])
+  @@index([unitId])
+  @@index([auditorId])
+  @@map("auditor_audit_statuses")
 }
 
 model UnitProgress {
