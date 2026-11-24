@@ -46,6 +46,7 @@ type Role =
   | "superadmin"
   | "lpm_admin"
   | "lpm_member"
+  | "auditor"
   | "auditee_head"
   | "auditee_member"
   | "pengunjung";
@@ -70,6 +71,7 @@ export type AccountRow = {
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "auditee_head", label: "Kepala Unit" },
   { value: "auditee_member", label: "Anggota Unit" },
+  { value: "auditor", label: "Auditor" },
   { value: "lpm_admin", label: "Admin LPM" },
   { value: "lpm_member", label: "Anggota LPM" },
   { value: "superadmin", label: "Superadmin" },
@@ -80,6 +82,7 @@ const ROLE_BADGE: Record<Role, string> = {
   superadmin: "border-fuchsia-400/25 bg-fuchsia-500/10 text-fuchsia-300",
   lpm_admin: "border-violet-400/25 bg-violet-500/10 text-violet-300",
   lpm_member: "border-sky-400/25 bg-sky-500/10 text-sky-300",
+  auditor: "border-teal-400/25 bg-teal-500/10 text-teal-300",
   auditee_head: "border-indigo-400/25 bg-indigo-500/10 text-indigo-300",
   auditee_member: "border-slate-500/25 bg-slate-500/10 text-slate-300",
   pengunjung: "border-amber-400/25 bg-amber-500/10 text-amber-300",

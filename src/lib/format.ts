@@ -57,6 +57,7 @@ export const ROLE_LABEL: Record<string, string> = {
   superadmin: "Superadmin",
   lpm_admin: "Admin LPM",
   lpm_member: "Anggota LPM",
+  auditor: "Auditor",
   auditee_head: "Kepala Unit",
   auditee_member: "Anggota Unit",
   pengunjung: "Pengunjung (Tamu)",

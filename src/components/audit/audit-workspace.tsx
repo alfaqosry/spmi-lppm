@@ -18,6 +18,7 @@ import {
   Building2,
   Check,
   ChevronDown,
+  FileSpreadsheet,
   FileText,
   Globe,
   Layers,
@@ -77,6 +78,7 @@ import {
   type StandardDeleteImpact,
 } from "@/components/audit/audit-helpers";
 import { DeleteStandardButton } from "@/components/audit/delete-standard-button";
+import { ImportInstrumentsModal } from "@/components/audit/import-instruments-modal";
 
 export type { Question, UnitOption };
 
@@ -211,6 +213,7 @@ function InstrumenPanel({
   units: UnitOption[];
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -251,9 +254,18 @@ function InstrumenPanel({
             Pilih kategori unit untuk mengelola standar dan butir pertanyaan
             auditnya.
           </p>
-          <span className="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300">
-            {standards.length} standar • {questions.length} butir pertanyaan
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Import Excel
+            </button>
+            <span className="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300">
+              {standards.length} standar • {questions.length} butir pertanyaan
+            </span>
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {buckets.map((b) => {
@@ -294,21 +306,39 @@ function InstrumenPanel({
             );
           })}
         </div>
+
+        <ImportInstrumentsModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          cycleId={cycleId}
+          cycleName={cycleName}
+          units={units}
+        />
       </div>
     );
   }
 
   return (
-    <CategoryDetail
-      cycleId={cycleId}
-      cycleName={cycleName}
-      categoryKey={selected}
-      questions={questions}
-      standards={standards}
-      responses={responses}
-      units={units}
-      onBack={() => setSelected(null)}
-    />
+    <>
+      <CategoryDetail
+        cycleId={cycleId}
+        cycleName={cycleName}
+        categoryKey={selected}
+        questions={questions}
+        standards={standards}
+        responses={responses}
+        units={units}
+        onBack={() => setSelected(null)}
+        onOpenImport={() => setImportOpen(true)}
+      />
+      <ImportInstrumentsModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        cycleId={cycleId}
+        cycleName={cycleName}
+        units={units}
+      />
+    </>
   );
 }
 
@@ -321,6 +351,7 @@ function CategoryDetail({
   responses,
   units,
   onBack,
+  onOpenImport,
 }: {
   cycleId: number;
   cycleName: string;
@@ -330,6 +361,7 @@ function CategoryDetail({
   responses: ResponseRow[];
   units: UnitOption[];
   onBack: () => void;
+  onOpenImport?: () => void;
 }) {
   const isUmum = categoryKey === UMUM_SLUG;
   const categoryUnits = useMemo(
@@ -447,15 +479,26 @@ function CategoryDetail({
             </p>
           </div>
         </div>
-        {!isUmum && (
-          <button
-            type="button"
-            onClick={() => setAddingUnit(true)}
-            className="flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"
-          >
-            <Plus className="h-3.5 w-3.5" /> Tambah Unit
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {onOpenImport && (
+            <button
+              type="button"
+              onClick={onOpenImport}
+              className="flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Import Excel
+            </button>
+          )}
+          {!isUmum && (
+            <button
+              type="button"
+              onClick={() => setAddingUnit(true)}
+              className="flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"
+            >
+              <Plus className="h-3.5 w-3.5" /> Tambah Unit
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tab per unit */}

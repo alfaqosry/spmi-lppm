@@ -25,11 +25,14 @@ import {
   YAxis,
 } from "recharts";
 import {
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
   BarChart3,
   Building2,
   CalendarRange,
   ChevronRight,
   ClipboardList,
+  Download,
   GraduationCap,
   Loader2,
   MessageSquare,
@@ -37,6 +40,8 @@ import {
   Users,
 } from "lucide-react";
 import { ChartPanel } from "@/components/charts/chart-panel";
+import { unduhCsv } from "@/lib/csv";
+import { PrioritasPerbaikan, AspekTerendah } from "./StatsTable";
 import { DosenDetailModal } from "./dosen-detail-modal";
 
 /* ------------------------------------------------------------------ */
@@ -87,6 +92,53 @@ const tooltipStyle = {
 const GRID = "color-mix(in oklab, var(--color-slate-500) 18%, transparent)";
 const TICK = { fill: "var(--color-slate-500)", fontSize: 11 } as const;
 const LEGEND = { fontSize: 11, color: "var(--color-slate-500)" } as const;
+
+/**
+ * Ambang predikat menurut data layanan kuesioner: nilai 5.00 = "Sangat Baik",
+ * 4.00–4.99 = "Baik", di bawah 4.00 = "Cukup". Ditampilkan sebagai legenda agar
+ * pembaca tahu mengapa hampir semua entitas berpredikat sama.
+ */
+const _AMBANG_PREDIKAT = [
+  { label: "Sangat Baik", min: 5, cls: "bg-emerald-400" },
+  { label: "Baik", min: 4, cls: "bg-indigo-400" },
+  { label: "Cukup", min: 0, cls: "bg-amber-400" },
+] as const;
+
+/**
+ * Rentang sumbu Y yang mengikuti sebaran nilai.
+ *
+ * Skala tetap 0–5 membuat seluruh batang tampak sama panjang karena nilai
+ * nyata hanya bergerak di 4.0–4.6 (bahkan 4.25–4.31 untuk unit layanan).
+ * Rentang dipersempit ke sekitar data, tetapi tidak pernah melebar dari 0–5.
+ */
+function domainNilai(nilai: number[]): [number, number] {
+  const bersih = nilai.filter((v) => Number.isFinite(v) && v > 0);
+  if (bersih.length === 0) return [0, 5];
+  const min = Math.min(...bersih);
+  const max = Math.max(...bersih);
+  // Beri ruang agar batang tertinggi tidak menempel ke tepi atas.
+  const bawah = Math.max(0, Math.floor((min - 0.15) * 10) / 10);
+  const atas = Math.min(5, Math.ceil((max + 0.1) * 10) / 10);
+  // Bila sebarannya terlalu sempit, tetap tampilkan rentang yang terbaca.
+  if (atas - bawah < 0.5) {
+    return [Math.max(0, atas - 0.6), Math.min(5, bawah + 0.6)];
+  }
+  return [bawah, atas];
+}
+
+/** Keterangan singkat tiap instrumen: siapa menilai siapa. */
+const _INSTRUMEN = {
+  dosen: { label: "Mahasiswa → Dosen", singkat: "Dosen", warna: "#6366f1" },
+  mhsProdi: { label: "Mahasiswa → Prodi", singkat: "Prodi", warna: "#8b5cf6" },
+  mhsUnit: { label: "Mahasiswa → Unit", singkat: "Unit", warna: "#10b981" },
+  dosenProdi: {
+    label: "Dosen → Prodi",
+    singkat: "Prodi (dosen)",
+    warna: "#f59e0b",
+  },
+} as const;
+
+export type KunciInstrumen = keyof typeof _INSTRUMEN;
 
 /* ------------------------------------------------------------------ */
 /* Sub-komponen                                                        */
@@ -171,12 +223,15 @@ function RankingTable({
   subKey,
   emptyText = "Belum ada data.",
   onRowClick,
+  sorotNilai,
 }: {
   rows: Record<string, unknown>[];
   labelKey: string;
   subKey?: string;
   emptyText?: string;
   onRowClick?: (row: Record<string, unknown>) => void;
+  /** Baris dengan nilai ini diberi penanda "terendah". */
+  sorotNilai?: number;
 }) {
   if (rows.length === 0) {
     return (
@@ -185,9 +240,18 @@ function RankingTable({
       </div>
     );
   }
+
+  // Batang nilai dipetakan ke rentang data, bukan 0–5, supaya selisih kecil
+  // (mis. 4.25 vs 4.31 antar unit) tetap terlihat.
+  const nilaiSemua = rows.map((r) => num(r.nilai)).filter((v) => v > 0);
+  const bawah = nilaiSemua.length ? Math.min(...nilaiSemua) : 0;
+  const atas = nilaiSemua.length ? Math.max(...nilaiSemua) : 5;
+  const lebar = (v: number) =>
+    atas === bawah ? 100 : 35 + ((v - bawah) / (atas - bawah)) * 65;
+
   return (
     <div className="card overflow-hidden">
-      <div className="max-h-[420px] overflow-auto">
+      <div className="max-h-[460px] overflow-auto">
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-slate-800/80 backdrop-blur">
             <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400">
@@ -208,6 +272,8 @@ function RankingTable({
           <tbody>
             {rows.map((r, i) => {
               const nilai = num(r.nilai);
+              const terendah =
+                sorotNilai != null && Math.abs(nilai - sorotNilai) < 0.005;
               return (
                 <tr
                   key={`${r[labelKey]}-${i}`}
@@ -225,6 +291,8 @@ function RankingTable({
                       : undefined
                   }
                   className={`border-t border-slate-700/40 transition-colors hover:bg-indigo-500/5 ${
+                    terendah ? "bg-amber-500/[0.06]" : ""
+                  } ${
                     onRowClick
                       ? "cursor-pointer focus-visible:bg-indigo-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-indigo-400"
                       : ""
@@ -233,6 +301,11 @@ function RankingTable({
                   <td className="px-3 py-2 text-xs text-slate-500">{i + 1}</td>
                   <td className="px-3 py-2 font-medium text-slate-200">
                     {String(r[labelKey] ?? "")}
+                    {terendah && (
+                      <span className="ml-2 rounded border border-amber-400/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
+                        terendah
+                      </span>
+                    )}
                   </td>
                   {subKey && (
                     <td className="px-3 py-2 text-xs text-slate-400">
@@ -243,10 +316,10 @@ function RankingTable({
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-700/60">
                         <div
-                          className="h-full rounded-full bg-indigo-400"
-                          style={{
-                            width: `${Math.min(100, (nilai / 5) * 100)}%`,
-                          }}
+                          className={`h-full rounded-full ${
+                            terendah ? "bg-amber-400" : "bg-indigo-400"
+                          }`}
+                          style={{ width: `${lebar(nilai)}%` }}
                         />
                       </div>
                       <span className="tabular-nums text-slate-300">
@@ -272,6 +345,116 @@ function RankingTable({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Satu blok peringkat: judul, kontrol urutan (tertinggi/terendah), tombol
+ * ekspor CSV, dan tabel. Data tidak lagi dipotong 10 baris — seluruh entitas
+ * tersedia karena nilai terendah justru yang paling perlu dilihat LPM.
+ */
+export function PeringkatInstrumen({
+  icon: Icon,
+  title,
+  description,
+  rows,
+  labelKey,
+  namaBerkas,
+  emptyText,
+  onRowClick,
+}: {
+  icon: typeof Users;
+  title: string;
+  description: string;
+  rows: BarisNilai[];
+  labelKey: string;
+  namaBerkas: string;
+  emptyText?: string;
+  onRowClick?: (row: Record<string, unknown>) => void;
+}) {
+  const [terendahDulu, setTerendahDulu] = useState(false);
+  const [tampilSemua, setTampilSemua] = useState(false);
+
+  const urut = useMemo(() => {
+    const arr = [...rows].sort((a, b) => num(b.nilai) - num(a.nilai));
+    return terendahDulu ? arr.reverse() : arr;
+  }, [rows, terendahDulu]);
+
+  const nilaiMinimum = useMemo(() => {
+    const v = rows.map((r) => num(r.nilai)).filter((x) => x > 0);
+    return v.length ? Math.min(...v) : undefined;
+  }, [rows]);
+
+  const tampil = tampilSemua ? urut : urut.slice(0, 10);
+
+  return (
+    <div className="space-y-2">
+      <div className="mb-3 mt-8 flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-start gap-2.5">
+          <Icon className="mt-0.5 h-4 w-4 text-indigo-400" aria-hidden="true" />
+          <div>
+            <h2 className="text-sm font-semibold text-white">{title}</h2>
+            <p className="text-xs text-slate-400">{description}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTerendahDulu((v) => !v)}
+            aria-pressed={terendahDulu}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600/50 bg-slate-700/30 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-700/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          >
+            {terendahDulu ? (
+              <ArrowDownWideNarrow className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <ArrowUpNarrowWide className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {terendahDulu ? "Terendah dulu" : "Tertinggi dulu"}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              unduhCsv(
+                `${namaBerkas}`,
+                ["Peringkat", "Nama", "Nilai", "Predikat"],
+                urut.map((r, i) => [
+                  i + 1,
+                  String(r[labelKey] ?? ""),
+                  num(r.nilai).toFixed(2),
+                  String(r.predikat ?? ""),
+                ])
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600/50 bg-slate-700/30 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-700/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            CSV
+          </button>
+        </div>
+      </div>
+
+      <RankingTable
+        rows={tampil as unknown as Record<string, unknown>[]}
+        labelKey={labelKey}
+        emptyText={emptyText}
+        onRowClick={onRowClick}
+        sorotNilai={nilaiMinimum}
+      />
+
+      {rows.length > 10 && (
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setTampilSemua((v) => !v)}
+            className="rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-300 transition-colors hover:bg-indigo-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          >
+            {tampilSemua
+              ? "Tampilkan 10 teratas"
+              : `Tampilkan semua (${rows.length})`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -411,22 +594,26 @@ export function MonevStats({
       (a, b) => num(b.nilai) - num(a.nilai)
     );
 
-    // Tren jawaban per semester (semester tanpa jawaban sama sekali dilewati)
-    const trend = [...semesterList]
+    // Tren jumlah jawaban per semester. Semester yang instrumennya belum ada
+    // diberi `null` (bukan 0) supaya garis terputus, tidak seolah kolaps.
+    const trenJawaban = [...semesterList]
       .reverse()
       .map((s) => {
         const [tahun = "", namaSmt = ""] = String(s.nama ?? "").split(" ");
         const short = tahun.includes("/")
           ? `${tahun.slice(2, 4)}/${tahun.slice(7, 9)} ${namaSmt}`
           : String(s.nama ?? "");
+        const unit = num(s.jumlah_jawaban_unit);
+        const pro = num(s.jumlah_jawaban_pro);
+        const dos = num(s.jumlah_jawaban_dosen);
         return {
           name: short.trim(),
-          Mahasiswa: num(s.jumlah_jawaban_unit),
-          Prodi: num(s.jumlah_jawaban_pro),
-          Dosen: num(s.jumlah_jawaban_dosen),
+          Unit: unit > 0 ? unit : null,
+          Prodi: pro > 0 ? pro : null,
+          Dosen: dos > 0 ? dos : null,
         };
       })
-      .filter((t) => t.Mahasiswa + t.Prodi + t.Dosen > 0);
+      .filter((t) => t.Unit != null || t.Prodi != null || t.Dosen != null);
 
     // Distribusi pilihan jawaban mahasiswa (agregat seluruh pertanyaan)
     const distMap = new Map<string, number>();
@@ -440,9 +627,27 @@ export function MonevStats({
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => (SCORE[b.name] ?? 0) - (SCORE[a.name] ?? 0));
 
-    // Skor rata-rata per pertanyaan (mahasiswa) -> cari yang terendah
-    const skorPertanyaan = list<BarisGrafik>(tabmhs?.grafik)
-      .map((q) => {
+    /**
+     * Skor rata-rata per pertanyaan dari SELURUH instrumen.
+     *
+     * Sebelumnya hanya kuesioner mahasiswa→dosen (57 dari 145 pertanyaan),
+     * sehingga temuan terendah pada instrumen prodi/unit/dosen tidak pernah
+     * bisa muncul sebagai prioritas perbaikan.
+     */
+    const skorPertanyaan: {
+      name: string;
+      skor: number;
+      instrumen: KunciInstrumen;
+      jumlahJawaban: number;
+    }[] = [];
+    const sumberGrafik: [KunciInstrumen, BarisGrafik[]][] = [
+      ["dosen", list<BarisGrafik>(tabmhs?.grafik)],
+      ["mhsProdi", list<BarisGrafik>(tabmhspro?.grafik)],
+      ["mhsUnit", list<BarisGrafik>(tabmhsunit?.grafik)],
+      ["dosenProdi", list<BarisGrafik>(tabdosen?.grafik)],
+    ];
+    for (const [kunci, grafik] of sumberGrafik) {
+      for (const q of grafik) {
         let total = 0;
         let bobot = 0;
         list<OpsiJawaban>(q?.jawaban).forEach((a) => {
@@ -450,15 +655,51 @@ export function MonevStats({
           total += s * num(a.jlh);
           bobot += num(a.jlh);
         });
-        return {
-          name: trunc(q?.pertanyaan ?? "-", 46),
-          skor: bobot ? total / bobot : 0,
-        };
-      })
-      .filter((x) => x.skor > 0)
-      .sort((a, b) => a.skor - b.skor)
-      .slice(0, 8)
-      .reverse();
+        if (!bobot) continue;
+        skorPertanyaan.push({
+          name: trunc(q?.pertanyaan ?? "-", 52),
+          skor: total / bobot,
+          instrumen: kunci,
+          jumlahJawaban: bobot,
+        });
+      }
+    }
+    skorPertanyaan.sort((a, b) => a.skor - b.skor);
+
+    /**
+     * Aspek/kategori per entitas. Data ini sudah tersimpan sejak sinkronisasi
+     * tetapi belum pernah ditampilkan; padahal inilah lapisan yang paling
+     * actionable ("aspek mana yang rendah di prodi mana").
+     */
+    const aspek: {
+      entitas: string;
+      aspek: string;
+      nilai: number;
+      predikat: string;
+      instrumen: KunciInstrumen;
+    }[] = [];
+    const sumberKategori: [KunciInstrumen, BarisNilai[]][] = [
+      ["dosenProdi", list<BarisNilai>(tabdosen?.kategori)],
+      ["mhsProdi", list<BarisNilai>(tabmhspro?.kategori)],
+      ["mhsUnit", list<BarisNilai>(tabmhsunit?.kategori)],
+    ];
+    for (const [kunci, baris] of sumberKategori) {
+      for (const k of baris) {
+        const nama =
+          (k.nm_kdp as string | undefined) ??
+          (k.nm_kmp as string | undefined) ??
+          "";
+        if (!nama) continue;
+        aspek.push({
+          entitas: String(k.nm_lemb ?? ""),
+          aspek: String(nama),
+          nilai: num(k.nilai),
+          predikat: String(k.predikat ?? ""),
+          instrumen: kunci,
+        });
+      }
+    }
+    aspek.sort((a, b) => a.nilai - b.nilai);
 
     const totalPertanyaan =
       num(tabmhs?.meta?.jumlah_pertanyaan) +
@@ -472,9 +713,10 @@ export function MonevStats({
       mhsProdi,
       mhsUnit,
       dosen,
-      trend,
+      trenJawaban,
       distribusi,
       skorPertanyaan,
+      aspek,
       totalPertanyaan,
       jumlahDosenDinilai: num(tabmhs?.meta?.jumlah_dosen),
       jumlahProdiDosen: num(tabdosen?.meta?.jumlah_prodi),
@@ -498,7 +740,10 @@ export function MonevStats({
     nilai: num(u.nilai),
   }));
 
-  const dosenRows = showAllDosen ? data.dosen : data.dosen.slice(0, 10);
+  // Rentang sumbu mengikuti data agar perbedaan kecil tetap terbaca.
+  const domainMhsProdi = domainNilai(topMhsProdi.map((p) => p.nilai));
+  const domainDosenProdi = domainNilai(topDosenProdi.map((p) => p.nilai));
+  const domainUnit = domainNilai(unitChart.map((u) => u.nilai));
 
   const adaData =
     data.mhsProdi.length > 0 ||
@@ -509,22 +754,25 @@ export function MonevStats({
 
   const opsiSemester = semesters
     .map((s) => {
+      // Flag `tersedia` dari layanan bisa bernilai true walau belum ada satu
+      // pun jawaban (mis. semester yang baru dibuka). Ketersediaan dihitung
+      // dari jumlah jawaban agar label tidak menjanjikan data yang tidak ada.
+      const jumlah =
+        num(s?.jumlah_jawaban_unit) +
+        num(s?.jumlah_jawaban_pro) +
+        num(s?.jumlah_jawaban_dosen);
       return {
         id: String(s?.id_smt ?? ""),
         nama: String(s?.nama ?? s?.id_smt ?? ""),
         aktif: Boolean(s?.aktif),
-        tersedia: Boolean(
-          s?.tersedia ||
-          num(s?.jumlah_jawaban_unit) +
-            num(s?.jumlah_jawaban_pro) +
-            num(s?.jumlah_jawaban_dosen) >
-            0
-        ),
+        jumlah,
+        tersedia: jumlah > 0,
       };
     })
     .filter((s) => s.id);
 
   const semesterTerpilih = opsiSemester.find((s) => s.id === idSmt);
+  const semesterTanpaData = opsiSemester.filter((s) => !s.tersedia).length;
 
   return (
     <div className="space-y-6">
@@ -574,7 +822,7 @@ export function MonevStats({
 
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
           <span className="rounded-full border border-slate-600/40 bg-slate-700/20 px-2.5 py-1">
-            {opsiSemester.length} semester tersedia
+            {opsiSemester.length - semesterTanpaData} semester berisi data
           </span>
           {sumber && (
             <span
@@ -646,8 +894,12 @@ export function MonevStats({
             <KpiCard
               icon={MessageSquare}
               label="Jawaban Mahasiswa"
-              value={fmt(num(aktif?.jumlah_jawaban_unit))}
-              hint="Unit layanan"
+              value={fmt(
+                num(aktif?.jumlah_jawaban_unit) + num(aktif?.jumlah_jawaban_pro)
+              )}
+              hint={`${fmt(num(aktif?.jumlah_jawaban_pro))} prodi · ${fmt(
+                num(aktif?.jumlah_jawaban_unit)
+              )} unit`}
               accent="indigo"
             />
             <KpiCard
@@ -688,18 +940,20 @@ export function MonevStats({
             }`}
           >
             <ChartPanel
-              title="Tren Jawaban per Semester"
-              subtitle="Jumlah jawaban mahasiswa, prodi, dan dosen"
+              title="Tren Jawaban Mahasiswa"
+              subtitle="Prodi dan unit layanan — skala terpisah dari dosen"
               valueLabel="Jumlah jawaban"
               height="h-72"
-              rows={data.trend.map((t) => ({
+              rows={data.trenJawaban.map((t) => ({
                 label: t.name,
-                value: `${fmt(t.Mahasiswa)} (mhs) / ${fmt(t.Dosen)} (dosen)`,
+                value: `${t.Prodi == null ? "–" : fmt(t.Prodi)} prodi · ${
+                  t.Unit == null ? "–" : fmt(t.Unit)
+                } unit`,
               }))}
             >
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={data.trend}
+                  data={data.trenJawaban}
                   margin={{ top: 8, right: 12, left: -6, bottom: 0 }}
                 >
                   <CartesianGrid
@@ -721,22 +975,77 @@ export function MonevStats({
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    formatter={(v: unknown) => fmt(Number(v))}
+                    formatter={(v: unknown) =>
+                      v == null ? "belum ada data" : fmt(Number(v))
+                    }
                   />
                   <Legend wrapperStyle={LEGEND} />
                   <Line
                     type="monotone"
-                    dataKey="Mahasiswa"
-                    stroke="#6366f1"
+                    dataKey="Unit"
+                    stroke="#10b981"
                     strokeWidth={2}
                     dot={{ r: 3 }}
+                    connectNulls={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Prodi"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    connectNulls={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+
+            <ChartPanel
+              title="Tren Jawaban Dosen"
+              subtitle="Kuesioner dosen — perhatikan skalanya berbeda"
+              valueLabel="Jumlah jawaban"
+              height="h-72"
+              rows={data.trenJawaban.map((t) => ({
+                label: t.name,
+                value: t.Dosen == null ? "–" : fmt(t.Dosen),
+              }))}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={data.trenJawaban}
+                  margin={{ top: 8, right: 12, left: -6, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={GRID}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v: number) => fmt(v)}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(v: unknown) =>
+                      v == null ? "belum ada data" : fmt(Number(v))
+                    }
                   />
                   <Line
                     type="monotone"
                     dataKey="Dosen"
-                    stroke="#10b981"
+                    name="Jawaban dosen"
+                    stroke="#f59e0b"
                     strokeWidth={2}
                     dot={{ r: 3 }}
+                    connectNulls={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -781,7 +1090,7 @@ export function MonevStats({
 
             <ChartPanel
               title="Nilai per Prodi — Mahasiswa"
-              subtitle="10 prodi dengan nilai tertinggi"
+              subtitle={`10 prodi tertinggi · sumbu dimulai dari ${domainMhsProdi[0].toFixed(1)}`}
               valueLabel="Nilai"
               height="h-72"
               rows={topMhsProdi.map((p) => ({
@@ -810,13 +1119,15 @@ export function MonevStats({
                     height={70}
                   />
                   <YAxis
-                    domain={[0, 5]}
+                    domain={domainMhsProdi}
                     tick={TICK}
                     axisLine={false}
                     tickLine={false}
+                    tickFormatter={(v: number) => v.toFixed(1)}
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
+                    formatter={(v: unknown) => Number(v).toFixed(2)}
                     cursor={{ fill: "rgba(129,140,248,0.08)" }}
                   />
                   <Bar
@@ -831,7 +1142,7 @@ export function MonevStats({
 
             <ChartPanel
               title="Nilai per Unit Layanan"
-              subtitle="Rata-rata kepuasan mahasiswa terhadap unit"
+              subtitle={`Rata-rata kepuasan mahasiswa · sumbu dimulai dari ${domainUnit[0].toFixed(1)}`}
               valueLabel="Nilai"
               height="h-72"
               rows={unitChart.map((u) => ({
@@ -860,13 +1171,15 @@ export function MonevStats({
                     height={64}
                   />
                   <YAxis
-                    domain={[0, 5]}
+                    domain={domainUnit}
                     tick={TICK}
                     axisLine={false}
                     tickLine={false}
+                    tickFormatter={(v: number) => v.toFixed(1)}
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
+                    formatter={(v: unknown) => Number(v).toFixed(2)}
                     cursor={{ fill: "rgba(16,185,129,0.08)" }}
                   />
                   <Bar
@@ -881,7 +1194,7 @@ export function MonevStats({
 
             <ChartPanel
               title="Nilai per Prodi — Dosen"
-              subtitle="10 prodi dengan nilai tertinggi (kuesioner dosen)"
+              subtitle={`10 prodi tertinggi (kuesioner dosen) · sumbu dimulai dari ${domainDosenProdi[0].toFixed(1)}`}
               valueLabel="Nilai"
               height="h-72"
               rows={topDosenProdi.map((p) => ({
@@ -910,13 +1223,15 @@ export function MonevStats({
                     height={70}
                   />
                   <YAxis
-                    domain={[0, 5]}
+                    domain={domainDosenProdi}
                     tick={TICK}
                     axisLine={false}
                     tickLine={false}
+                    tickFormatter={(v: number) => v.toFixed(1)}
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
+                    formatter={(v: unknown) => Number(v).toFixed(2)}
                     cursor={{ fill: "rgba(245,158,11,0.08)" }}
                   />
                   <Bar
@@ -929,55 +1244,19 @@ export function MonevStats({
               </ResponsiveContainer>
             </ChartPanel>
 
-            <ChartPanel
-              title="Pertanyaan dengan Skor Terendah"
-              subtitle="Prioritas perbaikan (skala 1–5)"
-              valueLabel="Skor"
-              height="h-72"
-              rows={data.skorPertanyaan.map((q) => ({
-                label: q.name,
-                value: q.skor.toFixed(2),
-              }))}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  layout="vertical"
-                  data={data.skorPertanyaan}
-                  margin={{ top: 4, right: 20, left: 8, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={GRID}
-                    horizontal={false}
-                  />
-                  <XAxis
-                    type="number"
-                    domain={[0, 5]}
-                    tick={TICK}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tick={TICK}
-                    axisLine={false}
-                    tickLine={false}
-                    width={150}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    cursor={{ fill: "rgba(244,63,94,0.08)" }}
-                  />
-                  <Bar
-                    dataKey="skor"
-                    name="Skor"
-                    fill="#f43f5e"
-                    radius={[0, 6, 6, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartPanel>
+            <div className="lg:col-span-2">
+              <PrioritasPerbaikan
+                butir={data.skorPertanyaan}
+                judul="Prioritas Perbaikan Lintas Instrumen"
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <AspekTerendah
+                aspek={data.aspek}
+                judul="Aspek dengan Nilai Terendah"
+              />
+            </div>
           </div>
 
           {/* ---------------- Tabel ---------------- */}
@@ -1008,7 +1287,7 @@ export function MonevStats({
             description={`${data.dosen.length} dosen dinilai pada semester aktif`}
           />
           <RankingTable
-            rows={dosenRows}
+            rows={data.dosen}
             labelKey="nm_ptk"
             emptyText="Belum ada data dosen."
             onRowClick={(r) =>

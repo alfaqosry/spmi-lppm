@@ -14,6 +14,7 @@ enum Role {
   superadmin
   lpm_admin
   lpm_member
+  auditor
   auditee_head
   auditee_member
   pengunjung
@@ -49,6 +50,7 @@ model AuditCycle {
   questions AuditQuestion[]
   responses AuditResponse[]
   progress  UnitProgress[]
+  auditors  UnitAuditor[]
 
   @@map("audit_cycles")
 }
@@ -67,6 +69,7 @@ model Unit {
   scopedQuestions AuditQuestion[]  @relation("QuestionScopeUnit")
   scopedStandards AuditStandard[]  @relation("StandardScopeUnit")
   memberships     UnitMembership[]
+  auditors        UnitAuditor[]
 
   @@map("units")
 }
@@ -103,11 +106,13 @@ model User {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  unit            Unit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  uploadedDocs    Document[]       @relation("DocumentUploader")
-  verifiedResp    AuditResponse[]  @relation("ResponseVerifier")
-  progressUpdates UnitProgress[]   @relation("ProgressUpdater")
-  memberships     UnitMembership[]
+  unit               Unit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  uploadedDocs       Document[]       @relation("DocumentUploader")
+  verifiedResp       AuditResponse[]  @relation("ResponseVerifier")
+  progressUpdates    UnitProgress[]   @relation("ProgressUpdater")
+  memberships        UnitMembership[]
+  auditorAssignments UnitAuditor[]    @relation("AuditorAssignments")
+  assignedAuditors   UnitAuditor[]    @relation("AuditorAssigner")
 
   @@index([unitId])
   @@map("users")
@@ -135,6 +140,37 @@ model UnitMembership {
   @@index([unitId])
   @@index([userId])
   @@map("unit_memberships")
+}
+
+/**
+ * Penugasan auditor pada suatu unit kerja per siklus audit.
+ * Setiap unit memiliki tepat 2 orang auditor:
+ * - "lead"   : Auditor 1 / Ketua Auditor
+ * - "member" : Auditor 2 / Anggota Auditor
+ *
+ * Aturan independensi:
+ * Auditor TIDAK boleh berasal dari unit yang diaudit (mencegah konflik kepentingan).
+ */
+model UnitAuditor {
+  id         Int      @id @default(autoincrement())
+  cycleId    Int      @map("cycle_id")
+  unitId     Int      @map("unit_id")
+  userId     Int      @map("user_id")
+  role       String   @default("lead") @db.VarChar(20) // lead | member
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  assignedBy Int?     @map("assigned_by")
+
+  cycle    AuditCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  unit     Unit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  user     User       @relation("AuditorAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  assigner User?      @relation("AuditorAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+
+  @@unique([cycleId, unitId, role])
+  @@unique([cycleId, unitId, userId])
+  @@index([cycleId])
+  @@index([unitId])
+  @@index([userId])
+  @@map("unit_auditors")
 }
 
 model Document {

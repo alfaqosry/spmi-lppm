@@ -34,8 +34,8 @@ const securityHeaders = [
   {
     key: "Permissions-Policy",
     value:
-      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), " +
-      "magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=(), interest-cohort=()",
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), " +
+      "magnetometer=(), gyroscope=(), accelerometer=()",
   },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "X-DNS-Prefetch-Control", value: "off" },

@@ -8,6 +8,7 @@ import {
   ClipboardList,
   BarChart3,
   UserCog,
+  UserCheck,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const ALL: SessionUser["role"][] = [
   "superadmin",
   "lpm_admin",
   "lpm_member",
+  "auditor",
   "auditee_head",
   "auditee_member",
 ];
@@ -55,6 +57,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/role-penempatan",
     label: "Role & Penempatan",
     icon: UserCog,
+    roles: ADMIN,
+  },
+  {
+    href: "/auditor",
+    label: "Manajemen Auditor",
+    icon: UserCheck,
     roles: ADMIN,
   },
   {

@@ -65,6 +65,7 @@ export type SessionUser = {
     | "superadmin"
     | "lpm_admin"
     | "lpm_member"
+    | "auditor"
     | "auditee_head"
     | "auditee_member"
     | "pengunjung";
@@ -254,6 +255,11 @@ export function isLpmAdmin(role: SessionUser["role"]) {
 /** Superadmin — akses seluruh fitur admin + menu Pengaturan sistem. */
 export function isSuperadmin(role: SessionUser["role"]) {
   return role === "superadmin";
+}
+
+/** Auditor — akun penilai independen untuk unit kerja tertentu. */
+export function isAuditor(role: SessionUser["role"]) {
+  return role === "auditor";
 }
 
 /** Apakah peran termasuk tim LPM (dipakai untuk gating halaman laporan). */

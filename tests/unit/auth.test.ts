@@ -93,6 +93,7 @@ describe("predikat peran", () => {
       "superadmin",
       "lpm_admin",
       "lpm_member",
+      "auditor",
       "auditee_head",
       "auditee_member",
       "pengunjung",
@@ -106,14 +107,16 @@ describe("predikat peran", () => {
         a.canViewReports(r),
         a.isPengunjung(r),
         a.hasAccess(r),
+        a.isAuditor(r),
       ])
     ).toEqual([
-      ["superadmin", true, true, true, true, false, true],
-      ["lpm_admin", true, true, false, true, false, true],
-      ["lpm_member", true, false, false, true, false, true],
-      ["auditee_head", false, false, false, false, false, true],
-      ["auditee_member", false, false, false, false, false, true],
-      ["pengunjung", false, false, false, false, true, false],
+      ["superadmin", true, true, true, true, false, true, false],
+      ["lpm_admin", true, true, false, true, false, true, false],
+      ["lpm_member", true, false, false, true, false, true, false],
+      ["auditor", false, false, false, false, false, true, true],
+      ["auditee_head", false, false, false, false, false, true, false],
+      ["auditee_member", false, false, false, false, false, true, false],
+      ["pengunjung", false, false, false, false, true, false, false],
     ]);
   });
 });

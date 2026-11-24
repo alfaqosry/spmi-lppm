@@ -121,6 +121,7 @@ describe("label & style maps", () => {
       [
         "auditee_head",
         "auditee_member",
+        "auditor",
         "lpm_admin",
         "lpm_member",
         "pengunjung",

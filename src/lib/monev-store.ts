@@ -263,6 +263,57 @@ export async function bacaSemesterDariDb() {
   };
 }
 
+export type TrenNilaiTitik = {
+  id_smt: string;
+  nama: string;
+  /** Rata-rata nilai prodi menurut mahasiswa (kuesioner mahasiswa → prodi). */
+  mhs_prodi: number | null;
+  /** Rata-rata nilai unit layanan menurut mahasiswa. */
+  mhs_unit: number | null;
+  /** Rata-rata nilai prodi menurut dosen. */
+  dosen_prodi: number | null;
+  /** Rata-rata nilai dosen menurut mahasiswa. */
+  dosen: number | null;
+};
+
+/**
+ * Tren nilai rata-rata per instrumen lintas semester.
+ *
+ * Hanya semester yang pernah disinkronkan yang punya baris ringkasan, jadi
+ * panjang deret bisa berbeda antar instrumen. Nilai `null` berarti instrumen
+ * tersebut belum punya data pada semester itu (bukan nol) — pembeda penting
+ * agar grafik tidak menggambar penurunan palsu ke 0.
+ */
+export async function trenNilaiDariDb(): Promise<TrenNilaiTitik[]> {
+  const [semester, agregat] = await Promise.all([
+    prisma.monevSemester.findMany({ orderBy: { idSmt: "asc" } }),
+    prisma.monevRingkasan.groupBy({
+      by: ["idSmt", "sumber"],
+      _avg: { nilai: true },
+      _count: { nilai: true },
+    }),
+  ]);
+
+  const peta = new Map<string, Record<string, number>>();
+  for (const a of agregat) {
+    const baris = peta.get(a.idSmt) ?? {};
+    if (a._avg.nilai != null) baris[a.sumber] = a._avg.nilai;
+    peta.set(a.idSmt, baris);
+  }
+
+  return semester.map((s) => {
+    const v = peta.get(s.idSmt) ?? {};
+    return {
+      id_smt: s.idSmt,
+      nama: s.nama,
+      mhs_prodi: v[SUMBER.mhsProdi] ?? null,
+      mhs_unit: v[SUMBER.mhsUnit] ?? null,
+      dosen_prodi: v[SUMBER.dosenProdi] ?? null,
+      dosen: v[SUMBER.dosen] ?? null,
+    };
+  });
+}
+
 /** Statistik ringkas untuk kartu status sinkronisasi. */
 export async function statistikLokal() {
   const [semester, ringkasan, jawaban, terakhir] = await Promise.all([

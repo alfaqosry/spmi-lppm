@@ -32,6 +32,7 @@ const ALL_ROLES = [
   "superadmin",
   "lpm_admin",
   "lpm_member",
+  "auditor",
   "auditee_head",
   "auditee_member",
   "pengunjung",
@@ -301,7 +302,8 @@ export async function createAccount(
     assertCanAssignRole(actor, role);
     const pwErr = validatePassword(password, { email });
     if (pwErr) return { error: pwErr };
-    if (!NO_UNIT_ROLES.includes(role) && !unitId) {
+    const isAuditeeRole = role === "auditee_head" || role === "auditee_member";
+    if (isAuditeeRole && !unitId) {
       return { error: "Akun auditee wajib ditautkan ke sebuah unit." };
     }
 
@@ -383,7 +385,8 @@ export async function updateAccount(
         error: "Tidak dapat mengubah peran atau menonaktifkan akun sendiri.",
       };
     }
-    if (!NO_UNIT_ROLES.includes(role) && !unitId) {
+    const isAuditeeRole = role === "auditee_head" || role === "auditee_member";
+    if (isAuditeeRole && !unitId) {
       return { error: "Akun auditee wajib ditautkan ke sebuah unit." };
     }
 

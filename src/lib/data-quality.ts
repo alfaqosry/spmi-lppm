@@ -574,6 +574,8 @@ export const DQ_RULES: DqRule[] = [
         if (AUDITEE_ROLES.has(u.role)) t.add(u.unitId != null && n > 0, u.id);
         else if (NO_UNIT_ROLES.has(u.role))
           t.add(u.unitId == null && n === 0 && !u.isUnitHead, u.id);
+        else if (u.role === "auditor")
+          t.add(!u.isUnitHead, u.id); // auditor boleh punya unit asal tapi bukan kepala auditee
         else t.add(false, u.id); // peran tak dikenal
       }
       return t.result();
