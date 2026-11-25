@@ -52,6 +52,139 @@ export type AuditorSignatureInfo = {
   lpmHead: { name: string } | null;
 };
 
+/* ======================================================================== */
+/*  HOOK: deteksi apakah layar tablet (md < lebar < lg)                     */
+/* ======================================================================== */
+
+function useIsTablet() {
+  const [isTablet, setIsTablet] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 768px) and (max-width: 1023px)")
+      .matches;
+  });
+  React.useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px) and (max-width: 1023px)");
+    const handler = (e: MediaQueryListEvent) => setIsTablet(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isTablet;
+}
+
+/* ======================================================================== */
+/*  MODAL INPUT (tablet)                                                     */
+/* ======================================================================== */
+
+const FIELD_LABELS: Record<string, string> = {
+  temuan: "Temuan",
+  akarMasalah: "Akar Masalah",
+  rencanaTL: "Rencana Tindak Lanjut",
+  efektivitasTL: "Efektivitas Tindak Lanjut",
+};
+
+function InputModal({
+  questionText,
+  standardName,
+  field,
+  value,
+  onSave,
+  onClose,
+}: {
+  questionText: string;
+  standardName: string;
+  field: "temuan" | "akarMasalah" | "rencanaTL" | "efektivitasTL";
+  value: string;
+  onSave: (val: string) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = React.useState(value);
+  const label = FIELD_LABELS[field];
+
+  const handleSave = () => {
+    onSave(draft);
+    onClose();
+  };
+
+  return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-[var(--border)] shadow-2xl"
+        style={{ background: "var(--modal-bg)" }}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--border)]">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-400 mb-0.5">
+              {standardName}
+            </p>
+            <p
+              className="text-sm font-semibold line-clamp-2"
+              style={{ color: "var(--body-color)" }}
+            >
+              {questionText}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4">
+          <label className="block">
+            <span className="block mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {label}
+            </span>
+            <textarea
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              className="input-base w-full text-sm resize-none"
+              rows={5}
+              placeholder={`Isi ${label.toLowerCase()}...`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+          </label>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--border)] text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-on-accent shadow-sm hover:opacity-90 transition-opacity"
+          >
+            <Save className="w-3.5 h-3.5" />
+            Simpan ke Baris
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type LocalFinding = {
   temuan: string;
   akarMasalah: string;
@@ -358,6 +491,15 @@ function UnitSection({
     questionText: string;
     evidenceFile: string | null;
     evidenceLink: string | null;
+  } | null>(null);
+
+  // State modal input (tablet)
+  const isTablet = useIsTablet();
+  const [inputModal, setInputModal] = useState<{
+    questionId: number;
+    questionText: string;
+    standardName: string;
+    field: "temuan" | "akarMasalah" | "rencanaTL" | "efektivitasTL";
   } | null>(null);
 
   const key = (questionId: number) => `${unit.id}-${questionId}`;
@@ -668,8 +810,8 @@ function UnitSection({
             </div>
           )}
 
-          {/* ── Desktop table ── */}
-          <div className="hidden lg:block overflow-x-auto">
+          {/* ── Tabel: tampil dari tablet (md) ke atas ── */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr
@@ -778,7 +920,7 @@ function UnitSection({
                           />
                         </td>
 
-                        {/* Input kolom — read-only jika sudah finalisasi */}
+                        {/* Input kolom — read-only jika finalisasi, modal jika tablet */}
                         {(
                           [
                             "temuan",
@@ -786,36 +928,59 @@ function UnitSection({
                             "rencanaTL",
                             "efektivitasTL",
                           ] as const
-                        ).map((field) => (
-                          <td key={field} className="px-3 py-3">
-                            {finalized ? (
-                              <p className="text-xs leading-relaxed text-slate-400 min-h-[40px]">
-                                {local[field] || (
-                                  <span className="italic text-slate-500">
-                                    —
-                                  </span>
-                                )}
-                              </p>
-                            ) : (
-                              <textarea
-                                className="input-base w-full text-xs resize-none min-h-[64px]"
-                                placeholder={
-                                  field === "temuan"
-                                    ? "Uraian temuan..."
-                                    : field === "akarMasalah"
-                                      ? "Akar masalah..."
-                                      : field === "rencanaTL"
-                                        ? "Rencana tindak lanjut..."
-                                        : "Efektivitas tindak lanjut..."
-                                }
-                                value={local[field]}
-                                onChange={(e) =>
-                                  setField(q.id, field, e.target.value)
-                                }
-                              />
-                            )}
-                          </td>
-                        ))}
+                        ).map((field) => {
+                          const fieldLabel = FIELD_LABELS[field];
+                          return (
+                            <td key={field} className="px-3 py-3">
+                              {finalized ? (
+                                <p className="text-xs leading-relaxed text-slate-400 min-h-[40px]">
+                                  {local[field] || (
+                                    <span className="italic text-slate-500">
+                                      —
+                                    </span>
+                                  )}
+                                </p>
+                              ) : isTablet ? (
+                                /* Tablet: tombol buka modal */
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setInputModal({
+                                      questionId: q.id,
+                                      questionText: q.questionText,
+                                      standardName: group.standardName,
+                                      field,
+                                    })
+                                  }
+                                  className={[
+                                    "w-full min-h-[56px] text-left px-3 py-2 rounded-xl border text-xs leading-relaxed transition-colors",
+                                    local[field]
+                                      ? "border-[var(--border)] text-slate-300"
+                                      : "border-dashed border-[var(--border)] text-slate-500 italic",
+                                  ].join(" ")}
+                                  style={
+                                    local[field]
+                                      ? { background: "var(--input-bg)" }
+                                      : { background: "transparent" }
+                                  }
+                                >
+                                  {local[field] ||
+                                    `Ketuk untuk isi ${fieldLabel.toLowerCase()}...`}
+                                </button>
+                              ) : (
+                                /* Desktop: textarea langsung */
+                                <textarea
+                                  className="input-base w-full text-xs resize-none min-h-[64px]"
+                                  placeholder={`${fieldLabel}...`}
+                                  value={local[field]}
+                                  onChange={(e) =>
+                                    setField(q.id, field, e.target.value)
+                                  }
+                                />
+                              )}
+                            </td>
+                          );
+                        })}
 
                         {/* Tombol simpan — hanya jika belum finalisasi */}
                         {!finalized && (
