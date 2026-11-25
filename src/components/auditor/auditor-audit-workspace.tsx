@@ -1165,6 +1165,20 @@ function UnitSection({
           onClose={() => setEvidenceModal(null)}
         />
       )}
+
+      {/* Modal input (tablet) */}
+      {inputModal && (
+        <InputModal
+          questionText={inputModal.questionText}
+          standardName={inputModal.standardName}
+          field={inputModal.field}
+          value={locals[key(inputModal.questionId)]?.[inputModal.field] ?? ""}
+          onSave={(val) =>
+            setField(inputModal.questionId, inputModal.field, val)
+          }
+          onClose={() => setInputModal(null)}
+        />
+      )}
     </div>
   );
 }
