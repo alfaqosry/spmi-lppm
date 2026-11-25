@@ -28,7 +28,7 @@ export function Sidebar({
   branding: Branding;
 }) {
   const pathname = usePathname();
-  const { open, setOpen } = useMobileMenu();
+  const { open, setOpen, desktopOpen } = useMobileMenu();
   const drawerRef = useFocusTrap<HTMLDivElement>(open, () => setOpen(false));
   useScrollLock(open);
 
@@ -40,8 +40,13 @@ export function Sidebar({
 
   return (
     <>
-      {/* Sidebar desktop */}
-      <div className="surface-side fixed inset-y-0 left-0 z-30 hidden w-[268px] flex-col border-r border-indigo-400/10 backdrop-blur-xl lg:flex">
+      {/* Sidebar desktop — bisa disembunyikan lewat tombol burger */}
+      <div
+        id="navigasi-desktop"
+        className={`surface-side fixed inset-y-0 left-0 z-30 w-[268px] flex-col border-r border-indigo-400/10 backdrop-blur-xl ${
+          desktopOpen ? "hidden lg:flex" : "hidden"
+        }`}
+      >
         <SidebarContent items={items} pathname={pathname} branding={branding} />
       </div>
 

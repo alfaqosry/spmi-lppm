@@ -5,6 +5,7 @@ import { getSettings, isOn } from "@/lib/settings";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { MobileMenuProvider } from "@/components/layout/mobile-menu";
+import { ContentColumn } from "@/components/layout/content-column";
 import { MaintenanceNotice } from "@/components/layout/maintenance-notice";
 import { LegalFooter } from "@/components/legal/legal-footer";
 import { ConsentDialog } from "@/components/legal/consent-dialog";
@@ -41,7 +42,7 @@ export default async function DashboardLayout({
     <MobileMenuProvider>
       <div className="flex min-h-screen">
         <Sidebar user={user} branding={branding} />
-        <div className="flex min-w-0 flex-1 flex-col lg:pl-[268px]">
+        <ContentColumn>
           <Topbar user={user} />
           <main
             id="konten-utama"
@@ -56,7 +57,7 @@ export default async function DashboardLayout({
             organization={settings["site.organization"]}
             className="border-t border-indigo-400/10 px-4 py-5"
           />
-        </div>
+        </ContentColumn>
       </div>
       {/* Persetujuan kebijakan privasi (UU 27/2022 PDP) — wajib sebelum memakai sistem. */}
       {user.consentRequired && <ConsentDialog userName={user.name} />}
