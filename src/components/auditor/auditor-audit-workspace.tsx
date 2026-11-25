@@ -13,6 +13,10 @@ import {
   Lock,
   FileDown,
   AlertTriangle,
+  Paperclip,
+  X,
+  FileText,
+  Link as LinkIcon,
 } from "lucide-react";
 import { saveAuditorFinding } from "@/lib/actions/auditor-responses";
 import { finalizeAudit } from "@/lib/actions/auditor-finalize";
@@ -57,6 +61,158 @@ type LocalFinding = {
   saving: boolean;
   saved: boolean;
 };
+
+/* ======================================================================== */
+/*  MODAL BUKTI UNIT                                                        */
+/* ======================================================================== */
+
+function EvidenceModal({
+  questionText,
+  evidenceFile,
+  evidenceLink,
+  onClose,
+}: {
+  questionText: string;
+  evidenceFile: string | null;
+  evidenceLink: string | null;
+  onClose: () => void;
+}) {
+  const hasEvidence = evidenceFile || evidenceLink;
+  return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <div
+      role="presentation"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
+      {/* Panel */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--border)] shadow-2xl"
+        style={{ background: "var(--modal-bg)" }}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-2 min-w-0">
+            <Paperclip className="w-4 h-4 shrink-0 text-indigo-400" />
+            <h3
+              className="font-semibold text-sm"
+              style={{ color: "var(--body-color)" }}
+            >
+              Bukti dari Unit
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Pertanyaan */}
+          <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
+            {questionText}
+          </p>
+
+          {!hasEvidence ? (
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-slate-500/5 px-4 py-3 text-xs text-slate-400">
+              <CircleDashed className="w-4 h-4 shrink-0" />
+              Unit belum mengunggah bukti apapun.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* File bukti */}
+              {evidenceFile && (
+                <div className="rounded-xl border border-[var(--border)] p-3 space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    File Bukti
+                  </p>
+                  <a
+                    href={`/api/files/${evidenceFile}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all transition-colors"
+                  >
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    {evidenceFile.split("/").pop() ?? evidenceFile}
+                  </a>
+                </div>
+              )}
+
+              {/* Link bukti */}
+              {evidenceLink && (
+                <div className="rounded-xl border border-[var(--border)] p-3 space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1.5">
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    Tautan Bukti
+                  </p>
+                  <a
+                    href={evidenceLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all transition-colors"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5 shrink-0" />
+                    {evidenceLink}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-xl text-xs font-semibold border border-[var(--border)] text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-colors"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EvidenceButton({
+  evidenceFile,
+  evidenceLink,
+  onClick,
+}: {
+  evidenceFile: string | null;
+  evidenceLink: string | null;
+  onClick: () => void;
+}) {
+  const hasEvidence = evidenceFile || evidenceLink;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hasEvidence ? "Lihat bukti dari unit" : "Belum ada bukti"}
+      className={[
+        "inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors",
+        hasEvidence
+          ? "bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25"
+          : "bg-slate-500/10 text-slate-500 hover:bg-slate-500/20",
+      ].join(" ")}
+    >
+      <Paperclip className="w-3.5 h-3.5" />
+    </button>
+  );
+}
 
 /* ======================================================================== */
 /*  BADGE STATUS JAWABAN UNIT                                                */
@@ -195,8 +351,14 @@ function UnitSection({
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  // snapshot findings untuk PDF (diupdate setiap save)
   const [pdfFindings, setPdfFindings] = useState<FindingRow[]>(initialFindings);
+
+  // State modal bukti
+  const [evidenceModal, setEvidenceModal] = useState<{
+    questionText: string;
+    evidenceFile: string | null;
+    evidenceLink: string | null;
+  } | null>(null);
 
   const key = (questionId: number) => `${unit.id}-${questionId}`;
 
@@ -523,6 +685,9 @@ function UnitSection({
                   <th className="px-4 py-3 text-center w-28 border-b border-[var(--border)]">
                     Ada / Tidak
                   </th>
+                  <th className="px-3 py-3 text-center w-12 border-b border-[var(--border)]">
+                    Bukti
+                  </th>
                   <th className="px-4 py-3 text-left w-40 border-b border-[var(--border)]">
                     Temuan
                   </th>
@@ -596,6 +761,21 @@ function UnitSection({
                         {/* Ada / Tidak */}
                         <td className="px-4 py-3 text-center align-middle">
                           <AnswerBadge answer={response?.answer ?? null} />
+                        </td>
+
+                        {/* Bukti dari unit — tombol buka modal */}
+                        <td className="px-3 py-3 text-center align-middle">
+                          <EvidenceButton
+                            evidenceFile={response?.evidenceFile ?? null}
+                            evidenceLink={response?.evidenceLink ?? null}
+                            onClick={() =>
+                              setEvidenceModal({
+                                questionText: q.questionText,
+                                evidenceFile: response?.evidenceFile ?? null,
+                                evidenceLink: response?.evidenceLink ?? null,
+                              })
+                            }
+                          />
                         </td>
 
                         {/* Input kolom — read-only jika sudah finalisasi */}
@@ -719,6 +899,17 @@ function UnitSection({
                         Jawaban unit:
                       </span>
                       <AnswerBadge answer={response?.answer ?? null} />
+                      <EvidenceButton
+                        evidenceFile={response?.evidenceFile ?? null}
+                        evidenceLink={response?.evidenceLink ?? null}
+                        onClick={() =>
+                          setEvidenceModal({
+                            questionText: q.questionText,
+                            evidenceFile: response?.evidenceFile ?? null,
+                            evidenceLink: response?.evidenceLink ?? null,
+                          })
+                        }
+                      />
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -798,6 +989,16 @@ function UnitSection({
             )}
           </div>
         </div>
+      )}
+
+      {/* Modal bukti */}
+      {evidenceModal && (
+        <EvidenceModal
+          questionText={evidenceModal.questionText}
+          evidenceFile={evidenceModal.evidenceFile}
+          evidenceLink={evidenceModal.evidenceLink}
+          onClose={() => setEvidenceModal(null)}
+        />
       )}
     </div>
   );
